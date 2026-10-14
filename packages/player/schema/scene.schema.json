@@ -1,0 +1,452 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://animation-studio.unysonplus.com/schema/scene-v1.json",
+  "title": "Unyson+ Animation Studio scene, version 1",
+  "description": "A stage, layers drawn bottom to top, and on each layer the clips (presets placed in time) that animate it. Box x/w are % of stage width, y/h % of stage height; font sizes, stroke widths and radii are stage units (1 = 1% of stage width).",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "duration",
+    "stage",
+    "playback",
+    "layers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "unysonplus-scene"
+    },
+    "version": {
+      "const": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "duration": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 600,
+      "description": "Seconds."
+    },
+    "stage": {
+      "type": "object",
+      "required": [
+        "breakpoints"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "breakpoints": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "minWidth",
+              "aspect"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "label": {
+                "type": "string"
+              },
+              "minWidth": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Smallest stage width in CSS pixels."
+              },
+              "aspect": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          }
+        },
+        "heightMode": {
+          "enum": [
+            "ratio",
+            "ratio-capped",
+            "fill"
+          ],
+          "default": "ratio-capped"
+        },
+        "heightOffset": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Pixels taken from the window height (a site header)."
+        },
+        "background": {
+          "type": "string",
+          "description": "Any CSS background."
+        },
+        "safeArea": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 0.5,
+          "default": 0.06
+        },
+        "fonts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "family"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "family": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string",
+                "pattern": "^https://"
+              }
+            }
+          }
+        }
+      }
+    },
+    "playback": {
+      "type": "object",
+      "required": [
+        "trigger",
+        "loop"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "trigger": {
+          "enum": [
+            "load",
+            "view",
+            "manual"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "repeatDelay": {
+          "type": "number",
+          "minimum": 0
+        },
+        "posterTime": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Frame shown when the visitor asks for reduced motion."
+        }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/layer"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$"
+    },
+    "anchor": {
+      "enum": [
+        "top-left",
+        "top",
+        "top-right",
+        "left",
+        "center",
+        "right",
+        "bottom-left",
+        "bottom",
+        "bottom-right"
+      ]
+    },
+    "box": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "h": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "anchor": {
+          "$ref": "#/$defs/anchor"
+        },
+        "rotate": {
+          "type": "number"
+        }
+      }
+    },
+    "textStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fontFamily": {
+          "type": "string"
+        },
+        "fontSize": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "fontWeight": {
+          "type": "number"
+        },
+        "lineHeight": {
+          "type": "number"
+        },
+        "letterSpacing": {
+          "type": "number",
+          "description": "em"
+        },
+        "color": {
+          "type": "string"
+        },
+        "align": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "uppercase": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        }
+      }
+    },
+    "clip": {
+      "type": "object",
+      "required": [
+        "id",
+        "preset",
+        "start",
+        "duration"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "preset": {
+          "enum": [
+            "text-rise",
+            "text-slam",
+            "text-stretch",
+            "text-scramble",
+            "text-typewriter",
+            "text-blur",
+            "text-flip",
+            "text-tracking",
+            "text-wave",
+            "fade",
+            "wipe",
+            "iris",
+            "slide",
+            "grow",
+            "pop",
+            "zoom",
+            "spin",
+            "keyframes",
+            "pulse",
+            "shake",
+            "float",
+            "recolor"
+          ]
+        },
+        "start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ease": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9.]+(\\([0-9., ]*\\))?$"
+        },
+        "params": {
+          "type": "object"
+        }
+      }
+    },
+    "layer": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "box",
+        "clips"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "shape",
+            "image"
+          ]
+        },
+        "box": {
+          "$ref": "#/$defs/box"
+        },
+        "start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "box": {
+                "type": "object"
+              },
+              "style": {
+                "type": "object"
+              },
+              "text": {
+                "type": "string"
+              },
+              "hidden": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "clips": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/clip"
+          }
+        },
+        "text": {
+          "type": "string"
+        },
+        "style": {
+          "$ref": "#/$defs/textStyle"
+        },
+        "shape": {
+          "enum": [
+            "rect",
+            "ellipse"
+          ]
+        },
+        "fill": {
+          "type": "string"
+        },
+        "stroke": {
+          "type": "string"
+        },
+        "strokeWidth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "radius": {
+          "type": "number",
+          "minimum": 0
+        },
+        "src": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string"
+        },
+        "fit": {
+          "enum": [
+            "cover",
+            "contain"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "text"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "text",
+              "style"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "shape"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "shape"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "image"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "src"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

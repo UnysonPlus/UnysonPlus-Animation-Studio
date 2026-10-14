@@ -1,0 +1,427 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { validateScene } from '@unysonplus/scene-player/validate';
+import type { HeightMode, Layer, Scene } from '@unysonplus/scene-player/types';
+import demo from './scenes/demo.json';
+import { exportHtml, previewHtml } from './lib/documents';
+import { formatScene } from './lib/format';
+import { useHistory } from './lib/history';
+import {
+  addClip, addLayer, duplicateLayer, findClip, findLayer, removeClip, removeLayer, roundTime, setClip, writeLayout,
+} from './lib/sceneOps';
+import { DEVICES, Preview, type Device } from './components/Preview';
+import { Transport } from './components/Transport';
+import { ScenePanel } from './components/ScenePanel';
+import { Segmented } from './components/Segmented';
+import { Inspector, type Selection } from './components/Inspector';
+import { Library } from './components/Library';
+import { Timeline } from './components/Timeline';
+import {
+  DesktopIcon, DownloadIcon, LaptopIcon, Logo, OpenIcon, PhoneIcon, RedoIcon, SaveIcon, TabletIcon, UndoIcon,
+} from './components/icons';
+
+const DRAFT_KEY = 'upw-studio-draft-v1';
+const DEMO = validateScene(demo).scene;
+
+function loadInitial(): Scene {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (raw) {
+      const r = validateScene(JSON.parse(raw));
+      if (r.ok) return r.scene;
+    }
+  } catch {
+    /* Blocked storage or an unreadable draft: start from the demo. */
+  }
+  return DEMO;
+}
+
+function saveDraft(scene: Scene) {
+  try {
+    localStorage.setItem(DRAFT_KEY, formatScene(scene));
+  } catch {
+    /* Private windows and blocked storage: the draft just isn't kept. */
+  }
+}
+
+function slug(scene: Scene) {
+  return (scene.title || 'animation').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'animation';
+}
+
+function download(name: string, type: string, content: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const DEVICE_ICONS: Record<Device['id'], JSX.Element> = {
+  desktop: <DesktopIcon />, laptop: <LaptopIcon />, tablet: <TabletIcon />, mobile: <PhoneIcon />,
+};
+
+const HEIGHT_MODES: Array<{ value: HeightMode; label: string; hint: string }> = [
+  { value: 'ratio', label: 'Ratio', hint: 'Keeps its shape; the page scrolls if it is taller than the window' },
+  { value: 'ratio-capped', label: 'Capped', hint: 'Keeps its shape but never grows taller than the window' },
+  { value: 'fill', label: 'Fill', hint: 'Exactly one window tall, whatever its shape' },
+];
+
+interface PreviewState {
+  time: number;
+  duration: number;
+  playing: boolean;
+  breakpoint: string | null;
+  stageHeight: number;
+}
+
+interface KeyInfo {
+  key: string;
+  code: string;
+  mod: boolean;
+  shift: boolean;
+  alt: boolean;
+}
+
+export function App() {
+  const history = useHistory<Scene>(loadInitial);
+  const scene = history.present;
+  const [selection, setSelection] = useState<Selection>({ layerId: null, clipId: null });
+  const [deviceId, setDeviceId] = useState<Device['id']>('desktop');
+  const [safe, setSafe] = useState(false);
+  const [tab, setTab] = useState<'inspect' | 'json'>('inspect');
+  const [state, setState] = useState<PreviewState>({ time: 0, duration: scene.duration, playing: false, breakpoint: null, stageHeight: 0 });
+  const [frameError, setFrameError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [scale, setScale] = useState(1);
+  // The preview document is built once; after that, scene changes are sent to it as messages.
+  const [srcDoc] = useState(() => previewHtml(scene, { safeArea: false }));
+
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const openRef = useRef<HTMLInputElement>(null);
+  const imageRef = useRef<HTMLInputElement>(null);
+  const sentScene = useRef<Scene>(scene);
+  const firstReady = useRef(true);
+
+  // Latest values for handlers that outlive a render (message and key listeners).
+  const latest = useRef({ scene, selection, state });
+  latest.current = { scene, selection, state };
+
+  const device = DEVICES.find((d) => d.id === deviceId)!;
+  const post = useCallback((msg: Record<string, unknown>) => iframeRef.current?.contentWindow?.postMessage(msg, '*'), []);
+  const commit = history.commit;
+
+  // ---- keep the preview in step with the scene, selection and settings ----
+  useEffect(() => {
+    if (!ready || sentScene.current === scene) return;
+    sentScene.current = scene;
+    post({ type: 'scene', scene });
+  }, [scene, ready, post]);
+  useEffect(() => { if (ready) post({ type: 'select', id: selection.layerId }); }, [selection.layerId, ready, post]);
+  useEffect(() => { if (ready) post({ type: 'safe', show: safe }); }, [safe, ready, post]);
+  useEffect(() => { if (ready) post({ type: 'ui', scale }); }, [scale, ready, post]);
+
+  // Drop a selection that no longer exists (after undo, delete or a file edit).
+  useEffect(() => {
+    const { layerId, clipId } = selection;
+    if (layerId && !findLayer(scene, layerId)) setSelection({ layerId: null, clipId: null });
+    else if (clipId && !findClip(scene, layerId, clipId)) setSelection({ layerId, clipId: null });
+  }, [scene, selection]);
+
+  // Autosave the working scene in this browser.
+  useEffect(() => {
+    const t = setTimeout(() => saveDraft(scene), 400);
+    return () => clearTimeout(t);
+  }, [scene]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 3200);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  const play = useCallback(() => post({ type: 'play' }), [post]);
+  const pause = useCallback(() => post({ type: 'pause' }), [post]);
+  const seek = useCallback((t: number) => post({ type: 'seek', time: t }), [post]);
+
+  // ---- actions ----
+  const addLayerOfType = useCallback((type: Layer['type'], extra: Partial<Layer> = {}) => {
+    const r = addLayer(latest.current.scene, type, extra);
+    commit(r.scene);
+    setSelection({ layerId: r.id, clipId: null });
+  }, [commit]);
+
+  const onAddLayer = (type: Layer['type']) => {
+    if (type === 'image') imageRef.current?.click();
+    else addLayerOfType(type);
+  };
+
+  const applyPreset = (presetId: string) => {
+    const { layerId } = selection;
+    if (!layerId) return;
+    const r = addClip(scene, layerId, presetId, state.time);
+    if (r) {
+      commit(r.scene);
+      setSelection({ layerId, clipId: r.id });
+    }
+  };
+
+  const saveProject = useCallback(() => {
+    download(`${slug(latest.current.scene)}.scene.json`, 'application/json', formatScene(latest.current.scene));
+    setNotice('Project saved to your downloads.');
+  }, []);
+
+  const exportPage = () => {
+    download(`${slug(scene)}.html`, 'text/html', exportHtml(scene));
+    setNotice('HTML page saved to your downloads.');
+  };
+
+  const openProject = (file: File) => {
+    file.text().then((text) => {
+      let data: unknown;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setNotice(`“${file.name}” isn't a scene file (not valid JSON).`);
+        return;
+      }
+      const r = validateScene(data);
+      if (!r.ok) {
+        setNotice(`“${file.name}” can't be opened: ${r.errors[0]}`);
+        return;
+      }
+      commit(r.scene);
+      setSelection({ layerId: null, clipId: null });
+      setNotice(`Opened “${file.name}”. Undo to go back to the previous scene.`);
+    });
+  };
+
+  // ---- keyboard (from the Studio, or forwarded by the preview while it has focus) ----
+  const handleKey = useCallback((k: KeyInfo): boolean => {
+    const { scene: s, selection: sel, state: st } = latest.current;
+    const key = k.key.length === 1 ? k.key.toLowerCase() : k.key;
+    if (k.mod && key === 'z') { if (k.shift) history.redo(); else history.undo(); return true; }
+    if (k.mod && key === 'y') { history.redo(); return true; }
+    if (k.mod && key === 's') { saveProject(); return true; }
+    if (k.mod && key === 'd') {
+      if (sel.layerId) {
+        const r = duplicateLayer(s, sel.layerId);
+        commit(r.scene);
+        setSelection({ layerId: r.id, clipId: null });
+      }
+      return true;
+    }
+    if (k.mod) return false;
+    if (k.code === 'Space') { if (st.playing) pause(); else play(); return true; }
+    if (key === 'Home') { seek(0); return true; }
+    if (key === ',' || key === '.') {
+      const stepT = (k.shift ? 1 : 1 / 30) * (key === ',' ? -1 : 1);
+      seek(Math.max(0, Math.min(s.duration, st.time + stepT)));
+      return true;
+    }
+    if (key === 'Escape') { setSelection({ layerId: null, clipId: null }); return true; }
+    if (key === 'Delete' || key === 'Backspace') {
+      if (sel.layerId && sel.clipId) { commit(removeClip(s, sel.layerId, sel.clipId)); setSelection({ layerId: sel.layerId, clipId: null }); }
+      else if (sel.layerId) { commit(removeLayer(s, sel.layerId)); setSelection({ layerId: null, clipId: null }); }
+      return true;
+    }
+    if (key.startsWith('Arrow')) {
+      const dx = key === 'ArrowLeft' ? -1 : key === 'ArrowRight' ? 1 : 0;
+      const dy = key === 'ArrowUp' ? -1 : key === 'ArrowDown' ? 1 : 0;
+      const clip = findClip(s, sel.layerId, sel.clipId);
+      if (clip && sel.layerId && dx) {
+        // Nudge the selected clip in time.
+        const start = roundTime(Math.max(0, Math.min(s.duration - clip.duration, clip.start + dx * (k.shift ? 0.5 : 0.05))));
+        commit(setClip(s, sel.layerId, clip.id, { start }));
+      } else if (sel.layerId && !sel.clipId) {
+        // Nudge the selected layer on the stage.
+        const layer = findLayer(s, sel.layerId)!;
+        const bpBox = { ...layer.box, ...((st.breakpoint && layer.overrides?.[st.breakpoint]?.box) || {}) };
+        const step = k.shift ? 5 : 0.5;
+        commit(writeLayout(s, layer.id, st.breakpoint, { box: { x: roundTime(bpBox.x + dx * step), y: roundTime(bpBox.y + dy * step) } }));
+      } else if (dx) {
+        seek(Math.max(0, Math.min(s.duration, st.time + dx * (k.shift ? 1 : 0.1))));
+      }
+      return true;
+    }
+    return false;
+  }, [commit, history, pause, play, saveProject, seek]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.closest('input, textarea, select, [contenteditable]')) return;
+      if (el.closest('button, a, [role="radio"]') && (e.code === 'Space' || e.key === 'Enter')) return;
+      if (handleKey({ key: e.key, code: e.code, mod: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey })) e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleKey]);
+
+  // ---- messages from the preview ----
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== iframeRef.current?.contentWindow || !e.data || typeof e.data.type !== 'string') return;
+      const m = e.data;
+      const { scene: s, state: st } = latest.current;
+      switch (m.type) {
+        case 'upw:ready':
+          setReady(true);
+          setFrameError(null);
+          if (firstReady.current) {
+            firstReady.current = false;
+            post({ type: 'play' });
+          }
+          break;
+        case 'upw:state':
+          setState({ time: m.time, duration: m.duration, playing: m.playing, breakpoint: m.breakpoint, stageHeight: m.stageHeight });
+          break;
+        case 'upw:error':
+          setFrameError(m.message ? String(m.message) : null);
+          break;
+        case 'upw:select':
+          setSelection({ layerId: m.id ?? null, clipId: null });
+          break;
+        case 'upw:layout':
+          if (findLayer(s, m.id)) commit(writeLayout(s, m.id, st.breakpoint, { box: m.box }));
+          break;
+        case 'upw:text':
+          if (findLayer(s, m.id)) commit(writeLayout(s, m.id, st.breakpoint, { text: String(m.text) }));
+          break;
+        case 'upw:key':
+          handleKey(m as KeyInfo);
+          break;
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [post, commit, handleKey]);
+
+  // Once the preview is ready, make sure it has the current scene (edits may have happened while it loaded).
+  useEffect(() => {
+    if (ready && sentScene.current !== latest.current.scene) {
+      sentScene.current = latest.current.scene;
+      post({ type: 'scene', scene: latest.current.scene });
+    }
+  }, [ready, post]);
+
+  const bp = scene.stage.breakpoints.find((b) => b.id === state.breakpoint);
+  const selectedLayer = findLayer(scene, selection.layerId);
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          <Logo />
+          <div>
+            <h1>Animation Studio</h1>
+            <p className="brand-sub">Unyson+ · preview build {__STUDIO_VERSION__}</p>
+          </div>
+        </div>
+        <div className="top-actions">
+          <div className="btn-group" role="group" aria-label="History">
+            <button type="button" className="icon-btn" onClick={history.undo} disabled={!history.canUndo} aria-label="Undo" title="Undo (Ctrl+Z)"><UndoIcon /></button>
+            <button type="button" className="icon-btn" onClick={history.redo} disabled={!history.canRedo} aria-label="Redo" title="Redo (Ctrl+Shift+Z)"><RedoIcon /></button>
+          </div>
+          <button type="button" className="btn" onClick={() => openRef.current?.click()} title="Open a saved .scene.json file"><OpenIcon /> Open</button>
+          <button type="button" className="btn" onClick={saveProject} title="Save the project as a .scene.json file (Ctrl+S)"><SaveIcon /> Save</button>
+          <button type="button" className="btn primary" onClick={exportPage}><DownloadIcon /> Download HTML</button>
+          <input ref={openRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openProject(f); e.target.value = ''; }} />
+          <input ref={imageRef} type="file" accept="image/*" hidden onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+              const src = String(reader.result);
+              const img = new Image();
+              img.onload = () => addLayerOfType('image', {
+                name: file.name.replace(/\.[^.]+$/, ''), src, alt: '',
+                box: { x: 50, y: 50, w: 30, ratio: Math.round((img.naturalWidth / img.naturalHeight) * 100) / 100 },
+              } as Partial<Layer>);
+              img.src = src;
+            };
+            reader.readAsDataURL(file);
+          }} />
+        </div>
+      </header>
+
+      <main className="workspace">
+        <Library layerType={selectedLayer?.type ?? null} onApply={applyPreset} />
+
+        <section className="stagecol" aria-label="Stage">
+          <div className="toolbar">
+            <Segmented
+              legend="Screen size"
+              value={deviceId}
+              onChange={setDeviceId}
+              options={DEVICES.map((d) => ({ value: d.id, label: d.label, icon: DEVICE_ICONS[d.id], iconOnly: true, hint: `${d.label}, ${d.width} × ${d.height} window` }))}
+            />
+            <span className="tb-sep" aria-hidden="true" />
+            <Segmented
+              legend="Height mode"
+              value={scene.stage.heightMode}
+              onChange={(mode) => commit({ ...scene, stage: { ...scene.stage, heightMode: mode } })}
+              options={HEIGHT_MODES}
+            />
+            <label className="toggle">
+              <input type="checkbox" checked={safe} onChange={(e) => setSafe(e.target.checked)} />
+              <span className="toggle-track" aria-hidden="true" />
+              Safe area
+            </label>
+            <p className="bp-readout" aria-live="polite">
+              {bp ? (
+                <>
+                  <strong>{bp.label ?? bp.id}</strong> layout · {bp.aspect[0]}:{bp.aspect[1]} · stage {state.stageHeight}px tall
+                </>
+              ) : 'Loading…'}
+            </p>
+          </div>
+
+          <Preview ref={iframeRef} device={device} srcDoc={srcDoc} label="Scene preview" onScale={setScale} />
+
+          {frameError && <p className="frame-error" role="alert">{frameError}</p>}
+
+          <Transport
+            time={state.time}
+            duration={state.duration}
+            playing={state.playing}
+            disabled={!ready}
+            onPlay={play}
+            onPause={pause}
+            onSeek={seek}
+          />
+
+          <Timeline
+            scene={scene}
+            time={state.time}
+            selection={selection}
+            onSelect={setSelection}
+            onSeek={seek}
+            onCommit={commit}
+            onBegin={history.begin}
+            onLive={history.live}
+            onEnd={history.end}
+            onAddLayer={onAddLayer}
+          />
+        </section>
+
+        <aside className="panel" aria-label="Properties">
+          <div className="tabs" role="tablist" aria-label="Panel">
+            <button type="button" role="tab" aria-selected={tab === 'inspect'} className={tab === 'inspect' ? 'on' : undefined} onClick={() => setTab('inspect')}>Inspector</button>
+            <button type="button" role="tab" aria-selected={tab === 'json'} className={tab === 'json' ? 'on' : undefined} onClick={() => setTab('json')}>Scene file</button>
+          </div>
+          <div className="panel-body" role="tabpanel">
+            {tab === 'inspect'
+              ? <Inspector scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} />
+              : <ScenePanel scene={scene} onCommit={commit} />}
+          </div>
+        </aside>
+      </main>
+
+      {notice && <div className="toast" role="status">{notice}</div>}
+    </div>
+  );
+}

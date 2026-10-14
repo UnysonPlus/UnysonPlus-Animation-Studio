@@ -1,0 +1,126 @@
+{
+  "format": "unysonplus-scene",
+  "version": 1,
+  "title": "Make it move",
+  "duration": 7,
+  "stage": {
+    "breakpoints": [
+      { "id": "desktop", "label": "Desktop", "minWidth": 1024, "aspect": [16, 9] },
+      { "id": "tablet", "label": "Tablet", "minWidth": 640, "aspect": [4, 3] },
+      { "id": "mobile", "label": "Mobile", "minWidth": 0, "aspect": [4, 5] }
+    ],
+    "heightMode": "ratio-capped",
+    "background": "radial-gradient(120% 90% at 50% 40%, #121a20 0%, #0a0d11 70%)",
+    "safeArea": 0.06,
+    "fonts": [
+      { "family": "Archivo", "href": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800;900&display=swap" }
+    ]
+  },
+  "playback": { "trigger": "view", "loop": true, "repeatDelay": 0.8, "posterTime": 3.5 },
+  "layers": [
+    {
+      "id": "glow",
+      "type": "shape",
+      "shape": "ellipse",
+      "fill": "radial-gradient(closest-side, rgba(42, 211, 139, 0.26), rgba(42, 211, 139, 0))",
+      "box": { "x": 50, "y": 55, "w": 72, "ratio": 1.7 },
+      "overrides": { "mobile": { "box": { "w": 130 } } },
+      "clips": [
+        { "id": "glow-in", "preset": "fade", "start": 0, "duration": 1.6, "params": { "scale": 0.8 } },
+        { "id": "glow-drift", "preset": "keyframes", "start": 1.6, "duration": 4.6, "params": { "frames": [{ "t": 0, "scale": 1 }, { "t": 4.6, "scale": 1.08 }] } },
+        { "id": "glow-out", "preset": "fade", "start": 6.3, "duration": 0.7, "params": { "direction": "out" } }
+      ]
+    },
+    {
+      "id": "kicker",
+      "type": "text",
+      "text": "Unyson+ Animation Studio",
+      "style": { "fontFamily": "Archivo", "fontSize": 1.15, "fontWeight": 600, "letterSpacing": 0.32, "uppercase": true, "color": "#2ad38b" },
+      "box": { "x": 50, "y": 22 },
+      "overrides": {
+        "tablet": { "style": { "fontSize": 1.6 } },
+        "mobile": { "box": { "y": 17 }, "style": { "fontSize": 3, "letterSpacing": 0.24 } }
+      },
+      "clips": [
+        { "id": "kicker-in", "preset": "text-scramble", "start": 0.1, "duration": 1.1 },
+        { "id": "kicker-out", "preset": "fade", "start": 6.25, "duration": 0.5, "params": { "direction": "out", "y": -60 } }
+      ]
+    },
+    {
+      "id": "line1",
+      "type": "text",
+      "text": "Make it",
+      "style": { "fontFamily": "Archivo", "fontSize": 7.2, "fontWeight": 800, "letterSpacing": -0.01, "color": "#f4f6f8" },
+      "box": { "x": 50, "y": 36 },
+      "overrides": {
+        "tablet": { "box": { "y": 34 }, "style": { "fontSize": 8.5 } },
+        "mobile": { "box": { "y": 32 }, "style": { "fontSize": 13 } }
+      },
+      "clips": [
+        { "id": "line1-in", "preset": "text-stretch", "start": 0.35, "duration": 0.9 },
+        { "id": "line1-out", "preset": "text-rise", "start": 6.1, "duration": 0.6, "ease": "power3.in", "params": { "direction": "out", "stagger": 0.03 } }
+      ]
+    },
+    {
+      "id": "line2",
+      "type": "text",
+      "text": "MOVE.",
+      "style": { "fontFamily": "Archivo", "fontSize": 19, "fontWeight": 900, "letterSpacing": -0.02, "lineHeight": 0.92, "color": "#2ad38b" },
+      "box": { "x": 50, "y": 55 },
+      "overrides": {
+        "tablet": { "box": { "y": 53 }, "style": { "fontSize": 22 } },
+        "mobile": { "box": { "y": 51 }, "style": { "fontSize": 25 } }
+      },
+      "clips": [
+        { "id": "line2-in", "preset": "text-slam", "start": 0.9, "duration": 0.9 },
+        { "id": "line2-out", "preset": "wipe", "start": 6.05, "duration": 0.7, "params": { "direction": "out", "from": "left" } }
+      ]
+    },
+    {
+      "id": "rule",
+      "type": "shape",
+      "shape": "rect",
+      "fill": "#2ad38b",
+      "radius": 0.2,
+      "box": { "x": 50, "y": 70, "w": 34, "h": 0.5 },
+      "overrides": {
+        "tablet": { "box": { "y": 68, "w": 46 } },
+        "mobile": { "box": { "y": 66, "w": 60, "h": 0.6 } }
+      },
+      "clips": [
+        { "id": "rule-in", "preset": "grow", "start": 1.5, "duration": 0.9 },
+        { "id": "rule-out", "preset": "grow", "start": 6.0, "duration": 0.5, "ease": "power3.in", "params": { "direction": "out", "origin": "end" } }
+      ]
+    },
+    {
+      "id": "dot",
+      "type": "shape",
+      "shape": "ellipse",
+      "fill": "#f4f6f8",
+      "box": { "x": 67, "y": 70, "w": 0.9, "ratio": 1 },
+      "overrides": {
+        "tablet": { "box": { "x": 73, "y": 68, "w": 1.2 } },
+        "mobile": { "box": { "x": 80, "y": 66, "w": 2.2 } }
+      },
+      "clips": [
+        { "id": "dot-in", "preset": "pop", "start": 2.25, "duration": 0.5 },
+        { "id": "dot-out", "preset": "pop", "start": 5.95, "duration": 0.35, "ease": "power2.in", "params": { "direction": "out" } }
+      ]
+    },
+    {
+      "id": "sub",
+      "type": "text",
+      "text": "Timeline motion graphics for your hero sections, exported as plain HTML.",
+      "style": { "fontFamily": "Archivo", "fontSize": 1.7, "fontWeight": 500, "lineHeight": 1.35, "color": "#aab3bf" },
+      "box": { "x": 50, "y": 80, "w": 46 },
+      "overrides": {
+        "tablet": { "box": { "y": 80, "w": 66 }, "style": { "fontSize": 2.4 } },
+        "mobile": { "box": { "y": 80, "w": 84 }, "style": { "fontSize": 4.2 } }
+      },
+      "clips": [
+        { "id": "sub-in", "preset": "text-rise", "start": 1.9, "duration": 1.1, "params": { "by": "words", "stagger": 0.05 } },
+        { "id": "sub-out", "preset": "fade", "start": 6.25, "duration": 0.5, "params": { "direction": "out", "y": 30 } }
+      ]
+    }
+  ]
+}
