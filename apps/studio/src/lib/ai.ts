@@ -86,7 +86,8 @@ async function call(body: Record<string, unknown>, signal: AbortSignal, brief?: 
   const r = await fetch(`${base}/studio/ai`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...body, catalog: catalogForAi(), rules: brief ? `${MOTION_RULES}\n\n${brief}` : MOTION_RULES }),
+    // The brief (a style, a voice-over's instructions) goes first: older kits cut the rules at 8,000 characters.
+    body: JSON.stringify({ ...body, catalog: catalogForAi(), rules: brief ? `${brief}\n\n${MOTION_RULES}` : MOTION_RULES }),
     signal,
   });
   const j = await r.json().catch(() => ({}));
@@ -121,6 +122,44 @@ function guardCode(scene: Scene, keep: Map<string, unknown>): Scene {
 }
 
 /**
+ * The scene as the AI sees it: uploaded files (data: URLs, often megabytes) become short placeholders,
+ * and audio tracks lose their transcripts (the request carries what it needs). restoreAssets() puts the
+ * files back into the answer, and the audio tracks are always the author's own: the AI never edits them.
+ */
+function forAi(scene: Scene): { scene: Scene; assets: Map<string, string> } {
+  const assets = new Map<string, string>();
+  const walk = (v: unknown): unknown => {
+    if (typeof v === 'string') {
+      if (v.startsWith('data:') && v.length > 200) {
+        const key = `asset:${assets.size + 1}`;
+        assets.set(key, v);
+        return key;
+      }
+      return v;
+    }
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    return v;
+  };
+  const audio = scene.audio?.map(({ words: _w, speech: _s, ...a }) => a);
+  return { scene: walk({ ...scene, ...(audio ? { audio } : {}) }) as Scene, assets };
+}
+
+function restoreAssets(answer: Scene, assets: Map<string, string>, original: Scene, keepAudio: boolean): Scene {
+  const walk = (v: unknown): unknown => {
+    if (typeof v === 'string') return assets.get(v) ?? v;
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    return v;
+  };
+  const out = walk(answer) as Scene;
+  if (!keepAudio) return out;
+  if (original.audio?.length) out.audio = original.audio;
+  else delete out.audio;
+  return out;
+}
+
+/**
  * Asks for a new scene ("create") or a change to the current one ("edit"). The answer is validated;
  * if it is invalid, the AI gets one chance to repair it with the validator's errors.
  */
@@ -130,16 +169,20 @@ export async function askForScene(opts: {
   scene: Scene;
   selection: string[];
   signal: AbortSignal;
-  /** A style's art direction (added to the rules). */
+  /** Art direction added to the rules (a style, a voice-over's instructions). */
   brief?: string;
+  /** Data for the request (a voice-over's timed words); the brief says how to use it. */
+  context?: string;
 }): Promise<AiResult> {
   const keep = codeClips(opts.scene);
-  const first = await call({ mode: opts.mode, prompt: opts.prompt, scene: opts.scene, selection: opts.selection }, opts.signal, opts.brief);
-  let v = validateScene(first.scene);
+  const { scene: sent, assets } = forAi(opts.scene);
+  const first = await call({ mode: opts.mode, prompt: opts.prompt, scene: sent, selection: opts.selection, context: opts.context }, opts.signal, opts.brief);
+  // Validate with the real files back in (placeholders aren't valid addresses).
+  let v = validateScene(restoreAssets(first.scene as Scene, assets, opts.scene, opts.mode !== 'create'));
   if (v.ok) return { scene: guardCode(v.scene, keep), explanation: first.explanation, model: first.model, repaired: false };
 
-  const second = await call({ mode: 'repair', prompt: opts.prompt, scene: first.scene, errors: v.errors }, opts.signal, opts.brief);
-  v = validateScene(second.scene);
+  const second = await call({ mode: 'repair', prompt: opts.prompt, scene: first.scene, errors: v.errors, context: opts.context }, opts.signal, opts.brief);
+  v = validateScene(restoreAssets(second.scene as Scene, assets, opts.scene, opts.mode !== 'create'));
   if (v.ok) return { scene: guardCode(v.scene, keep), explanation: second.explanation || first.explanation, model: second.model, repaired: true };
   throw new Error(`The AI's scene still had problems after a second try:\n- ${v.errors.slice(0, 6).join('\n- ')}`);
 }

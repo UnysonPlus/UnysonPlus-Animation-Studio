@@ -21,6 +21,17 @@ const SELECTION_IDEAS = ['Make this enter more boldly', 'Make this calmer and sl
 
 export type Scope = 'new' | 'scene' | 'selection';
 
+/** A request handed to AI assist from elsewhere in the Studio (Check scene, a voice-over). */
+export type QueuedRequest = string | {
+  text: string;
+  /** Instructions added to the rules for this request. */
+  brief?: string;
+  /** Data for the request (a voice-over's timed words). */
+  context?: string;
+  /** The scene the AI starts from (instead of the current one). */
+  base?: Scene;
+};
+
 export interface ChatMessage {
   id: number;
   role: 'user' | 'ai' | 'error';
@@ -60,8 +71,8 @@ export function AiAssist(props: {
   problems: number;
   messages: ChatMessage[];
   onMessages: (update: (list: ChatMessage[]) => ChatMessage[]) => void;
-  /** A request queued from elsewhere (Check scene's "Fix with AI"). */
-  queued: string | null;
+  /** A request queued from elsewhere (Check scene's "Fix with AI", a voice-over). */
+  queued: QueuedRequest | null;
   onQueuedTaken: () => void;
   onApply: (scene: Scene, mode: 'create' | 'edit') => void;
   onRestore: (scene: Scene, current: Scene) => void;
@@ -101,7 +112,7 @@ export function AiAssist(props: {
 
   const push = (m: Omit<ChatMessage, 'id'>) => props.onMessages((list) => [...list, { ...m, id: nextId.current++ }].slice(-40));
 
-  const send = async (text: string, useScope: Scope = scope) => {
+  const send = async (text: string, useScope: Scope = scope, extra: Exclude<QueuedRequest, string> | null = null) => {
     const ask = text.trim();
     if (!ask || busy) return;
     if (status.state !== 'ready') { props.onRecheck(); return; }
@@ -115,7 +126,10 @@ export function AiAssist(props: {
     try {
       const mode = useScope === 'new' ? 'create' : 'edit';
       const style = props.styles.find((s) => s.id === props.styleId) ?? null;
-      const r = await askForScene({ mode, prompt: ask, scene: before, selection: useScope === 'selection' ? props.selection : [], signal: ctl.signal, brief: style ? styleBrief(style) : undefined });
+      const brief = [extra?.brief, style ? styleBrief(style) : ''].filter(Boolean).join('\n\n') || undefined;
+      const r = await askForScene({ mode, prompt: ask, scene: extra?.base ?? before, selection: useScope === 'selection' ? props.selection : [], signal: ctl.signal, brief, context: extra?.context });
+      // A scene built from a base (a voice-over) gets the style's exact colours and fonts too.
+      if (style && extra?.base) r.scene = applyStyle(r.scene, style, { look: true, motion: false, sound: false });
       // A new scene in a style gets exactly the style's colours and fonts.
       if (style && mode === 'create') r.scene = applyStyle(r.scene, style, { look: true, motion: false, sound: false });
       props.onApply(r.scene, mode);
@@ -136,12 +150,14 @@ export function AiAssist(props: {
 
   // "Fix with AI" from Check scene.
   useEffect(() => {
-    if (!props.queued || busy || !props.open) return;
+    // Waits until the AI is connected, so a queued request is never dropped.
+    if (!props.queued || busy || !props.open || status.state !== 'ready') return;
     const q = props.queued;
     props.onQueuedTaken();
-    send(q, 'scene');
+    if (typeof q === 'string') send(q, 'scene');
+    else send(q.text, 'scene', q);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.queued, props.open, busy]);
+  }, [props.queued, props.open, busy, status.state]);
 
   const ready = status.state === 'ready';
   const ideas = scope === 'new' ? START_IDEAS : scope === 'selection' ? SELECTION_IDEAS : REFINE_IDEAS;

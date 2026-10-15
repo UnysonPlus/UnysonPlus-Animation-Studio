@@ -120,11 +120,13 @@ function textRect(l: TextLayer, bp: Breakpoint) {
   const rows = lines.reduce((n, s) => n + Math.max(1, Math.ceil((s.length * charW) / Math.max(1, w))), 0);
   const h = rows * size * lh * (bp.aspect[0] / bp.aspect[1]);
   const [ax, ay] = anchorFactors(r.box.anchor);
-  return { left: r.box.x - w * ax, top: r.box.y - h * ay, w, h, hidden: r.hidden };
+  return { left: r.box.x - w * ax, top: r.box.y - h * ay, w, h, line: size * lh * (bp.aspect[0] / bp.aspect[1]), hidden: r.hidden };
 }
 
 /** The part of a text rectangle the letters fill: about the middle 70% of each line's height. */
-const inkRect = (r: ReturnType<typeof textRect>) => ({ ...r, top: r.top + r.h * 0.15, h: r.h * 0.7 });
+// The leading above the first line and below the last (per line, not per block: a two-line headline has
+// no more empty space at its top than a one-line one).
+const inkRect = (r: ReturnType<typeof textRect>) => ({ ...r, top: r.top + r.line * 0.15, h: Math.max(0, r.h - r.line * 0.3) });
 
 const widthOf = (bp: Breakpoint, all: Breakpoint[]) => {
   if (bp.minWidth > 0) return bp.minWidth;
@@ -140,9 +142,34 @@ function mapLayer(scene: Scene, id: string, fn: (l: Layer) => Layer): Scene {
 const nameOf = (l: Layer) => l.name || (l.type === 'text' ? `"${l.text.split('\n')[0].slice(0, 28)}"` : l.id);
 const secs = (n: number) => `${Math.round(n * 10) / 10} s`;
 
+const norm = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
+
+/** Words a voice-over says, on the scene's clock (from transcribed audio tracks). */
+function spokenWords(scene: Scene): Array<{ w: string; at: number }> {
+  const out: Array<{ w: string; at: number }> = [];
+  for (const a of scene.audio ?? []) {
+    const from = a.offset ?? 0;
+    const to = a.duration !== undefined ? from + a.duration : Infinity;
+    for (const w of a.words ?? []) if (w.t >= from && w.t < to) out.push({ w: norm(w.w), at: a.start + (w.t - from) });
+  }
+  return out;
+}
+
+/**
+ * Text the voice-over is saying while it is on screen: it is read by ear, so it only needs to stay up
+ * while it is said (the silent reading-time rule doesn't apply).
+ */
+function isVoiced(text: string, from: number, to: number, spoken: Array<{ w: string; at: number }>): boolean {
+  const mine = text.split(/\s+/).map(norm).filter(Boolean);
+  if (!mine.length || !spoken.length) return false;
+  const near = new Set(spoken.filter((s) => s.at >= from - 1 && s.at <= to + 1).map((s) => s.w));
+  return mine.filter((w) => near.has(w)).length / mine.length >= 0.6;
+}
+
 export function lintScene(scene: Scene): LintIssue[] {
   const issues: LintIssue[] = [];
   const all = entries(scene);
+  const spoken = spokenWords(scene);
   const bps = scene.stage.breakpoints;
   const safe = scene.stage.safeArea ?? 0.06;
 
@@ -170,7 +197,7 @@ export function lintScene(scene: Scene): LintIssue[] {
     const w = window(e, scene);
     const need = readingTime(l.text);
     const up = w.leaving - w.landed;
-    if (Number.isFinite(up) && up < need - 0.05) {
+    if (Number.isFinite(up) && up < need - 0.05 && !isVoiced(l.text, w.start, w.gone, spoken)) {
       const short = Math.round((need - up) * 100) / 100;
       const exit = w.firstOut;
       issues.push({
@@ -246,7 +273,9 @@ export function lintScene(scene: Scene): LintIssue[] {
       const B = texts[j];
       const wa = window(A, scene);
       const wb = window(B, scene);
-      if (Math.min(wa.gone, wb.gone) - Math.max(wa.start, wb.start) <= 0.05) continue;
+      // A handoff (one leaving as the other arrives in the same place) is fine: they clash only while
+      // neither has started to leave.
+      if (Math.min(wa.leaving, wb.leaving) - Math.max(wa.start, wb.start) <= 0.05) continue;
       for (const bp of bps) {
         // Compare the letters' visible bodies, not their line boxes: tightly stacked lines share leading by design.
         const a = inkRect(textRect(A.layer as TextLayer, bp));

@@ -17,6 +17,8 @@ export function WordsSection(props: {
   clip: AudioClip;
   onCommit: (scene: Scene) => void;
   onSeek: (t: number) => void;
+  /** Hands the voice-over to AI assist to build a scene on it. */
+  onMakeScene?: () => void;
 }) {
   const { clip } = props;
   const [status, setStatus] = useState<TranscribeStatus | null>(null);
@@ -108,6 +110,12 @@ export function WordsSection(props: {
             ))}
           </p>
           <p className="field-hint">Bold words are said with the most emphasis. Click a word to jump to it; ‖ marks a pause.</p>
+          {props.onMakeScene && (
+            <button type="button" className="btn small primary words-make" onClick={props.onMakeScene}
+              title="AI assist builds kinetic type timed to these words, with motion and sounds that match the delivery (in the style chosen in AI assist). Undo brings back the current scene.">
+              <span aria-hidden="true">✦</span> Make a scene from this voice-over
+            </button>
+          )}
         </div>
       )}
 

@@ -13,6 +13,7 @@ export function AudioInspector(props: {
   onDeselect: () => void;
   /** Jump the playhead (clicking a word). */
   onSeek: (t: number) => void;
+  onMakeScene?: (clipId: string) => void;
 }) {
   const { scene, clip, info } = props;
   const set = (patch: Partial<AudioClip>) => props.onCommit(setAudio(scene, clip.id, patch));
@@ -46,7 +47,7 @@ export function AudioInspector(props: {
         <p className="field-hint wide">Drag the clip on the timeline to move it; drag an edge to trim. Length left empty plays to the end of the file.</p>
       </Section>
 
-      {!builtIn && <WordsSection scene={scene} clip={clip} onCommit={props.onCommit} onSeek={props.onSeek} />}
+      {!builtIn && <WordsSection scene={scene} clip={clip} onCommit={props.onCommit} onSeek={props.onSeek} onMakeScene={props.onMakeScene ? () => props.onMakeScene!(clip.id) : undefined} />}
 
       <Section title="Level">
         <NumberField label="Volume" value={Math.round((clip.volume ?? 1) * 100)} step={5} min={0} max={200} unit="%" onCommit={(v) => set({ volume: v === undefined || v === 100 ? undefined : v / 100 })} />

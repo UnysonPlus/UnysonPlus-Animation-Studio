@@ -14,6 +14,8 @@ import { addMarker } from './lib/markers';
 import { clearShareHash, hasSharedScene, readSharedScene } from './lib/share';
 import { addAudio, addSuggestedSounds, clearClipSounds, cleanSound, removeAudio, soundCounts, useSceneAudio } from './lib/audio';
 import { SoundLibrary } from './components/SoundLibrary';
+import type { QueuedRequest } from './components/AiAssist';
+import { beatsText, voiceBase, voiceBeats, voiceBrief, voiceRequest } from './lib/voiceScene';
 import { StyleLibrary } from './components/StyleLibrary';
 import { BUILT_IN_STYLES, applyStyle, loadCustomStyles, saveCustomStyles, starterScene, styleFromScene, type SceneStyle } from './lib/styles';
 import { sfxMeta, sfxSrc, soundTrack } from '@unysonplus/scene-player/sfx';
@@ -129,7 +131,7 @@ export function App() {
   const [fullscreen, setFullscreen] = useState(false);
   const [kit, setKit] = useState<KitStatus>({ state: 'checking' });
   const [chat, setChat] = useState<ChatMessage[]>([]);
-  const [queued, setQueued] = useState<string | null>(null);
+  const [queued, setQueued] = useState<QueuedRequest | null>(null);
   const [state, setState] = useState<PreviewState>({ time: 0, duration: scene.duration, playing: false, breakpoint: null, stageHeight: 0 });
   /** Sound in the Studio (the preview's audio, played here in step with it). */
   const [soundOn, setSoundOn] = useState(true);
@@ -859,7 +861,15 @@ export function App() {
             )}
             {tab === 'inspect' && selection.audio && scene.audio?.some((a) => a.id === selection.audio) ? (
               <AudioInspector scene={scene} clip={scene.audio!.find((a) => a.id === selection.audio)!} info={audioInfo[scene.audio!.find((a) => a.id === selection.audio)!.src]}
-                onCommit={commit} onDeselect={() => setSelection({ layerId: null, clipId: null })} onSeek={seek} />
+                onCommit={commit} onDeselect={() => setSelection({ layerId: null, clipId: null })} onSeek={seek}
+                onMakeScene={(clipId) => {
+                  const s = latest.current.scene;
+                  const clip = s.audio?.find((a) => a.id === clipId);
+                  if (!clip?.words?.length) return;
+                  const beats = voiceBeats(clip);
+                  setQueued({ text: voiceRequest(clip), brief: voiceBrief(clip, beats), context: `VOICE-OVER BEATS (scene seconds)\n${beatsText(beats)}`, base: voiceBase(s, clip, beats) });
+                  openAssist(true);
+                }} />
             ) : tab === 'check' ? null : tab === 'inspect'
               ? <Inspector onPreviewSound={(src, v) => { audioEngine.preview(src, v); }} time={state.time} onSeek={seek} scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
               : <ScenePanel scene={scene} onCommit={commit} />}
