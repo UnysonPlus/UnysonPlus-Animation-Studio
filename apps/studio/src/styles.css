@@ -618,3 +618,18 @@ h1, h2, p { margin: 0; }
 .curve-chip:hover:not(:disabled) { color: var(--ink); border-color: var(--accent); }
 .curve-chip:disabled { opacity: .45; cursor: default; }
 .curve-values { font-size: 11px; color: var(--faint); }
+
+/* ---------- full screen preview ---------- */
+/* The full screen button sits at the toolbar's right end, after the layout readout. */
+.fs-open { order: 2; margin-left: 10px; }
+.fs-player { position: fixed; inset: 0; z-index: 2000; background: #000; display: flex; align-items: center; justify-content: center; outline: none; }
+.fs-stage { width: 100%; max-height: 100%; display: flex; align-items: center; }
+.fs-host { width: 100%; }
+.fs-controls {
+  position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 999px; background: oklch(0.2 0.012 245 / 0.82); border: 1px solid var(--border);
+  backdrop-filter: blur(10px); transition: opacity .3s var(--ease);
+}
+.fs-time { font-size: 12px; color: var(--muted); padding: 0 6px; min-width: 92px; text-align: center; }
+.fs-player.is-idle { cursor: none; }
+.fs-player.is-idle .fs-controls { opacity: 0; pointer-events: none; }

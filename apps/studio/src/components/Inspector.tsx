@@ -14,6 +14,7 @@ import { groupDuration, groupOffset, groupPath } from '@unysonplus/scene-player/
 import { KeyframeEditor } from './KeyframeEditor';
 import { blankScene } from '../lib/sceneOps';
 import { ModelSection } from './ModelSection';
+import { TransitionSection } from './TransitionSection';
 import type { GroupLayer } from '@unysonplus/scene-player/types';
 import { AlignPanel, type AlignMode, type AlignTo } from './AlignPanel';
 
@@ -246,6 +247,8 @@ function GroupInspector({ scene, group, onCommit, onSelect, alignTo, onAlignTo, 
           onCommit={(v) => props({ opacity: v === undefined || v >= 1 ? undefined : v })} />
         <p className="field-hint wide">Moving the start moves everything inside. The own length is where the group's clock stops; left blank, it ends with its last clip.</p>
       </Section>
+
+      <TransitionSection scene={scene} group={group} onCommit={onCommit} />
 
       <section className="insp-section">
         <header><h3>Align</h3></header>

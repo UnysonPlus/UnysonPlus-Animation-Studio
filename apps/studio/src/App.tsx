@@ -6,6 +6,7 @@ import { previewHtml } from './lib/documents';
 import { ExportDialog } from './components/ExportDialog';
 import { AiAssist, type ChatMessage } from './components/AiAssist';
 import { CheckPanel } from './components/CheckPanel';
+import { FullscreenPlayer } from './components/FullscreenPlayer';
 import { kitStatus, type KitStatus } from './lib/ai';
 import { lintScene, type LintIssue } from '@unysonplus/scene-player/lint';
 import { clipEase, framesOf, isKeyframes, setKey, valueAt, writeFrames } from './lib/keyframes';
@@ -26,7 +27,7 @@ import type { AlignMode, AlignTo } from './components/AlignPanel';
 import { Library } from './components/Library';
 import { Timeline } from './components/Timeline';
 import {
-  DesktopIcon, DownloadIcon, LaptopIcon, Logo, NewIcon, OpenIcon, PhoneIcon, RedoIcon, SaveIcon, TabletIcon, UndoIcon,
+  DesktopIcon, DownloadIcon, FullscreenIcon, LaptopIcon, Logo, NewIcon, OpenIcon, PhoneIcon, RedoIcon, SaveIcon, TabletIcon, UndoIcon,
 } from './components/icons';
 
 const DRAFT_KEY = 'upw-studio-draft-v1';
@@ -106,6 +107,8 @@ export function App() {
   const [tab, setTab] = useState<'inspect' | 'check' | 'json'>('inspect');
   // AI assist: the chat with the AI Dev Kit, and whether the kit is there.
   const [assistOpen, setAssistOpen] = useState(false);
+  /** Playing full screen. */
+  const [fullscreen, setFullscreen] = useState(false);
   const [kit, setKit] = useState<KitStatus>({ state: 'checking' });
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [queued, setQueued] = useState<string | null>(null);
@@ -312,6 +315,7 @@ export function App() {
     if (k.mod) return false;
     if (k.code === 'Space') { if (st.playing) pause(); else play(); return true; }
     if (key === 'Home') { seek(0); return true; }
+    if (!k.mod && (key === 'f' || key === 'F')) { pause(); setFullscreen(true); return true; }
     if (key === ',' || key === '.') {
       const stepT = (k.shift ? 1 : 1 / 30) * (key === ',' ? -1 : 1);
       seek(Math.max(0, Math.min(s.duration, st.time + stepT)));
@@ -620,6 +624,9 @@ export function App() {
               <span className="toggle-track" aria-hidden="true" />
               Safe area
             </label>
+            <button type="button" className="icon-btn fs-open" onClick={() => setFullscreen(true)} aria-label="Full screen" title="Full screen: play the scene at your screen's real size (F)">
+              <FullscreenIcon />
+            </button>
             <p className="bp-readout" aria-live="polite">
               {bp ? (
                 <>
@@ -699,6 +706,7 @@ export function App() {
 
       <ExportDialog open={exporting} scene={scene} fileName={slug(scene)} onClose={() => setExporting(false)} onDone={setNotice} />
       {notice && <div className="toast" role="status">{notice}</div>}
+      {fullscreen && <FullscreenPlayer scene={scene} startAt={0} onClose={() => setFullscreen(false)} />}
     </div>
   );
 }

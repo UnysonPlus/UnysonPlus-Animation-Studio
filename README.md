@@ -98,6 +98,13 @@ The ease parameters and several timing rules come from frame-by-frame measuremen
 pieces published in the motionmaxxing project (Apache-2.0); the review checklist ideas also draw on the
 favstash AI video editing skills (Apache-2.0). Both are re-expressed here in our own code.
 
+### Full screen and transitions
+
+The **full screen** icon at the right of the stage toolbar (or **F**) plays the scene at your screen's real size,
+without the editor; Space plays and pauses, Esc exits. With a group selected, **Transition to the next group** in the
+Inspector hands it over to the next group in time: Crossfade, Push, Zoom through, Soft wipe, Blinds, Iris or 3D turn.
+It writes a matched exit and entrance as ordinary clips and starts the next group as the transition begins.
+
 ### 3D layers
 
 **+ 3D** adds a 3D layer, drawn by three.js inside the layer's box: **3D text** (Inter ExtraBold, extruded with
