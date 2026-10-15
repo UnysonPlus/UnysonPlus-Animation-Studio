@@ -70,6 +70,9 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 | Ctrl + click (timeline) | Add a layer to (or remove it from) the selection |
 | Drag on empty stage | Box-select the layers it touches (Shift or Ctrl adds to the selection) |
 | Ctrl+A | Select every unlocked layer |
+| F2, or double-click a layer's name | Rename it in place (double-clicking a group opens it) |
+| Right-click a timeline row | Rename, open group, duplicate, group or ungroup, lock, delete |
+| F | Play full screen |
 | Escape | Clear the selection |
 | Alt while dragging | Turn snapping off |
 

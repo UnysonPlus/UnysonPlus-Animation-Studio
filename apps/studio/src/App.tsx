@@ -107,6 +107,8 @@ export function App() {
   const [tab, setTab] = useState<'inspect' | 'check' | 'json'>('inspect');
   // AI assist: the chat with the AI Dev Kit, and whether the kit is there.
   const [assistOpen, setAssistOpen] = useState(false);
+  /** The layer being renamed in the timeline. */
+  const [renaming, setRenaming] = useState<string | null>(null);
   /** Playing full screen. */
   const [fullscreen, setFullscreen] = useState(false);
   const [kit, setKit] = useState<KitStatus>({ state: 'checking' });
@@ -315,6 +317,7 @@ export function App() {
     if (k.mod) return false;
     if (k.code === 'Space') { if (st.playing) pause(); else play(); return true; }
     if (key === 'Home') { seek(0); return true; }
+    if (key === 'F2' && latest.current.selection.layerId) { setRenaming(latest.current.selection.layerId); return true; }
     if (!k.mod && (key === 'f' || key === 'F')) { pause(); setFullscreen(true); return true; }
     if (key === ',' || key === '.') {
       const stepT = (k.shift ? 1 : 1 / 30) * (key === ',' ? -1 : 1);
@@ -682,6 +685,14 @@ export function App() {
             scope={scope}
             onEnter={enterGroup}
             onLeaveTo={leaveTo}
+            renaming={renaming}
+            onRename={setRenaming}
+            onCommand={(c) => {
+              // After a right-click the selection may only just have changed: let it land first.
+              setTimeout(() => handleKey(c === 'duplicate' ? { key: 'd', code: 'KeyD', mod: true, shift: false, alt: false }
+                : c === 'delete' ? { key: 'Delete', code: 'Delete', mod: false, shift: false, alt: false }
+                  : { key: 'g', code: 'KeyG', mod: true, shift: c === 'ungroup', alt: false }), 0);
+            }}
           />
         </section>
 

@@ -28,6 +28,11 @@ interface Props {
   scope: string | null;
   onEnter: (groupId: string) => void;
   onLeaveTo: (groupId: string | null) => void;
+  /** The layer whose name is being edited in place (F2, double-click or the row menu). */
+  renaming: string | null;
+  onRename: (id: string | null) => void;
+  /** Runs a row-menu command on the current selection, the same way its keyboard shortcut does. */
+  onCommand: (command: 'duplicate' | 'delete' | 'group' | 'ungroup') => void;
 }
 
 /** A tick spacing that keeps labels at least ~64px apart at this zoom. */
@@ -49,6 +54,17 @@ export function Timeline(props: Props) {
   const [laneW, setLaneW] = useState(600);
   const [zoom, setZoom] = useState(1);
   const [dropRow, setDropRow] = useState<string | null>(null);
+  /** The row menu (right-click): where it opens and for which layer. */
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: Event) => { if (!(e.target as HTMLElement).closest?.('.ctx-menu')) setMenu(null); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setMenu(null); } };
+    addEventListener('pointerdown', close, true);
+    addEventListener('keydown', esc, true);
+    addEventListener('blur', () => setMenu(null), { once: true });
+    return () => { removeEventListener('pointerdown', close, true); removeEventListener('keydown', esc, true); };
+  }, [menu]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -330,12 +346,37 @@ export function Timeline(props: Props) {
                     if (additive) props.onSelect(selectLayers(ids.includes(layer.id) ? ids.filter((x) => x !== layer.id) : [...ids, layer.id]));
                     else props.onSelect({ layerId: layer.id, clipId: null });
                   }}
-                  onDoubleClick={() => { if (layer.type === 'group') props.onEnter(layer.id); }}
+                  onDoubleClick={() => { if (layer.type === 'group') props.onEnter(layer.id); else props.onRename(layer.id); }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    // Right-clicking outside the selection selects that row; inside it keeps the selection.
+                    if (!selectedIds(selection).includes(layer.id)) props.onSelect({ layerId: layer.id, clipId: null });
+                    setMenu({ x: e.clientX, y: e.clientY, id: layer.id });
+                  }}
                   aria-pressed={layerSel && !selection.clipId}
+                  hidden={props.renaming === layer.id}
                 >
                   <span className="tl-glyph" aria-hidden="true">{LAYER_GLYPH[layer.type]}</span>
                   <span className="tl-label">{layer.name || layer.id}</span>
                 </button>
+                {props.renaming === layer.id && (
+                  <input
+                    className="tl-rename"
+                    aria-label="Layer name"
+                    defaultValue={layer.name || layer.id}
+                    autoFocus
+                    onFocus={(e) => e.currentTarget.select()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur();
+                      if (e.key === 'Escape') { e.currentTarget.dataset.cancel = '1'; e.currentTarget.blur(); }
+                    }}
+                    onBlur={(e) => {
+                      const v = e.currentTarget.value.trim();
+                      if (!e.currentTarget.dataset.cancel && v && v !== (layer.name || layer.id)) props.onCommit(setLayerProps(scene, layer.id, { name: v }));
+                      props.onRename(null);
+                    }}
+                  />
+                )}
                 <button
                   type="button"
                   className={`tl-lock${layer.locked ? ' on' : ''}`}
@@ -413,6 +454,24 @@ export function Timeline(props: Props) {
           <div className="tl-after" style={{ left: NAME_W + width }} aria-hidden="true" />
         </div>
       </div>
+      {menu && (() => {
+        const l = rows.find((r) => r.id === menu.id) ?? null;
+        if (!l) return null;
+        const many = selectedIds(selection).length > 1;
+        const run = (fn: () => void) => () => { setMenu(null); fn(); };
+        return (
+          <div className="ctx-menu" role="menu" style={{ left: Math.min(menu.x, innerWidth - 220), top: Math.min(menu.y, innerHeight - 260) }}>
+            {!many && <button type="button" role="menuitem" onClick={run(() => props.onRename(l.id))}>Rename<kbd>F2</kbd></button>}
+            {!many && l.type === 'group' && <button type="button" role="menuitem" onClick={run(() => props.onEnter(l.id))}>Open group<kbd>Double-click</kbd></button>}
+            <button type="button" role="menuitem" onClick={run(() => props.onCommand('duplicate'))}>Duplicate<kbd>Ctrl+D</kbd></button>
+            <button type="button" role="menuitem" onClick={run(() => props.onCommand('group'))}>{many ? 'Group these' : 'Group'}<kbd>Ctrl+G</kbd></button>
+            {!many && l.type === 'group' && <button type="button" role="menuitem" onClick={run(() => props.onCommand('ungroup'))}>Ungroup<kbd>Ctrl+Shift+G</kbd></button>}
+            {!many && <button type="button" role="menuitem" onClick={run(() => props.onCommit(setLayerProps(scene, l.id, { locked: l.locked ? undefined : true })))}>{l.locked ? 'Unlock' : 'Lock'}</button>}
+            <hr />
+            <button type="button" role="menuitem" className="danger" onClick={run(() => props.onCommand('delete'))}>Delete<kbd>Del</kbd></button>
+          </div>
+        );
+      })()}
     </section>
   );
 }
