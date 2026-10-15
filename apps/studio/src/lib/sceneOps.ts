@@ -189,6 +189,14 @@ export function addLayer(scene: Scene, type: Exclude<Layer['type'], 'group'>, ex
   return { scene: setLayersIn(scene, scope, [...layersIn(scene, scope), layer]), id };
 }
 
+/**
+ * A clean slate: no layers, a short timeline, but the same stage set-up (screen sizes, height mode,
+ * background, fonts) and playback, so the new scene drops into the same place on the page.
+ */
+export function blankScene(from: Scene): Scene {
+  return { ...from, title: 'Untitled', duration: 6, layers: [], playback: { ...from.playback, posterTime: undefined } };
+}
+
 export function removeLayer(scene: Scene, id: string): Scene {
   return { ...scene, layers: mapLists(scene.layers, (list) => list.filter((l) => l.id !== id)) };
 }

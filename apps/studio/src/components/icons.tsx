@@ -38,6 +38,9 @@ export const UndoIcon = (p: SVGProps<SVGSVGElement>) => (
 export const RedoIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></svg>
 );
+export const NewIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z" /><path d="M14 3v5h5M12 11v6M9 14h6" /></svg>
+);
 export const OpenIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
 );

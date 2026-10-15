@@ -13,7 +13,7 @@ import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
 import {
-  addClip, addLayer, boxAt, containerOf, duplicateLayer, findClip, findLayer, groupLayers, layersIn, moveBy, removeClip,
+  addClip, addLayer, blankScene, boxAt, containerOf, duplicateLayer, findClip, findLayer, groupLayers, layersIn, moveBy, removeClip,
   removeLayer, roundTime, setClip, ungroupLayer, writeLayout,
 } from './lib/sceneOps';
 import { groupDuration, groupOffset, groupPath } from '@unysonplus/scene-player/groups';
@@ -26,7 +26,7 @@ import type { AlignMode, AlignTo } from './components/AlignPanel';
 import { Library } from './components/Library';
 import { Timeline } from './components/Timeline';
 import {
-  DesktopIcon, DownloadIcon, LaptopIcon, Logo, OpenIcon, PhoneIcon, RedoIcon, SaveIcon, TabletIcon, UndoIcon,
+  DesktopIcon, DownloadIcon, LaptopIcon, Logo, NewIcon, OpenIcon, PhoneIcon, RedoIcon, SaveIcon, TabletIcon, UndoIcon,
 } from './components/icons';
 
 const DRAFT_KEY = 'upw-studio-draft-v1';
@@ -37,6 +37,9 @@ function loadInitial(): Scene {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (raw) {
       const r = validateScene(JSON.parse(raw));
+      // The first, 7-second demo left untouched: show the current demo instead (edited drafts are kept).
+      const ids = r.ok ? r.scene.layers.map((l) => l.id).join(',') : '';
+      if (r.ok && r.scene.duration === 7 && ids === 'glow,kicker,line1,line2,rule,dot,sub') return DEMO;
       if (r.ok) return r.scene;
     }
   } catch {
@@ -463,6 +466,15 @@ export function App() {
   const bp = scene.stage.breakpoints.find((b) => b.id === state.breakpoint);
   const selectedLayer = findLayer(scene, selection.layerId);
 
+  /** A clean slate. One undo step, so nothing is lost. */
+  const startNew = useCallback(() => {
+    commit(blankScene(latest.current.scene));
+    setScope(null);
+    setSelection({ layerId: null, clipId: null });
+    post({ type: 'seek', time: 0 });
+    setNotice('New scene. Undo (Ctrl+Z) brings back the one you had.');
+  }, [commit, post]);
+
   // ---- Check scene + AI assist ----
   const issues = useMemo(() => lintScene(scene), [scene]);
   const problems = issues.filter((i) => i.severity === 'warn').length;
@@ -541,6 +553,7 @@ export function App() {
             <button type="button" className="icon-btn" onClick={history.undo} disabled={!history.canUndo} aria-label="Undo" title="Undo (Ctrl+Z)"><UndoIcon /></button>
             <button type="button" className="icon-btn" onClick={history.redo} disabled={!history.canRedo} aria-label="Redo" title="Redo (Ctrl+Shift+Z)"><RedoIcon /></button>
           </div>
+          <button type="button" className="btn" onClick={startNew} title="Start an empty scene (same screen sizes and fonts). Undo brings back the current one."><NewIcon /> New</button>
           <button type="button" className="btn" onClick={() => openRef.current?.click()} title="Open a saved .scene.json file"><OpenIcon /> Open</button>
           <button type="button" className="btn" onClick={saveProject} title="Save the project as a .scene.json file (Ctrl+S)"><SaveIcon /> Save</button>
           <button type="button" className="btn primary" onClick={() => setExporting(true)}><DownloadIcon /> Export</button>

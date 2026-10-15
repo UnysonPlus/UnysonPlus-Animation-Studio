@@ -2,124 +2,2959 @@
   "format": "unysonplus-scene",
   "version": 1,
   "title": "Make it move",
-  "duration": 7,
+  "duration": 38,
   "stage": {
     "breakpoints": [
-      { "id": "desktop", "label": "Desktop", "minWidth": 1024, "aspect": [16, 9] },
-      { "id": "tablet", "label": "Tablet", "minWidth": 640, "aspect": [4, 3] },
-      { "id": "mobile", "label": "Mobile", "minWidth": 0, "aspect": [4, 5] }
+      {
+        "id": "desktop",
+        "label": "Desktop",
+        "minWidth": 1024,
+        "aspect": [
+          16,
+          9
+        ]
+      },
+      {
+        "id": "tablet",
+        "label": "Tablet",
+        "minWidth": 640,
+        "aspect": [
+          4,
+          3
+        ]
+      },
+      {
+        "id": "mobile",
+        "label": "Mobile",
+        "minWidth": 0,
+        "aspect": [
+          4,
+          5
+        ]
+      }
     ],
     "heightMode": "ratio-capped",
     "background": "radial-gradient(120% 90% at 50% 40%, #121a20 0%, #0a0d11 70%)",
     "safeArea": 0.06,
     "fonts": [
-      { "family": "Archivo", "href": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800;900&display=swap" }
+      {
+        "family": "Archivo",
+        "href": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&display=swap"
+      }
     ]
   },
-  "playback": { "trigger": "view", "loop": true, "repeatDelay": 0.8, "posterTime": 3.5 },
+  "playback": {
+    "trigger": "view",
+    "loop": true,
+    "repeatDelay": 0.4,
+    "posterTime": 4
+  },
   "layers": [
     {
-      "id": "glow",
-      "type": "shape",
-      "shape": "ellipse",
-      "fill": "radial-gradient(closest-side, rgba(42, 211, 139, 0.26), rgba(42, 211, 139, 0))",
-      "box": { "x": 50, "y": 55, "w": 72, "ratio": 1.7 },
-      "overrides": { "mobile": { "box": { "w": 130 } } },
-      "clips": [
-        { "id": "glow-in", "preset": "fade", "start": 0, "duration": 1.6, "params": { "scale": 0.8 } },
-        { "id": "glow-drift", "preset": "keyframes", "start": 1.6, "duration": 4.6, "params": { "frames": [{ "t": 0, "scale": 1 }, { "t": 4.6, "scale": 1.08 }] } },
-        { "id": "glow-out", "preset": "fade", "start": 6.3, "duration": 0.7, "params": { "direction": "out" } }
+      "id": "backdrop",
+      "name": "Backdrop",
+      "type": "group",
+      "start": 0,
+      "duration": 38,
+      "clips": [],
+      "layers": [
+        {
+          "id": "glow",
+          "name": "Green glow",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 55,
+            "w": 72,
+            "ratio": 1.7
+          },
+          "shape": "rect",
+          "fill": "radial-gradient(closest-side, rgba(42, 211, 139, 0.24), rgba(42, 211, 139, 0))",
+          "overrides": {
+            "mobile": {
+              "box": {
+                "w": 130
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "glow-in",
+              "preset": "fade",
+              "start": 0.3,
+              "duration": 1.6,
+              "params": {
+                "scale": 0.6,
+                "y": 0
+              }
+            },
+            {
+              "id": "glow-drift",
+              "preset": "drift",
+              "start": 1.9,
+              "duration": 35.1,
+              "params": {
+                "x": 0,
+                "y": -2,
+                "scale": 1.15
+              }
+            },
+            {
+              "id": "glow-out",
+              "preset": "fade",
+              "start": 37.2,
+              "duration": 0.8,
+              "params": {
+                "direction": "out",
+                "y": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "glow2",
+          "name": "Violet glow",
+          "type": "shape",
+          "box": {
+            "x": 62,
+            "y": 46,
+            "w": 64,
+            "ratio": 1.5
+          },
+          "shape": "rect",
+          "fill": "radial-gradient(closest-side, rgba(167, 139, 250, 0.22), rgba(167, 139, 250, 0))",
+          "overrides": {
+            "mobile": {
+              "box": {
+                "x": 50,
+                "w": 120
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "g2-in",
+              "preset": "fade",
+              "start": 13.2,
+              "duration": 1.8,
+              "params": {
+                "scale": 0.7,
+                "y": 0
+              }
+            },
+            {
+              "id": "g2-out",
+              "preset": "fade",
+              "start": 25.6,
+              "duration": 1.4,
+              "params": {
+                "direction": "out",
+                "y": 0,
+                "scale": 1.2
+              }
+            }
+          ]
+        },
+        {
+          "id": "dust",
+          "name": "Particles",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 50,
+            "w": 100,
+            "h": 100
+          },
+          "shape": "rect",
+          "fill": "transparent",
+          "clips": [
+            {
+              "id": "dust-run",
+              "preset": "particles",
+              "start": 0,
+              "duration": 38,
+              "params": {
+                "count": 40,
+                "size": 0.28,
+                "speed": 0.045,
+                "direction": "up",
+                "color": "#2ad38b",
+                "twinkle": true
+              }
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "kicker",
-      "type": "text",
-      "text": "Unyson+ Animation Studio",
-      "style": { "fontFamily": "Archivo", "fontSize": 1.15, "fontWeight": 600, "letterSpacing": 0.32, "uppercase": true, "color": "#2ad38b" },
-      "box": { "x": 50, "y": 22 },
-      "overrides": {
-        "tablet": { "style": { "fontSize": 1.6 } },
-        "mobile": { "box": { "y": 17 }, "style": { "fontSize": 3, "letterSpacing": 0.24 } }
-      },
-      "clips": [
-        { "id": "kicker-in", "preset": "text-scramble", "start": 0.1, "duration": 1.1 },
-        { "id": "kicker-out", "preset": "fade", "start": 6.25, "duration": 0.5, "params": { "direction": "out", "y": -60 } }
+      "id": "act1",
+      "name": "Act 1 · Make it move",
+      "type": "group",
+      "start": 0,
+      "duration": 6.5,
+      "clips": [],
+      "layers": [
+        {
+          "id": "slit",
+          "name": "Opening line",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 50,
+            "w": 70,
+            "h": 0.25
+          },
+          "shape": "rect",
+          "fill": "#2ad38b",
+          "overrides": {
+            "mobile": {
+              "box": {
+                "w": 86
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "slit-in",
+              "preset": "grow",
+              "start": 0,
+              "duration": 0.55,
+              "params": {
+                "axis": "x",
+                "origin": "center"
+              },
+              "ease": "expo.inOut"
+            },
+            {
+              "id": "slit-out",
+              "preset": "grow",
+              "start": 0.6,
+              "duration": 0.45,
+              "params": {
+                "direction": "out",
+                "axis": "x",
+                "origin": "center"
+              }
+            }
+          ]
+        },
+        {
+          "id": "kicker",
+          "name": "Kicker",
+          "type": "text",
+          "text": "Unyson+ for WordPress",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.25,
+            "color": "#2ad38b",
+            "fontWeight": 600,
+            "letterSpacing": 0.32,
+            "uppercase": true
+          },
+          "box": {
+            "x": 50,
+            "y": 22
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 1.95
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 3.4
+              },
+              "box": {
+                "y": 17
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "k-in",
+              "preset": "text-scramble",
+              "start": 0.8,
+              "duration": 1.1
+            },
+            {
+              "id": "k-out",
+              "preset": "fade",
+              "start": 5.85,
+              "duration": 0.5,
+              "params": {
+                "direction": "out",
+                "y": -60
+              }
+            }
+          ]
+        },
+        {
+          "id": "line1",
+          "name": "Make it",
+          "type": "text",
+          "text": "Make it",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 7.2,
+            "color": "#f4f6f8",
+            "fontWeight": 800,
+            "letterSpacing": -0.01
+          },
+          "box": {
+            "x": 50,
+            "y": 36
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 8.5
+              },
+              "box": {
+                "y": 34
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 13
+              },
+              "box": {
+                "y": 32
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "l1-in",
+              "preset": "text-stretch",
+              "start": 1,
+              "duration": 0.9
+            },
+            {
+              "id": "l1-out",
+              "preset": "text-rise",
+              "start": 5.7,
+              "duration": 0.6,
+              "params": {
+                "direction": "out",
+                "stagger": 0.03
+              }
+            }
+          ]
+        },
+        {
+          "id": "line2",
+          "name": "MOVE.",
+          "type": "text",
+          "text": "MOVE.",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 19,
+            "color": "#2ad38b",
+            "fontWeight": 900,
+            "letterSpacing": -0.02,
+            "lineHeight": 0.92
+          },
+          "box": {
+            "x": 50,
+            "y": 55
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 22
+              },
+              "box": {
+                "y": 53
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 25
+              },
+              "box": {
+                "y": 51
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "l2-in",
+              "preset": "text-slam",
+              "start": 1.5,
+              "duration": 0.9
+            },
+            {
+              "id": "l2-out",
+              "preset": "wipe",
+              "start": 5.65,
+              "duration": 0.7,
+              "params": {
+                "direction": "out",
+                "from": "left"
+              }
+            }
+          ]
+        },
+        {
+          "id": "rule",
+          "name": "Underline",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 70,
+            "w": 34,
+            "h": 0.5
+          },
+          "shape": "rect",
+          "fill": "#2ad38b",
+          "overrides": {
+            "tablet": {
+              "box": {
+                "y": 68,
+                "w": 46
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 66,
+                "w": 60,
+                "h": 0.6
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "r-in",
+              "preset": "grow",
+              "start": 2.1,
+              "duration": 0.9
+            },
+            {
+              "id": "r-out",
+              "preset": "grow",
+              "start": 5.6,
+              "duration": 0.5,
+              "params": {
+                "direction": "out",
+                "origin": "end"
+              }
+            }
+          ]
+        },
+        {
+          "id": "dot",
+          "name": "Dot",
+          "type": "shape",
+          "box": {
+            "x": 67,
+            "y": 70,
+            "w": 0.9,
+            "ratio": 1
+          },
+          "shape": "ellipse",
+          "fill": "#f4f6f8",
+          "overrides": {
+            "tablet": {
+              "box": {
+                "x": 73,
+                "y": 68,
+                "w": 1.2
+              }
+            },
+            "mobile": {
+              "box": {
+                "x": 80,
+                "y": 66,
+                "w": 2.2
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "d-in",
+              "preset": "pop",
+              "start": 2.85,
+              "duration": 0.5
+            },
+            {
+              "id": "d-out",
+              "preset": "pop",
+              "start": 5.55,
+              "duration": 0.35,
+              "params": {
+                "direction": "out"
+              }
+            }
+          ]
+        },
+        {
+          "id": "sub",
+          "name": "Supporting line",
+          "type": "text",
+          "text": "A WordPress framework for hand-made sites.",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.7,
+            "color": "#aab3bf",
+            "fontWeight": 500,
+            "lineHeight": 1.35
+          },
+          "box": {
+            "x": 50,
+            "y": 80,
+            "w": 46
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2.4
+              },
+              "box": {
+                "y": 80,
+                "w": 66
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.2
+              },
+              "box": {
+                "y": 80,
+                "w": 84
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "s-in",
+              "preset": "text-rise",
+              "start": 2.5,
+              "duration": 1,
+              "params": {
+                "by": "words",
+                "stagger": 0.05
+              }
+            },
+            {
+              "id": "s-out",
+              "preset": "fade",
+              "start": 5.85,
+              "duration": 0.5,
+              "params": {
+                "direction": "out",
+                "y": 30
+              }
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "line1",
-      "type": "text",
-      "text": "Make it",
-      "style": { "fontFamily": "Archivo", "fontSize": 7.2, "fontWeight": 800, "letterSpacing": -0.01, "color": "#f4f6f8" },
-      "box": { "x": 50, "y": 36 },
-      "overrides": {
-        "tablet": { "box": { "y": 34 }, "style": { "fontSize": 8.5 } },
-        "mobile": { "box": { "y": 32 }, "style": { "fontSize": 13 } }
-      },
+      "id": "act2",
+      "name": "Act 2 · Build",
+      "type": "group",
+      "start": 6.5,
+      "duration": 6.5,
       "clips": [
-        { "id": "line1-in", "preset": "text-stretch", "start": 0.35, "duration": 0.9 },
-        { "id": "line1-out", "preset": "text-rise", "start": 6.1, "duration": 0.6, "ease": "power3.in", "params": { "direction": "out", "stagger": 0.03 } }
+        {
+          "id": "act2-out",
+          "preset": "blinds",
+          "start": 12.35,
+          "duration": 0.65,
+          "params": {
+            "direction": "out",
+            "from": "top",
+            "count": 8,
+            "stagger": 0.6
+          }
+        }
+      ],
+      "layers": [
+        {
+          "id": "k2",
+          "name": "Kicker",
+          "type": "text",
+          "text": "Build",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.25,
+            "color": "#2ad38b",
+            "fontWeight": 600,
+            "letterSpacing": 0.32,
+            "uppercase": true
+          },
+          "box": {
+            "x": 50,
+            "y": 18
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 1.95
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 3.4
+              },
+              "box": {
+                "y": 14
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "k2-in",
+              "preset": "text-tracking",
+              "start": 0,
+              "duration": 0.8
+            }
+          ]
+        },
+        {
+          "id": "t2",
+          "name": "Title",
+          "type": "text",
+          "text": "Design every page visually.",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 5.2,
+            "color": "#f4f6f8",
+            "fontWeight": 800,
+            "letterSpacing": -0.01,
+            "lineHeight": 1.05
+          },
+          "box": {
+            "x": 50,
+            "y": 30,
+            "w": 70
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 6.6
+              },
+              "box": {
+                "y": 30,
+                "w": 84
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 9.5
+              },
+              "box": {
+                "y": 25,
+                "w": 88
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "t2-in",
+              "preset": "text-rise",
+              "start": 0.2,
+              "duration": 0.9,
+              "params": {
+                "by": "words",
+                "stagger": 0.09
+              }
+            }
+          ]
+        },
+        {
+          "id": "card1",
+          "name": "Card 1",
+          "type": "shape",
+          "box": {
+            "x": 22,
+            "y": 54,
+            "w": 25,
+            "h": 17
+          },
+          "shape": "rect",
+          "fill": "linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02))",
+          "stroke": "rgba(255,255,255,0.14)",
+          "strokeWidth": 0.12,
+          "radius": 1.2,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "x": 30,
+                "y": 50,
+                "w": 37,
+                "h": 12
+              }
+            },
+            "mobile": {
+              "box": {
+                "x": 50,
+                "y": 40,
+                "w": 80,
+                "h": 7.6
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "c1-in",
+              "preset": "blinds",
+              "start": 1,
+              "duration": 0.7,
+              "params": {
+                "direction": "in",
+                "from": "bottom",
+                "count": 5,
+                "stagger": 0.5
+              }
+            }
+          ]
+        },
+        {
+          "id": "label1",
+          "name": "Label 1",
+          "type": "text",
+          "text": "Page builder",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.9,
+            "color": "#f4f6f8",
+            "fontWeight": 700
+          },
+          "box": {
+            "x": 22,
+            "y": 54
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2.6
+              },
+              "box": {
+                "x": 30,
+                "y": 50
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.2
+              },
+              "box": {
+                "x": 50,
+                "y": 40
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "lb1-in",
+              "preset": "text-flip",
+              "start": 1.35,
+              "duration": 0.6,
+              "params": {
+                "by": "chars",
+                "stagger": 0.02
+              }
+            }
+          ]
+        },
+        {
+          "id": "card2",
+          "name": "Card 2",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 54,
+            "w": 25,
+            "h": 17
+          },
+          "shape": "rect",
+          "fill": "linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02))",
+          "stroke": "rgba(255,255,255,0.14)",
+          "strokeWidth": 0.12,
+          "radius": 1.2,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "x": 70,
+                "y": 50,
+                "w": 37,
+                "h": 12
+              }
+            },
+            "mobile": {
+              "box": {
+                "x": 50,
+                "y": 49.4,
+                "w": 80,
+                "h": 7.6
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "c2-in",
+              "preset": "soft-wipe",
+              "start": 1.16,
+              "duration": 0.7,
+              "params": {
+                "direction": "in",
+                "from": "left",
+                "feather": 30
+              }
+            }
+          ]
+        },
+        {
+          "id": "label2",
+          "name": "Label 2",
+          "type": "text",
+          "text": "Theme Settings",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.9,
+            "color": "#f4f6f8",
+            "fontWeight": 700
+          },
+          "box": {
+            "x": 50,
+            "y": 54
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2.6
+              },
+              "box": {
+                "x": 70,
+                "y": 50
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.2
+              },
+              "box": {
+                "x": 50,
+                "y": 49.4
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "lb2-in",
+              "preset": "text-blur",
+              "start": 1.5099999999999998,
+              "duration": 0.6,
+              "params": {
+                "by": "chars",
+                "stagger": 0.02
+              }
+            }
+          ]
+        },
+        {
+          "id": "card3",
+          "name": "Card 3",
+          "type": "shape",
+          "box": {
+            "x": 78,
+            "y": 54,
+            "w": 25,
+            "h": 17
+          },
+          "shape": "rect",
+          "fill": "linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02))",
+          "stroke": "rgba(255,255,255,0.14)",
+          "strokeWidth": 0.12,
+          "radius": 1.2,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "x": 30,
+                "y": 65,
+                "w": 37,
+                "h": 12
+              }
+            },
+            "mobile": {
+              "box": {
+                "x": 50,
+                "y": 58.8,
+                "w": 80,
+                "h": 7.6
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "c3-in",
+              "preset": "iris",
+              "start": 1.32,
+              "duration": 0.7,
+              "params": {
+                "direction": "in",
+                "x": 50,
+                "y": 50
+              }
+            }
+          ]
+        },
+        {
+          "id": "label3",
+          "name": "Label 3",
+          "type": "text",
+          "text": "Header & footer",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.9,
+            "color": "#f4f6f8",
+            "fontWeight": 700
+          },
+          "box": {
+            "x": 78,
+            "y": 54
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2.6
+              },
+              "box": {
+                "x": 30,
+                "y": 65
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.2
+              },
+              "box": {
+                "x": 50,
+                "y": 58.8
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "lb3-in",
+              "preset": "slide",
+              "start": 1.67,
+              "duration": 0.5,
+              "params": {
+                "from": "bottom",
+                "distance": 50
+              }
+            }
+          ]
+        },
+        {
+          "id": "card4",
+          "name": "Card 4",
+          "type": "shape",
+          "box": {
+            "x": 22,
+            "y": 75,
+            "w": 25,
+            "h": 17
+          },
+          "shape": "rect",
+          "fill": "linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02))",
+          "stroke": "rgba(255,255,255,0.14)",
+          "strokeWidth": 0.12,
+          "radius": 1.2,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "x": 70,
+                "y": 65,
+                "w": 37,
+                "h": 12
+              }
+            },
+            "mobile": {
+              "box": {
+                "x": 50,
+                "y": 68.2,
+                "w": 80,
+                "h": 7.6
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "c4-in",
+              "preset": "turn",
+              "start": 1.48,
+              "duration": 0.7,
+              "params": {
+                "direction": "in",
+                "axis": "y",
+                "angle": 80
+              }
+            }
+          ]
+        },
+        {
+          "id": "label4",
+          "name": "Label 4",
+          "type": "text",
+          "text": "Animation Engine",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.9,
+            "color": "#f4f6f8",
+            "fontWeight": 700
+          },
+          "box": {
+            "x": 22,
+            "y": 75
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2.6
+              },
+              "box": {
+                "x": 70,
+                "y": 65
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.2
+              },
+              "box": {
+                "x": 50,
+                "y": 68.2
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "lb4-in",
+              "preset": "fade",
+              "start": 1.83,
+              "duration": 0.5,
+              "params": {
+                "y": 30
+              }
+            }
+          ]
+        },
+        {
+          "id": "card5",
+          "name": "Card 5",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 75,
+            "w": 25,
+            "h": 17
+          },
+          "shape": "rect",
+          "fill": "linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02))",
+          "stroke": "rgba(255,255,255,0.14)",
+          "strokeWidth": 0.12,
+          "radius": 1.2,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "x": 30,
+                "y": 80,
+                "w": 37,
+                "h": 12
+              }
+            },
+            "mobile": {
+              "box": {
+                "x": 50,
+                "y": 77.6,
+                "w": 80,
+                "h": 7.6
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "c5-in",
+              "preset": "pop",
+              "start": 1.6400000000000001,
+              "duration": 0.6,
+              "params": {
+                "from": 0.6
+              }
+            }
+          ]
+        },
+        {
+          "id": "label5",
+          "name": "Label 5",
+          "type": "text",
+          "text": "Site Converter",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.9,
+            "color": "#f4f6f8",
+            "fontWeight": 700
+          },
+          "box": {
+            "x": 50,
+            "y": 75
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2.6
+              },
+              "box": {
+                "x": 30,
+                "y": 80
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.2
+              },
+              "box": {
+                "x": 50,
+                "y": 77.6
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "lb5-in",
+              "preset": "text-rise",
+              "start": 1.9900000000000002,
+              "duration": 0.6,
+              "params": {
+                "by": "words",
+                "stagger": 0.06
+              }
+            }
+          ]
+        },
+        {
+          "id": "card6",
+          "name": "Card 6",
+          "type": "shape",
+          "box": {
+            "x": 78,
+            "y": 75,
+            "w": 25,
+            "h": 17
+          },
+          "shape": "rect",
+          "fill": "linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02))",
+          "stroke": "rgba(255,255,255,0.14)",
+          "strokeWidth": 0.12,
+          "radius": 1.2,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "x": 70,
+                "y": 80,
+                "w": 37,
+                "h": 12
+              }
+            },
+            "mobile": {
+              "box": {
+                "x": 50,
+                "y": 87,
+                "w": 80,
+                "h": 7.6
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "c6-in",
+              "preset": "slide",
+              "start": 1.8,
+              "duration": 0.6,
+              "params": {
+                "from": "right",
+                "distance": 40
+              }
+            }
+          ]
+        },
+        {
+          "id": "label6",
+          "name": "Label 6",
+          "type": "text",
+          "text": "AI Assistant",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.9,
+            "color": "#f4f6f8",
+            "fontWeight": 700
+          },
+          "box": {
+            "x": 78,
+            "y": 75
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2.6
+              },
+              "box": {
+                "x": 70,
+                "y": 80
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.2
+              },
+              "box": {
+                "x": 50,
+                "y": 87
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "lb6-in",
+              "preset": "text-tracking",
+              "start": 2.15,
+              "duration": 0.6
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "line2",
-      "type": "text",
-      "text": "MOVE.",
-      "style": { "fontFamily": "Archivo", "fontSize": 19, "fontWeight": 900, "letterSpacing": -0.02, "lineHeight": 0.92, "color": "#2ad38b" },
-      "box": { "x": 50, "y": 55 },
-      "overrides": {
-        "tablet": { "box": { "y": 53 }, "style": { "fontSize": 22 } },
-        "mobile": { "box": { "y": 51 }, "style": { "fontSize": 25 } }
-      },
+      "id": "act3",
+      "name": "Act 3 · Animate",
+      "type": "group",
+      "start": 13,
+      "duration": 6.5,
       "clips": [
-        { "id": "line2-in", "preset": "text-slam", "start": 0.9, "duration": 0.9 },
-        { "id": "line2-out", "preset": "wipe", "start": 6.05, "duration": 0.7, "params": { "direction": "out", "from": "left" } }
+        {
+          "id": "act3-out",
+          "preset": "zoom",
+          "start": 18.9,
+          "duration": 0.6,
+          "params": {
+            "direction": "out",
+            "scale": 1.5
+          }
+        }
+      ],
+      "layers": [
+        {
+          "id": "k3",
+          "name": "Kicker",
+          "type": "text",
+          "text": "Animate",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.25,
+            "color": "#2ad38b",
+            "fontWeight": 600,
+            "letterSpacing": 0.32,
+            "uppercase": true
+          },
+          "box": {
+            "x": 50,
+            "y": 11
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 1.95
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 3.4
+              },
+              "box": {
+                "y": 8
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "k3-in",
+              "preset": "text-blur",
+              "start": 0,
+              "duration": 0.8,
+              "params": {
+                "by": "chars",
+                "stagger": 0.04
+              }
+            }
+          ]
+        },
+        {
+          "id": "orb1",
+          "name": "Orbit dot 1",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 44,
+            "w": 1.1,
+            "ratio": 1
+          },
+          "shape": "ellipse",
+          "fill": "#2ad38b",
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 1.32
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 38,
+                "w": 2.28
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "orb1-path",
+              "preset": "keyframes",
+              "start": 0.9,
+              "duration": 4.2,
+              "params": {
+                "frames": [
+                  {
+                    "t": 0,
+                    "x": 1360,
+                    "y": 0,
+                    "opacity": 0,
+                    "scale": 0.4,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.35,
+                    "x": 1178,
+                    "y": 680,
+                    "opacity": 1,
+                    "scale": 1,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.7,
+                    "x": 680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.05,
+                    "x": 0,
+                    "y": 1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.4,
+                    "x": -680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.75,
+                    "x": -1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.1,
+                    "x": -1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.45,
+                    "x": -1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.8,
+                    "x": -680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.15,
+                    "x": 0,
+                    "y": -1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.5,
+                    "x": 680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.85,
+                    "x": 1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 4.2,
+                    "x": 1360,
+                    "y": 0,
+                    "ease": "none"
+                  }
+                ]
+              },
+              "ease": "none"
+            }
+          ]
+        },
+        {
+          "id": "orb2",
+          "name": "Orbit dot 2",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 44,
+            "w": 1.1,
+            "ratio": 1
+          },
+          "shape": "ellipse",
+          "fill": "#a78bfa",
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 1.32
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 38,
+                "w": 2.28
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "orb2-path",
+              "preset": "keyframes",
+              "start": 0.9,
+              "duration": 4.2,
+              "params": {
+                "frames": [
+                  {
+                    "t": 0,
+                    "x": 680,
+                    "y": 1178,
+                    "opacity": 0,
+                    "scale": 0.4,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.35,
+                    "x": 0,
+                    "y": 1360,
+                    "opacity": 1,
+                    "scale": 1,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.7,
+                    "x": -680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.05,
+                    "x": -1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.4,
+                    "x": -1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.75,
+                    "x": -1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.1,
+                    "x": -680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.45,
+                    "x": 0,
+                    "y": -1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.8,
+                    "x": 680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.15,
+                    "x": 1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.5,
+                    "x": 1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.85,
+                    "x": 1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 4.2,
+                    "x": 680,
+                    "y": 1178,
+                    "ease": "none"
+                  }
+                ]
+              },
+              "ease": "none"
+            }
+          ]
+        },
+        {
+          "id": "orb3",
+          "name": "Orbit dot 3",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 44,
+            "w": 1.1,
+            "ratio": 1
+          },
+          "shape": "ellipse",
+          "fill": "#2ad38b",
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 1.32
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 38,
+                "w": 2.28
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "orb3-path",
+              "preset": "keyframes",
+              "start": 0.9,
+              "duration": 4.2,
+              "params": {
+                "frames": [
+                  {
+                    "t": 0,
+                    "x": -680,
+                    "y": 1178,
+                    "opacity": 0,
+                    "scale": 0.4,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.35,
+                    "x": -1178,
+                    "y": 680,
+                    "opacity": 1,
+                    "scale": 1,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.7,
+                    "x": -1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.05,
+                    "x": -1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.4,
+                    "x": -680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.75,
+                    "x": 0,
+                    "y": -1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.1,
+                    "x": 680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.45,
+                    "x": 1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.8,
+                    "x": 1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.15,
+                    "x": 1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.5,
+                    "x": 680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.85,
+                    "x": 0,
+                    "y": 1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 4.2,
+                    "x": -680,
+                    "y": 1178,
+                    "ease": "none"
+                  }
+                ]
+              },
+              "ease": "none"
+            }
+          ]
+        },
+        {
+          "id": "orb4",
+          "name": "Orbit dot 4",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 44,
+            "w": 1.1,
+            "ratio": 1
+          },
+          "shape": "ellipse",
+          "fill": "#a78bfa",
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 1.32
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 38,
+                "w": 2.28
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "orb4-path",
+              "preset": "keyframes",
+              "start": 0.9,
+              "duration": 4.2,
+              "params": {
+                "frames": [
+                  {
+                    "t": 0,
+                    "x": -1360,
+                    "y": 0,
+                    "opacity": 0,
+                    "scale": 0.4,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.35,
+                    "x": -1178,
+                    "y": -680,
+                    "opacity": 1,
+                    "scale": 1,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.7,
+                    "x": -680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.05,
+                    "x": 0,
+                    "y": -1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.4,
+                    "x": 680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.75,
+                    "x": 1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.1,
+                    "x": 1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.45,
+                    "x": 1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.8,
+                    "x": 680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.15,
+                    "x": 0,
+                    "y": 1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.5,
+                    "x": -680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.85,
+                    "x": -1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 4.2,
+                    "x": -1360,
+                    "y": 0,
+                    "ease": "none"
+                  }
+                ]
+              },
+              "ease": "none"
+            }
+          ]
+        },
+        {
+          "id": "orb5",
+          "name": "Orbit dot 5",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 44,
+            "w": 1.1,
+            "ratio": 1
+          },
+          "shape": "ellipse",
+          "fill": "#2ad38b",
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 1.32
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 38,
+                "w": 2.28
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "orb5-path",
+              "preset": "keyframes",
+              "start": 0.9,
+              "duration": 4.2,
+              "params": {
+                "frames": [
+                  {
+                    "t": 0,
+                    "x": -680,
+                    "y": -1178,
+                    "opacity": 0,
+                    "scale": 0.4,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.35,
+                    "x": 0,
+                    "y": -1360,
+                    "opacity": 1,
+                    "scale": 1,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.7,
+                    "x": 680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.05,
+                    "x": 1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.4,
+                    "x": 1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.75,
+                    "x": 1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.1,
+                    "x": 680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.45,
+                    "x": 0,
+                    "y": 1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.8,
+                    "x": -680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.15,
+                    "x": -1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.5,
+                    "x": -1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.85,
+                    "x": -1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 4.2,
+                    "x": -680,
+                    "y": -1178,
+                    "ease": "none"
+                  }
+                ]
+              },
+              "ease": "none"
+            }
+          ]
+        },
+        {
+          "id": "orb6",
+          "name": "Orbit dot 6",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 44,
+            "w": 1.1,
+            "ratio": 1
+          },
+          "shape": "ellipse",
+          "fill": "#a78bfa",
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 1.32
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 38,
+                "w": 2.28
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "orb6-path",
+              "preset": "keyframes",
+              "start": 0.9,
+              "duration": 4.2,
+              "params": {
+                "frames": [
+                  {
+                    "t": 0,
+                    "x": 680,
+                    "y": -1178,
+                    "opacity": 0,
+                    "scale": 0.4,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.35,
+                    "x": 1178,
+                    "y": -680,
+                    "opacity": 1,
+                    "scale": 1,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 0.7,
+                    "x": 1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.05,
+                    "x": 1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.4,
+                    "x": 680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 1.75,
+                    "x": 0,
+                    "y": 1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.1,
+                    "x": -680,
+                    "y": 1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.45,
+                    "x": -1178,
+                    "y": 680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 2.8,
+                    "x": -1360,
+                    "y": 0,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.15,
+                    "x": -1178,
+                    "y": -680,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.5,
+                    "x": -680,
+                    "y": -1178,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 3.85,
+                    "x": 0,
+                    "y": -1360,
+                    "ease": "none"
+                  },
+                  {
+                    "t": 4.2,
+                    "x": 680,
+                    "y": -1178,
+                    "ease": "none"
+                  }
+                ]
+              },
+              "ease": "none"
+            }
+          ]
+        },
+        {
+          "id": "n3",
+          "name": "Count",
+          "type": "text",
+          "text": "35",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 17,
+            "color": "#2ad38b",
+            "fontWeight": 900,
+            "letterSpacing": -0.03,
+            "lineHeight": 0.9
+          },
+          "box": {
+            "x": 50,
+            "y": 44
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 21
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 30
+              },
+              "box": {
+                "y": 38
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "n3-in",
+              "preset": "zoom",
+              "start": 0.2,
+              "duration": 0.5,
+              "params": {
+                "scale": 1.3
+              }
+            },
+            {
+              "id": "n3-count",
+              "preset": "text-count",
+              "start": 0.7,
+              "duration": 1.4,
+              "params": {
+                "from": 0
+              }
+            },
+            {
+              "id": "n3-pulse",
+              "preset": "pulse",
+              "start": 2.3,
+              "duration": 0.8,
+              "params": {
+                "scale": 1.07,
+                "times": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "bar3",
+          "name": "Gradient bar",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 62,
+            "w": 38,
+            "h": 0.9
+          },
+          "shape": "rect",
+          "fill": "linear-gradient(90deg, #2ad38b, #3b82f6, #a855f7, #2ad38b)",
+          "radius": 1,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 50
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 58,
+                "w": 70,
+                "h": 1.1
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "b3-in",
+              "preset": "grow",
+              "start": 1,
+              "duration": 0.8
+            },
+            {
+              "id": "b3-flow",
+              "preset": "gradient-flow",
+              "start": 1.8,
+              "duration": 4.1,
+              "params": {
+                "axis": "x",
+                "cycles": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "s3",
+          "name": "Line",
+          "type": "text",
+          "text": "motion presets, ready to drag onto a timeline.",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 2.2,
+            "color": "#f4f6f8",
+            "fontWeight": 600,
+            "lineHeight": 1.3
+          },
+          "box": {
+            "x": 50,
+            "y": 73,
+            "w": 52
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 3
+              },
+              "box": {
+                "w": 70
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.8
+              },
+              "box": {
+                "y": 71,
+                "w": 86
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "s3-in",
+              "preset": "text-rise",
+              "start": 1.2,
+              "duration": 0.9,
+              "params": {
+                "by": "words",
+                "stagger": 0.06
+              }
+            }
+          ]
+        },
+        {
+          "id": "ring3",
+          "name": "Ring",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 44,
+            "w": 30,
+            "ratio": 1
+          },
+          "shape": "ellipse",
+          "fill": "transparent",
+          "stroke": "rgba(167,139,250,0.35)",
+          "strokeWidth": 0.15,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 36
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 38,
+                "w": 62
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "ring-in",
+              "preset": "spin",
+              "start": 0.5,
+              "duration": 1.2,
+              "params": {
+                "direction": "in",
+                "turns": 0.25
+              }
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "rule",
-      "type": "shape",
-      "shape": "rect",
-      "fill": "#2ad38b",
-      "radius": 0.2,
-      "box": { "x": 50, "y": 70, "w": 34, "h": 0.5 },
-      "overrides": {
-        "tablet": { "box": { "y": 68, "w": 46 } },
-        "mobile": { "box": { "y": 66, "w": 60, "h": 0.6 } }
-      },
+      "id": "act4",
+      "name": "Act 4 · 3D",
+      "type": "group",
+      "start": 19.5,
+      "duration": 6,
       "clips": [
-        { "id": "rule-in", "preset": "grow", "start": 1.5, "duration": 0.9 },
-        { "id": "rule-out", "preset": "grow", "start": 6.0, "duration": 0.5, "ease": "power3.in", "params": { "direction": "out", "origin": "end" } }
+        {
+          "id": "act4-out",
+          "preset": "soft-wipe",
+          "start": 24.8,
+          "duration": 0.7,
+          "params": {
+            "direction": "out",
+            "from": "left",
+            "feather": 35
+          }
+        }
+      ],
+      "layers": [
+        {
+          "id": "knot",
+          "name": "Chrome knot",
+          "type": "model",
+          "box": {
+            "x": 66,
+            "y": 50,
+            "w": 40,
+            "ratio": 1.1
+          },
+          "model": {
+            "kind": "shape",
+            "shape": "knot"
+          },
+          "material": {
+            "color": "#b9c3ff",
+            "finish": "chrome"
+          },
+          "alt": "",
+          "light": 1.2,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "x": 64,
+                "y": 50,
+                "w": 50
+              }
+            },
+            "mobile": {
+              "box": {
+                "x": 50,
+                "y": 36,
+                "w": 86
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "kn-in",
+              "preset": "tumble-in",
+              "start": 0,
+              "duration": 1.3,
+              "params": {
+                "direction": "in",
+                "turn": 160,
+                "tilt": -70,
+                "scale": 0.3
+              }
+            },
+            {
+              "id": "kn-spin",
+              "preset": "spin-3d",
+              "start": 1.3,
+              "duration": 4.7,
+              "params": {
+                "axis": "y",
+                "turns": 0.75
+              },
+              "ease": "cruise"
+            }
+          ]
+        },
+        {
+          "id": "k4",
+          "name": "Kicker",
+          "type": "text",
+          "text": "Depth",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.25,
+            "color": "#a78bfa",
+            "fontWeight": 600,
+            "letterSpacing": 0.32,
+            "uppercase": true
+          },
+          "box": {
+            "x": 26,
+            "y": 34
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 1.95
+              },
+              "box": {
+                "x": 26,
+                "y": 32
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 3.4
+              },
+              "box": {
+                "x": 50,
+                "y": 66
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "k4a-in",
+              "preset": "text-tracking",
+              "start": 0.6,
+              "duration": 0.8
+            }
+          ]
+        },
+        {
+          "id": "t4a",
+          "name": "Title",
+          "type": "text",
+          "text": "Real 3D.",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 7.5,
+            "color": "#f4f6f8",
+            "fontWeight": 900,
+            "letterSpacing": -0.02,
+            "lineHeight": 0.95
+          },
+          "box": {
+            "x": 26,
+            "y": 47
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 9
+              },
+              "box": {
+                "x": 26,
+                "y": 46
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 12
+              },
+              "box": {
+                "x": 50,
+                "y": 75
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "t4a-in",
+              "preset": "text-slam",
+              "start": 0.9,
+              "duration": 0.8
+            }
+          ]
+        },
+        {
+          "id": "t4b",
+          "name": "Line",
+          "type": "text",
+          "text": "Text, logos and models on one timeline.",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.9,
+            "color": "#aab3bf",
+            "fontWeight": 500,
+            "lineHeight": 1.35
+          },
+          "box": {
+            "x": 26,
+            "y": 62,
+            "w": 32
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2.6
+              },
+              "box": {
+                "x": 26,
+                "y": 62,
+                "w": 40
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.2
+              },
+              "box": {
+                "x": 50,
+                "y": 86,
+                "w": 84
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "t4b-in",
+              "preset": "text-rise",
+              "start": 1.6,
+              "duration": 0.9,
+              "params": {
+                "by": "words",
+                "stagger": 0.05
+              }
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "dot",
-      "type": "shape",
-      "shape": "ellipse",
-      "fill": "#f4f6f8",
-      "box": { "x": 67, "y": 70, "w": 0.9, "ratio": 1 },
-      "overrides": {
-        "tablet": { "box": { "x": 73, "y": 68, "w": 1.2 } },
-        "mobile": { "box": { "x": 80, "y": 66, "w": 2.2 } }
-      },
+      "id": "act5",
+      "name": "Act 5 · Ask",
+      "type": "group",
+      "start": 25.5,
+      "duration": 6,
       "clips": [
-        { "id": "dot-in", "preset": "pop", "start": 2.25, "duration": 0.5 },
-        { "id": "dot-out", "preset": "pop", "start": 5.95, "duration": 0.35, "ease": "power2.in", "params": { "direction": "out" } }
+        {
+          "id": "act5-out",
+          "preset": "turn",
+          "start": 30.85,
+          "duration": 0.65,
+          "params": {
+            "direction": "out",
+            "axis": "x",
+            "angle": 80
+          }
+        }
+      ],
+      "layers": [
+        {
+          "id": "k5",
+          "name": "Kicker",
+          "type": "text",
+          "text": "Ask",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.25,
+            "color": "#2ad38b",
+            "fontWeight": 600,
+            "letterSpacing": 0.32,
+            "uppercase": true
+          },
+          "box": {
+            "x": 50,
+            "y": 20
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 1.95
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 3.4
+              },
+              "box": {
+                "y": 15
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "k5-in",
+              "preset": "slide",
+              "start": 0,
+              "duration": 0.6,
+              "params": {
+                "from": "top",
+                "distance": 60
+              }
+            }
+          ]
+        },
+        {
+          "id": "t5",
+          "name": "Title",
+          "type": "text",
+          "text": "Describe it. Your AI builds it.",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 5,
+            "color": "#f4f6f8",
+            "fontWeight": 800,
+            "letterSpacing": -0.01,
+            "lineHeight": 1.05
+          },
+          "box": {
+            "x": 50,
+            "y": 34,
+            "w": 72
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 6.4
+              },
+              "box": {
+                "w": 86
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 9
+              },
+              "box": {
+                "y": 29,
+                "w": 88
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "t5-in",
+              "preset": "text-rise",
+              "start": 0.2,
+              "duration": 0.9,
+              "params": {
+                "by": "words",
+                "stagger": 0.09
+              }
+            },
+            {
+              "id": "t5-green",
+              "preset": "recolor",
+              "start": 3.1,
+              "duration": 0.6,
+              "params": {
+                "to": "#2ad38b"
+              }
+            }
+          ]
+        },
+        {
+          "id": "box5",
+          "name": "Prompt box",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 57,
+            "w": 54,
+            "h": 13
+          },
+          "shape": "rect",
+          "fill": "rgba(255,255,255,0.05)",
+          "stroke": "rgba(42,211,139,0.55)",
+          "strokeWidth": 0.12,
+          "radius": 1.4,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 72,
+                "h": 12
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 55,
+                "w": 88,
+                "h": 13
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "b5-in",
+              "preset": "turn",
+              "start": 0.9,
+              "duration": 0.7,
+              "params": {
+                "direction": "in",
+                "axis": "x",
+                "angle": 70
+              }
+            },
+            {
+              "id": "b5-shake",
+              "preset": "shake",
+              "start": 2.7,
+              "duration": 0.35,
+              "params": {
+                "strength": 2
+              }
+            },
+            {
+              "id": "b5-sheen",
+              "preset": "sheen",
+              "start": 3.1,
+              "duration": 0.9
+            },
+            {
+              "id": "b5-float",
+              "preset": "float",
+              "start": 3.3,
+              "duration": 2,
+              "params": {
+                "height": 4,
+                "cycles": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "p5",
+          "name": "Prompt",
+          "type": "text",
+          "text": "A calm hero for a yoga studio",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 2.2,
+            "color": "#f4f6f8",
+            "fontWeight": 500
+          },
+          "box": {
+            "x": 50,
+            "y": 57
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 3
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.6
+              },
+              "box": {
+                "y": 55
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "p5-type",
+              "preset": "text-typewriter",
+              "start": 1.4,
+              "duration": 1.2
+            },
+            {
+              "id": "p5-float",
+              "preset": "float",
+              "start": 3.3,
+              "duration": 2,
+              "params": {
+                "height": 4,
+                "cycles": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "s5",
+          "name": "Line",
+          "type": "text",
+          "text": "Your own AI, through the free AI Dev Kit.",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.9,
+            "color": "#aab3bf",
+            "fontWeight": 500,
+            "lineHeight": 1.3
+          },
+          "box": {
+            "x": 50,
+            "y": 76,
+            "w": 56
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2.6
+              },
+              "box": {
+                "w": 74
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.4
+              },
+              "box": {
+                "y": 76,
+                "w": 86
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "s5-in",
+              "preset": "fade",
+              "start": 1.85,
+              "duration": 0.7,
+              "params": {
+                "y": 25
+              }
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "sub",
-      "type": "text",
-      "text": "Timeline motion graphics for your hero sections, exported as plain HTML.",
-      "style": { "fontFamily": "Archivo", "fontSize": 1.7, "fontWeight": 500, "lineHeight": 1.35, "color": "#aab3bf" },
-      "box": { "x": 50, "y": 80, "w": 46 },
-      "overrides": {
-        "tablet": { "box": { "y": 80, "w": 66 }, "style": { "fontSize": 2.4 } },
-        "mobile": { "box": { "y": 80, "w": 84 }, "style": { "fontSize": 4.2 } }
-      },
+      "id": "act6",
+      "name": "Act 6 · Unyson+",
+      "type": "group",
+      "start": 31.5,
+      "duration": 6.5,
       "clips": [
-        { "id": "sub-in", "preset": "text-rise", "start": 1.9, "duration": 1.1, "params": { "by": "words", "stagger": 0.05 } },
-        { "id": "sub-out", "preset": "fade", "start": 6.25, "duration": 0.5, "params": { "direction": "out", "y": 30 } }
+        {
+          "id": "act6-out",
+          "preset": "fade",
+          "start": 37.3,
+          "duration": 0.7,
+          "params": {
+            "direction": "out",
+            "y": 0
+          }
+        }
+      ],
+      "layers": [
+        {
+          "id": "brand3d",
+          "name": "Unyson+ in 3D",
+          "type": "model",
+          "box": {
+            "x": 50,
+            "y": 40,
+            "w": 56,
+            "ratio": 2.9
+          },
+          "model": {
+            "kind": "text",
+            "text": "Unyson+",
+            "depth": 0.34,
+            "bevel": 0.5
+          },
+          "material": {
+            "color": "#2ad38b",
+            "finish": "glossy"
+          },
+          "pose": {
+            "rx": 6,
+            "ry": -12
+          },
+          "alt": "Unyson+",
+          "light": 1.15,
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 68
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 34,
+                "w": 92
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "b3d-push",
+              "preset": "camera-push",
+              "start": 0,
+              "duration": 1.4,
+              "params": {
+                "direction": "in",
+                "distance": 3.2
+              }
+            },
+            {
+              "id": "b3d-orbit",
+              "preset": "orbit-3d",
+              "start": 1.4,
+              "duration": 4.6,
+              "params": {
+                "angle": 34,
+                "tilt": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "rule6",
+          "name": "Underline",
+          "type": "shape",
+          "box": {
+            "x": 50,
+            "y": 58,
+            "w": 26,
+            "h": 0.5
+          },
+          "shape": "rect",
+          "fill": "#2ad38b",
+          "overrides": {
+            "tablet": {
+              "box": {
+                "w": 36
+              }
+            },
+            "mobile": {
+              "box": {
+                "y": 52,
+                "w": 54,
+                "h": 0.6
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "r6-in",
+              "preset": "grow",
+              "start": 1,
+              "duration": 0.8
+            }
+          ]
+        },
+        {
+          "id": "tag6",
+          "name": "Tagline",
+          "type": "text",
+          "text": "Free and open source. Built for WordPress.",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 2.3,
+            "color": "#f4f6f8",
+            "fontWeight": 600,
+            "lineHeight": 1.3
+          },
+          "box": {
+            "x": 50,
+            "y": 68,
+            "w": 60
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 3.1
+              },
+              "box": {
+                "w": 78
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 4.8
+              },
+              "box": {
+                "y": 64,
+                "w": 86
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "t6-in",
+              "preset": "text-rise",
+              "start": 1.2,
+              "duration": 0.9,
+              "params": {
+                "by": "words",
+                "stagger": 0.06
+              }
+            }
+          ]
+        },
+        {
+          "id": "url6",
+          "name": "Address",
+          "type": "text",
+          "text": "unysonplus.com",
+          "style": {
+            "fontFamily": "Archivo",
+            "fontSize": 1.4,
+            "color": "#2ad38b",
+            "fontWeight": 600,
+            "letterSpacing": 0.2
+          },
+          "box": {
+            "x": 50,
+            "y": 80
+          },
+          "overrides": {
+            "tablet": {
+              "style": {
+                "fontSize": 2
+              }
+            },
+            "mobile": {
+              "style": {
+                "fontSize": 3.6
+              },
+              "box": {
+                "y": 80
+              }
+            }
+          },
+          "clips": [
+            {
+              "id": "u6-in",
+              "preset": "fade",
+              "start": 2,
+              "duration": 0.6,
+              "params": {
+                "y": 30
+              }
+            },
+            {
+              "id": "u6-wave",
+              "preset": "text-wave",
+              "start": 3.2,
+              "duration": 1,
+              "params": {
+                "height": 25
+              }
+            }
+          ]
+        }
       ]
     }
   ]

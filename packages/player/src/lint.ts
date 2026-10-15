@@ -43,20 +43,28 @@ interface Entry {
   /** End of the layer's container in scene time. */
   containerEnd: number;
   topLevel: boolean;
+  /** Scene time an enclosing group starts to leave (its first exit clip, or its out point), if any. */
+  exitAt: number;
+  /** Scene time an enclosing group has gone. */
+  goneAt: number;
 }
 
 function entries(scene: Scene): Entry[] {
   const out: Entry[] = [];
-  const walk = (list: Layer[], offset: number, end: number, top: boolean) => {
+  const walk = (list: Layer[], offset: number, end: number, top: boolean, exitAt: number, goneAt: number) => {
     for (const l of list) {
-      out.push({ layer: l, offset, containerEnd: end, topLevel: top });
+      out.push({ layer: l, offset, containerEnd: end, topLevel: top, exitAt, goneAt });
       if (l.type === 'group') {
         const s = offset + (l.start ?? 0);
-        walk(l.layers, s, Math.min(end, s + groupDuration(l)), false);
+        // When the group leaves (an exit clip on the group, or its out point), so does everything in it.
+        const outs = l.clips.filter((c) => dirOf(c) === 'out');
+        const gExit = Math.min(exitAt, ...outs.map((c) => offset + c.start), typeof l.end === 'number' ? offset + l.end : Infinity);
+        const gGone = Math.min(goneAt, ...outs.map((c) => offset + c.start + c.duration), typeof l.end === 'number' ? offset + l.end : Infinity);
+        walk(l.layers, s, Math.min(end, s + groupDuration(l)), false, gExit, gGone);
       }
     }
   };
-  walk(scene.layers, 0, scene.duration, true);
+  walk(scene.layers, 0, scene.duration, true, Infinity, Infinity);
   return out;
 }
 
@@ -81,9 +89,10 @@ function window(e: Entry, scene: Scene) {
   const lastOut = outs[outs.length - 1];
   const gone = lastOut ? e.offset + lastOut.start + lastOut.duration : e.offset + (l.end ?? Infinity);
   const leaving = outs.length ? e.offset + outs[0].start : e.offset + (l.end ?? Infinity);
-  // A layer that never leaves stays up after the last frame unless the scene loops.
-  const cap = scene.playback.loop ? Math.min(e.containerEnd, scene.duration) + (scene.playback.repeatDelay ?? 0) : Infinity;
-  return { start, landed, leaving: Math.min(leaving, cap), gone: Math.min(gone, cap), firstOut: outs[0] };
+  // A layer that never leaves stays up after the last frame unless the scene loops (then until it restarts),
+  // or until an enclosing group leaves.
+  const cap = scene.playback.loop ? scene.duration + (scene.playback.repeatDelay ?? 0) : Infinity;
+  return { start, landed, leaving: Math.min(leaving, cap, e.exitAt), gone: Math.min(gone, cap, e.goneAt), firstOut: outs[0] };
 }
 
 const anchorFactors = (a: Anchor = 'center'): [number, number] => [

@@ -196,9 +196,15 @@ function create(host: HTMLElement, layer: ModelLayer): Runtime3D {
 
   const ready = buildObject(layer).then((obj) => {
     if (disposed) return;
+    // Measure the object in its resting pose only: the pivot may be mid-animation (an entrance can have
+    // it scaled down), and fitting the camera to that would leave it far too close.
+    const probe = new THREE.Group();
+    probe.rotation.copy(posed.rotation);
+    probe.scale.copy(posed.scale);
+    probe.add(obj);
+    probe.updateMatrixWorld(true);
+    new THREE.Box3().setFromObject(probe).getSize(half).multiplyScalar(0.5);
     posed.add(obj);
-    posed.updateMatrixWorld(true);
-    new THREE.Box3().setFromObject(posed).getSize(half).multiplyScalar(0.5);
     if (last) draw(last);
   }).catch((e) => {
     console.warn('[Unyson+ scene] 3D layer "' + layer.id + '" could not be built:', e);

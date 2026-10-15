@@ -12,14 +12,11 @@ import demo from '../scenes/demo.json';
 import { CheckField, ColorField, Field, NumberField, Section, SelectField, TextField } from './fields';
 import { groupDuration, groupOffset, groupPath } from '@unysonplus/scene-player/groups';
 import { KeyframeEditor } from './KeyframeEditor';
+import { blankScene } from '../lib/sceneOps';
 import { ModelSection } from './ModelSection';
 import type { GroupLayer } from '@unysonplus/scene-player/types';
 import { AlignPanel, type AlignMode, type AlignTo } from './AlignPanel';
 
-/** A starting point with nothing on it, sharing the demo's stage set-up. */
-function blankScene(from: Scene): Scene {
-  return { ...from, title: 'Untitled', layers: [] };
-}
 
 export interface Selection {
   /** The primary layer: the one the inspector shows. */
