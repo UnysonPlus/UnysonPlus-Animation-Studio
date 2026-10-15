@@ -658,3 +658,7 @@ h1, h2, p { margin: 0; }
 .tl-marker { position: absolute; top: 2px; bottom: 0; width: 2px; margin-left: -1px; background: var(--amber); cursor: ew-resize; z-index: 6; }
 .tl-marker-num { position: absolute; top: 0; left: 2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 0 4px 4px 0; background: var(--amber); color: oklch(0.2 0.04 78); font: 700 9.5px/14px var(--sans); text-align: center; }
 .tl-marker:hover .tl-marker-num { filter: brightness(1.1); }
+
+/* ---------- export: share link ---------- */
+.share-link { width: 100%; height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border-soft); background: var(--surface); color: var(--muted); font-size: 11.5px; text-overflow: ellipsis; }
+.share-link:focus-visible { outline: none; border-color: var(--accent); color: var(--ink); }

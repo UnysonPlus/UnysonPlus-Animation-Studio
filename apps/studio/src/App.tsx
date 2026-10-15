@@ -11,6 +11,7 @@ import { kitStatus, type KitStatus } from './lib/ai';
 import { lintScene, type LintIssue } from '@unysonplus/scene-player/lint';
 import { clipEase, framesOf, isKeyframes, setKey, valueAt, writeFrames } from './lib/keyframes';
 import { addMarker } from './lib/markers';
+import { clearShareHash, hasSharedScene, readSharedScene } from './lib/share';
 import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
@@ -474,6 +475,27 @@ export function App() {
 
   const bp = scene.stage.breakpoints.find((b) => b.id === state.breakpoint);
   const selectedLayer = findLayer(scene, selection.layerId);
+
+  // Opened from a share link: load the shared scene over the current one (Undo brings that back).
+  useEffect(() => {
+    const open = () => {
+      if (!hasSharedScene()) return;
+      // The scene is read from the address at once; clear it straight away so it loads only once.
+      const reading = readSharedScene();
+      clearShareHash();
+      reading.then((r) => {
+        if (!r.ok) { setNotice(`This share link can't be opened: ${r.error}.`); return; }
+        commit(r.scene);
+        setScope(null);
+        setSelection({ layerId: null, clipId: null });
+        post({ type: 'seek', time: 0 });
+        setNotice(`Opened a shared scene${r.scene.title ? `, “${r.scene.title}”` : ''}. Undo brings back what you had.${r.strippedCode ? ` ${r.strippedCode} custom code clip${r.strippedCode === 1 ? ' was' : 's were'} removed, for safety.` : ''}`);
+      });
+    };
+    open();
+    window.addEventListener('hashchange', open);
+    return () => window.removeEventListener('hashchange', open);
+  }, [commit, post]);
 
   /** A clean slate. One undo step, so nothing is lost. */
   const startNew = useCallback(() => {

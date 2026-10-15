@@ -3,6 +3,7 @@ import type { Scene } from '@unysonplus/scene-player/types';
 import { embedCode, exportHtml, hasModel, threeRuntime, hasCodeClips } from '../lib/documents';
 import { embedFonts } from '../lib/fonts';
 import { VideoSection } from './VideoSection';
+import { ShareSection } from './ShareSection';
 import { DownloadIcon } from './icons';
 
 const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
@@ -97,6 +98,8 @@ export function ExportDialog(props: {
           <h2 id="export-title">Export</h2>
           <button type="button" className="icon-link" aria-label="Close" onClick={props.onClose}>×</button>
         </header>
+
+        <ShareSection scene={props.scene} open={props.open} />
 
         <section className="export-opt">
           <h3>Web page</h3>

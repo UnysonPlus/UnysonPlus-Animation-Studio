@@ -102,6 +102,13 @@ The ease parameters and several timing rules come from frame-by-frame measuremen
 pieces published in the motionmaxxing project (Apache-2.0); the review checklist ideas also draw on the
 favstash AI video editing skills (Apache-2.0). Both are re-expressed here in our own code.
 
+### Share links
+
+**Export → Share link** puts the whole scene, compressed, into the link (`#s=1.<base64url deflate-raw>`). Opening it
+loads the scene (Undo brings back what was there) and clears the address. The part after # never reaches a server, so
+there is nothing to host or store. Custom code clips are removed from shared scenes on opening. Uploaded images make
+links long; the Studio warns past 8 KB.
+
 ### Click-to-advance presentations
 
 Set **Advance** to **On click (a presentation)** in the scene's Playback settings and add **markers** (+ Marker, or M,
