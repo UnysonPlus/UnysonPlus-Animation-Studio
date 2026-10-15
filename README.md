@@ -11,7 +11,7 @@ https://docs.unysonplus.com/animation-studio
 | Folder | What it is |
 |---|---|
 | `packages/player` | The scene player: the scene file format (`schema/scene.schema.json`), its validator, the responsive stage, the preset catalogue and the GSAP timeline builder. Builds to `dist/scene-player.iife.js` (the self-contained script exported pages load) and `dist/scene-editor.iife.js` (the Studio's in-preview editor: selection, dragging, resizing and in-place text editing; never shipped in exports). |
-| `apps/studio` | The Studio web app (React + TypeScript + Vite): a preset library, a device-sized preview you edit directly (select, drag, resize, double-click to edit text), a timeline (drag, trim, zoom, drop presets), an inspector with per-breakpoint layouts, undo and redo, browser autosave, project files (`.scene.json`) and HTML export. |
+| `apps/studio` | The Studio web app (React + TypeScript + Vite): a preset library, a device-sized preview you edit directly (select one or many, drag, resize, double-click to edit text, Align and Distribute, lock layers), a timeline (drag, trim, zoom, drop presets), an inspector with per-breakpoint layouts, undo and redo, browser autosave, project files (`.scene.json`) and HTML export. |
 
 ## Develop
 
@@ -59,6 +59,9 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 | Ctrl+Z, Ctrl+Shift+Z | Undo, redo |
 | Ctrl+D | Duplicate the selected layer |
 | Ctrl+S | Save the project file |
+| Shift or Ctrl + click | Add a layer to (or remove it from) the selection, on the stage or the timeline |
+| Drag on empty stage | Box-select the layers it touches (Shift or Ctrl adds to the selection) |
+| Ctrl+A | Select every unlocked layer |
 | Escape | Clear the selection |
 | Alt while dragging | Turn snapping off |
 

@@ -44,6 +44,8 @@ function Thumb({ preset, active }: { preset: PresetMeta; active: boolean }) {
 export function Library(props: {
   /** The selected layer's type, if any: presets that don't fit it are shown as unavailable. */
   layerType: Layer['type'] | null;
+  /** How many layers are selected; with several, a click adds the preset to each one it suits. */
+  count: number;
   onApply: (presetId: string) => void;
 }) {
   const [query, setQuery] = useState('');
@@ -61,9 +63,11 @@ export function Library(props: {
         <h2 id="lib-title">Presets</h2>
         <input type="search" className="lib-search" placeholder="Search presets" aria-label="Search presets" value={query} onChange={(e) => setQuery(e.target.value)} />
         <p className="lib-help">
-          {props.layerType
-            ? 'Drag a preset onto a timeline row, or click to add it to the selected layer at the playhead.'
-            : 'Drag a preset onto a timeline row. Select a layer to add presets by clicking.'}
+          {props.count > 1
+            ? `Click a preset to add it at the playhead to each of the ${props.count} selected layers it suits.`
+            : props.layerType
+              ? 'Drag a preset onto a timeline row, or click to add it to the selected layer at the playhead.'
+              : 'Drag a preset onto a timeline row. Select a layer to add presets by clicking.'}
         </p>
       </div>
       <div className="lib-scroll">
@@ -72,7 +76,7 @@ export function Library(props: {
             <h3>{CATEGORY_LABELS[g.c]}</h3>
             <ul>
               {g.items.map((p) => {
-                const fits = !props.layerType || p.appliesTo.includes(props.layerType);
+                const fits = props.count > 1 || !props.layerType || p.appliesTo.includes(props.layerType);
                 return (
                   <li key={p.id}>
                     <button

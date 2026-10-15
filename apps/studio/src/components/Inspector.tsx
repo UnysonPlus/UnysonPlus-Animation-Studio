@@ -7,6 +7,7 @@ import {
 import { validateScene } from '@unysonplus/scene-player/validate';
 import demo from '../scenes/demo.json';
 import { CheckField, ColorField, Field, NumberField, Section, SelectField, TextField } from './fields';
+import { AlignPanel, type AlignMode, type AlignTo } from './AlignPanel';
 
 /** A starting point with nothing on it, sharing the demo's stage set-up. */
 function blankScene(from: Scene): Scene {
@@ -14,9 +15,21 @@ function blankScene(from: Scene): Scene {
 }
 
 export interface Selection {
+  /** The primary layer: the one the inspector shows. */
   layerId: string | null;
   clipId: string | null;
+  /** Every selected layer, primary last, when more than one is selected. */
+  multi?: string[];
 }
+
+/** All selected layer ids (primary last). */
+export const selectedIds = (sel: Selection): string[] => (sel.multi && sel.multi.length > 1 ? sel.multi : sel.layerId ? [sel.layerId] : []);
+
+/** A selection of these layers, the last one primary. */
+export const selectLayers = (ids: string[]): Selection => {
+  const unique = [...new Set(ids)];
+  return { layerId: unique[unique.length - 1] ?? null, clipId: null, multi: unique.length > 1 ? unique : undefined };
+};
 
 interface Props {
   scene: Scene;
@@ -25,6 +38,9 @@ interface Props {
   bp: string | null;
   onCommit: (scene: Scene) => void;
   onSelect: (sel: Selection) => void;
+  alignTo: AlignTo;
+  onAlignTo: (to: AlignTo) => void;
+  onAlign: (mode: AlignMode) => void;
 }
 
 const EASES = [
@@ -44,6 +60,8 @@ export function Inspector(props: Props) {
   const { scene, selection } = props;
   const layer = findLayer(scene, selection.layerId);
   const clip = findClip(scene, selection.layerId, selection.clipId);
+  const ids = selectedIds(selection);
+  if (ids.length > 1) return <MultiInspector {...props} ids={ids} />;
   if (layer && clip) return <ClipInspector {...props} layer={layer} clipId={clip.id} />;
   if (layer) return <LayerInspector {...props} layer={layer} />;
   return <SceneInspector {...props} />;
@@ -153,7 +171,52 @@ function SceneInspector({ scene, onCommit }: Props) {
 
 /* ------------------------------------------------------------------ layer */
 
-function LayerInspector({ scene, layer, bp, onCommit, onSelect }: Props & { layer: Layer }) {
+/* ------------------------------------------------------------------ several layers */
+
+function MultiInspector({ scene, ids, bp, onCommit, onSelect, alignTo, onAlignTo, onAlign }: Props & { ids: string[] }) {
+  const layers = ids.map((id) => findLayer(scene, id)).filter((l): l is Layer => !!l);
+  const anyOverride = layers.some((l) => editsOverride(scene, l, bp));
+  return (
+    <div className="insp">
+      <div className="insp-head">
+        <p className="insp-kicker">Selection</p>
+        <h2 className="insp-title-static">{layers.length} layers</h2>
+        <ul className="multi-list">
+          {layers.map((l) => (
+            <li key={l.id}>
+              <button type="button" className="crumb" onClick={() => onSelect({ layerId: l.id, clipId: null })}>{l.name || l.id}</button>
+            </li>
+          ))}
+        </ul>
+        {anyOverride && (
+          <div className="bp-note is-override">
+            <p>Moves apply to the <strong>{bpLabel(scene, bp)}</strong> layout only.</p>
+          </div>
+        )}
+      </div>
+
+      <section className="insp-section">
+        <header><h3>Align and distribute</h3></header>
+        <AlignPanel count={layers.length} to={alignTo} onTo={onAlignTo} onAlign={onAlign} />
+      </section>
+
+      <p className="field-hint">Drag any of them on the stage to move them together. Click a preset to add it to each layer it suits.</p>
+
+      <div className="insp-actions">
+        <button type="button" className="btn small danger" onClick={() => {
+          let next = scene;
+          for (const l of layers) next = removeLayer(next, l.id);
+          onCommit(next);
+          onSelect({ layerId: null, clipId: null });
+        }}>Delete {layers.length} layers</button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ layer */
+
+function LayerInspector({ scene, layer, bp, onCommit, onSelect, alignTo, onAlignTo, onAlign }: Props & { layer: Layer }) {
   const override = editsOverride(scene, layer, bp);
   const hasOverride = !!(bp && layer.overrides?.[bp]);
   const o = (bp && layer.overrides?.[bp]) || {};
@@ -262,6 +325,11 @@ function LayerInspector({ scene, layer, bp, onCommit, onSelect }: Props & { laye
           )}
         </Field>
       </Section>
+
+      <section className="insp-section">
+        <header><h3>Align</h3></header>
+        <AlignPanel count={1} to={alignTo} onTo={onAlignTo} onAlign={onAlign} />
+      </section>
 
       <Section title="Timing">
         <NumberField label="Appears" value={layer.start ?? 0} step={0.1} min={0} max={scene.duration} unit="s" onCommit={(v) => props({ start: v || undefined })} />

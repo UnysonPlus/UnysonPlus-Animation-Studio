@@ -13,7 +13,8 @@ import { DEVICES, Preview, type Device } from './components/Preview';
 import { Transport } from './components/Transport';
 import { ScenePanel } from './components/ScenePanel';
 import { Segmented } from './components/Segmented';
-import { Inspector, type Selection } from './components/Inspector';
+import { Inspector, selectedIds, selectLayers, type Selection } from './components/Inspector';
+import type { AlignMode, AlignTo } from './components/AlignPanel';
 import { Library } from './components/Library';
 import { Timeline } from './components/Timeline';
 import {
@@ -98,6 +99,7 @@ export function App() {
   const [ready, setReady] = useState(false);
   const [scale, setScale] = useState(1);
   const [exporting, setExporting] = useState(false);
+  const [alignTo, setAlignTo] = useState<AlignTo>('selection');
   // The preview document is built once; after that, scene changes are sent to it as messages.
   const [srcDoc] = useState(() => previewHtml(scene, { safeArea: false }));
 
@@ -121,15 +123,18 @@ export function App() {
     sentScene.current = scene;
     post({ type: 'scene', scene });
   }, [scene, ready, post]);
-  useEffect(() => { if (ready) post({ type: 'select', id: selection.layerId }); }, [selection.layerId, ready, post]);
+  const selKey = selectedIds(selection).join('|');
+  useEffect(() => { if (ready) post({ type: 'select', ids: selKey ? selKey.split('|') : [] }); }, [selKey, ready, post]);
   useEffect(() => { if (ready) post({ type: 'safe', show: safe }); }, [safe, ready, post]);
   useEffect(() => { if (ready) post({ type: 'ui', scale }); }, [scale, ready, post]);
 
   // Drop a selection that no longer exists (after undo, delete or a file edit).
   useEffect(() => {
     const { layerId, clipId } = selection;
-    if (layerId && !findLayer(scene, layerId)) setSelection({ layerId: null, clipId: null });
-    else if (clipId && !findClip(scene, layerId, clipId)) setSelection({ layerId, clipId: null });
+    const ids = selectedIds(selection);
+    const alive = ids.filter((id) => findLayer(scene, id));
+    if (alive.length !== ids.length) setSelection(selectLayers(alive));
+    else if (layerId && clipId && !findClip(scene, layerId, clipId)) setSelection({ layerId, clipId: null });
   }, [scene, selection]);
 
   // Autosave the working scene in this browser.
@@ -160,14 +165,26 @@ export function App() {
     else addLayerOfType(type);
   };
 
+  /** Adds a preset at the playhead to every selected layer it suits (one undo step). */
   const applyPreset = (presetId: string) => {
-    const { layerId } = selection;
-    if (!layerId) return;
-    const r = addClip(scene, layerId, presetId, state.time);
-    if (r) {
-      commit(r.scene);
-      setSelection({ layerId, clipId: r.id });
+    const ids = selectedIds(selection);
+    let next = scene;
+    let lastClip: string | null = null;
+    for (const id of ids) {
+      const r = addClip(next, id, presetId, state.time);
+      if (r) {
+        next = r.scene;
+        lastClip = r.id;
+      }
     }
+    if (next === scene) return;
+    commit(next);
+    if (ids.length === 1 && lastClip) setSelection({ layerId: ids[0], clipId: lastClip });
+  };
+
+  const align = (mode: AlignMode) => {
+    const count = selectedIds(selection).length;
+    post({ type: 'align', mode, to: count > 1 ? alignTo : alignTo === 'selection' ? 'stage' : alignTo });
   };
 
   const saveProject = useCallback(() => {
@@ -202,6 +219,10 @@ export function App() {
     if (k.mod && key === 'z') { if (k.shift) history.redo(); else history.undo(); return true; }
     if (k.mod && key === 'y') { history.redo(); return true; }
     if (k.mod && key === 's') { saveProject(); return true; }
+    if (k.mod && key === 'a') {
+      setSelection(selectLayers(s.layers.filter((l) => !l.locked).map((l) => l.id)));
+      return true;
+    }
     if (k.mod && key === 'd') {
       if (sel.layerId) {
         const r = duplicateLayer(s, sel.layerId);
@@ -220,8 +241,14 @@ export function App() {
     }
     if (key === 'Escape') { setSelection({ layerId: null, clipId: null }); return true; }
     if (key === 'Delete' || key === 'Backspace') {
-      if (sel.layerId && sel.clipId) { commit(removeClip(s, sel.layerId, sel.clipId)); setSelection({ layerId: sel.layerId, clipId: null }); }
-      else if (sel.layerId) { commit(removeLayer(s, sel.layerId)); setSelection({ layerId: null, clipId: null }); }
+      const ids = selectedIds(sel);
+      if (sel.layerId && sel.clipId && ids.length === 1) { commit(removeClip(s, sel.layerId, sel.clipId)); setSelection({ layerId: sel.layerId, clipId: null }); }
+      else if (ids.length) {
+        let next = s;
+        for (const id of ids) next = removeLayer(next, id);
+        commit(next);
+        setSelection({ layerId: null, clipId: null });
+      }
       return true;
     }
     if (key.startsWith('Arrow')) {
@@ -233,11 +260,16 @@ export function App() {
         const start = roundTime(Math.max(0, Math.min(s.duration - clip.duration, clip.start + dx * (k.shift ? 0.5 : 0.05))));
         commit(setClip(s, sel.layerId, clip.id, { start }));
       } else if (sel.layerId && !sel.clipId) {
-        // Nudge the selected layer on the stage.
-        const layer = findLayer(s, sel.layerId)!;
-        const bpBox = { ...layer.box, ...((st.breakpoint && layer.overrides?.[st.breakpoint]?.box) || {}) };
+        // Nudge the selected layers on the stage (one undo step).
         const step = k.shift ? 5 : 0.5;
-        commit(writeLayout(s, layer.id, st.breakpoint, { box: { x: roundTime(bpBox.x + dx * step), y: roundTime(bpBox.y + dy * step) } }));
+        let next = s;
+        for (const id of selectedIds(sel)) {
+          const layer = findLayer(next, id);
+          if (!layer || layer.locked) continue;
+          const bpBox = { ...layer.box, ...((st.breakpoint && layer.overrides?.[st.breakpoint]?.box) || {}) };
+          next = writeLayout(next, id, st.breakpoint, { box: { x: roundTime(bpBox.x + dx * step), y: roundTime(bpBox.y + dy * step) } });
+        }
+        commit(next);
       } else if (dx) {
         seek(Math.max(0, Math.min(s.duration, st.time + dx * (k.shift ? 1 : 0.1))));
       }
@@ -280,11 +312,16 @@ export function App() {
           setFrameError(m.message ? String(m.message) : null);
           break;
         case 'upw:select':
-          setSelection({ layerId: m.id ?? null, clipId: null });
+          setSelection(selectLayers(Array.isArray(m.ids) ? m.ids : m.id ? [m.id] : []));
           break;
-        case 'upw:layout':
-          if (findLayer(s, m.id)) commit(writeLayout(s, m.id, st.breakpoint, { box: m.box }));
+        case 'upw:layout': {
+          // One or more layers moved, resized or aligned: one undo step for all of them.
+          const items: Array<{ id: string; box: Record<string, number> }> = Array.isArray(m.items) ? m.items : m.id ? [{ id: m.id, box: m.box }] : [];
+          let next = s;
+          for (const it of items) if (findLayer(next, it.id)) next = writeLayout(next, it.id, st.breakpoint, { box: it.box });
+          commit(next);
           break;
+        }
         case 'upw:text':
           if (findLayer(s, m.id)) commit(writeLayout(s, m.id, st.breakpoint, { text: String(m.text) }));
           break;
@@ -355,7 +392,7 @@ export function App() {
       </header>
 
       <main className="workspace">
-        <Library layerType={selectedLayer?.type ?? null} onApply={applyPreset} />
+        <Library layerType={selectedLayer?.type ?? null} count={selectedIds(selection).length} onApply={applyPreset} />
 
         <section className="stagecol" aria-label="Stage">
           <div className="toolbar">
@@ -421,7 +458,7 @@ export function App() {
           </div>
           <div className="panel-body" role="tabpanel">
             {tab === 'inspect'
-              ? <Inspector scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} />
+              ? <Inspector scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} />
               : <ScenePanel scene={scene} onCommit={commit} />}
           </div>
         </aside>

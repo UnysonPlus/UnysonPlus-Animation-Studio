@@ -400,6 +400,10 @@
             "cover",
             "contain"
           ]
+        },
+        "locked": {
+          "type": "boolean",
+          "description": "Editor only: locked layers cannot be selected or moved on the stage."
         }
       },
       "allOf": [

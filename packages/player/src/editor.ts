@@ -2,12 +2,16 @@
  * The Studio's in-preview editor. Runs inside the preview iframe next to the player (which it uses
  * only through the public window.UnysonPlusScene API) and talks to the Studio with postMessage:
  *
- *   Studio → preview  play · pause · seek {time} · safe {show} · scene {scene} · select {id} · ui {scale}
- *   preview → Studio  upw:ready · upw:state · upw:error · upw:select {id} · upw:layout {id, box}
- *                     upw:text {id, text} · upw:key {key, code, mod, shift, alt}
+ *   Studio → preview  play · pause · seek {time} · safe {show} · scene {scene} · select {ids}
+ *                     ui {scale} · align {mode, to}
+ *   preview → Studio  upw:ready · upw:state · upw:error · upw:select {ids}
+ *                     upw:layout {items: [{id, box}]} · upw:text {id, text}
+ *                     upw:key {key, code, mod, shift, alt}
  *
- * It draws the selection and hover outlines, moves and resizes layers (with snapping to the centre
- * and the safe area), and edits text in place. Nothing here ships in exported scenes.
+ * It draws the selection, hover and box-select outlines; selects with click, Shift/Ctrl+click and a
+ * dragged box; moves one layer or a group (snapping to the centre and the safe area); resizes a single
+ * layer; edits text in place; and measures layers for Align and Distribute, since only the preview
+ * knows how big auto-sized text really is. Nothing here ships in exported scenes.
  */
 import type { Anchor, Box, Scene } from './types';
 import type { ScenePlayer } from './player';
@@ -22,6 +26,12 @@ const ANCHOR: Record<Anchor, [number, number]> = {
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 type Handle = (typeof HANDLES)[number];
 
+export type AlignMode =
+  | 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom'
+  | 'dist-left' | 'dist-hcenter' | 'dist-right' | 'dist-top' | 'dist-vcenter' | 'dist-bottom'
+  | 'space-h' | 'space-v';
+export type AlignTo = 'selection' | 'stage' | 'safe';
+
 const round = (n: number) => Math.round(n * 100) / 100;
 const send = (msg: Record<string, unknown>) => parent.postMessage(msg, '*');
 
@@ -30,7 +40,9 @@ const CSS = `
 #upw-ed .box{position:fixed;box-sizing:border-box;display:none}
 #upw-ed .hover{outline:calc(1px*var(--k)) solid rgba(80,220,160,.55)}
 #upw-ed .sel{outline:calc(1.5px*var(--k)) solid #2ad38b}
-#upw-ed .sel.locked{outline-style:dashed}
+#upw-ed .member{outline:calc(1px*var(--k)) solid #2ad38b}
+#upw-ed .group{outline:calc(1px*var(--k)) dashed #2ad38b;outline-offset:calc(3px*var(--k))}
+#upw-ed .marquee{background:rgba(42,211,139,.1);outline:calc(1px*var(--k)) solid rgba(42,211,139,.8)}
 #upw-ed .h{position:absolute;width:calc(9px*var(--k));height:calc(9px*var(--k));margin:calc(-4.5px*var(--k)) 0 0 calc(-4.5px*var(--k));
   background:#fff;border:calc(1.5px*var(--k)) solid #2ad38b;box-sizing:border-box;pointer-events:auto;border-radius:calc(2px*var(--k))}
 #upw-ed .h[data-h=nw],#upw-ed .h[data-h=se]{cursor:nwse-resize}
@@ -39,11 +51,13 @@ const CSS = `
 #upw-ed .h[data-h=e],#upw-ed .h[data-h=w]{cursor:ew-resize}
 #upw-ed .tag{position:absolute;left:0;bottom:100%;margin-bottom:calc(4px*var(--k));padding:calc(1px*var(--k)) calc(6px*var(--k));
   font:600 calc(11px*var(--k))/1.5 system-ui,sans-serif;color:#0b1a12;background:#2ad38b;border-radius:calc(3px*var(--k));white-space:nowrap}
+#upw-ed .group .tag{margin-bottom:calc(7px*var(--k))}
 #upw-ed .guide{position:fixed;display:none;background:#ff4fa3}
 #upw-ed .gx{width:calc(1px*var(--k))}
 #upw-ed .gy{height:calc(1px*var(--k))}
 .upw-stage{cursor:default}
 .upw-layer{cursor:move}
+.upw-layer[data-locked]{cursor:default}
 #upw-ed-text{position:fixed;z-index:2147483601;margin:0;padding:0;border:0;resize:none;overflow:hidden;
   background:rgba(10,13,17,.55);outline:calc(1.5px*var(--k,1)) solid #2ad38b;box-sizing:content-box;white-space:pre-wrap}
 `;
@@ -53,6 +67,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   if (cls) e.className = cls;
   return e;
 }
+
+interface Frame { l: number; t: number; w: number; h: number; W: number; H: number; box: Box; ax: number; ay: number }
+type Rect = Pick<Frame, 'l' | 't' | 'w' | 'h' | 'W' | 'H'>;
 
 function start() {
   const api = (window as unknown as { UnysonPlusScene: Api }).UnysonPlusScene;
@@ -87,22 +104,39 @@ function start() {
     sel.appendChild(d);
     return d;
   });
+  const group = el('div', 'box group');
+  const groupTag = el('div', 'tag');
+  group.appendChild(groupTag);
+  const marquee = el('div', 'box marquee');
   const gx = el('div', 'guide gx');
   const gy = el('div', 'guide gy');
-  ov.append(hover, sel, gx, gy);
+  const members: HTMLElement[] = [];
+  ov.append(hover, group, sel, marquee, gx, gy);
   document.body.appendChild(ov);
 
-  let selected: string | null = null;
+  /** Selected layer ids; the last one is the primary (the one the Studio's inspector shows). */
+  let selection: string[] = [];
   let hovered: string | null = null;
   let k = 1;
   let editing: { id: string; ta: HTMLTextAreaElement; layer: HTMLElement } | null = null;
 
   const scene = () => player.scene as Scene;
   const layerOf = (id: string) => scene().layers.find((l) => l.id === id);
+  const isLocked = (id: string) => !!(layerOf(id) as { locked?: boolean } | undefined)?.locked;
   const safe = () => (scene().stage.safeArea ?? 0.06) * 100;
 
+  /** Marks locked layers so the stage shows them as not draggable. */
+  function markLocked() {
+    for (const l of scene().layers) {
+      const node = player.layerElement(l.id);
+      if (!node) continue;
+      if ((l as { locked?: boolean }).locked) node.dataset.locked = '';
+      else delete node.dataset.locked;
+    }
+  }
+
   /** A layer's frame in canvas percentages (left, top, width, height), from its laid-out size. */
-  function frame(id: string, box?: Box) {
+  function frame(id: string, box?: Box): Frame | null {
     const lay = player.layout(id);
     const node = player.layerElement(id);
     const cv = player.canvas();
@@ -116,7 +150,16 @@ function start() {
     return { l: b.x - w * ax, t: b.y - h * ay, w, h, W, H, box: b, ax, ay };
   }
 
-  function place(div: HTMLElement, f: { l: number; t: number; w: number; h: number; W: number; H: number }) {
+  function bounds(frames: Rect[]): Rect | null {
+    if (!frames.length) return null;
+    const l = Math.min(...frames.map((f) => f.l));
+    const t = Math.min(...frames.map((f) => f.t));
+    const r = Math.max(...frames.map((f) => f.l + f.w));
+    const b = Math.max(...frames.map((f) => f.t + f.h));
+    return { l, t, w: r - l, h: b - t, W: frames[0].W, H: frames[0].H };
+  }
+
+  function place(div: HTMLElement, f: Rect) {
     const cr = player.canvas().getBoundingClientRect();
     Object.assign(div.style, {
       display: 'block',
@@ -129,7 +172,7 @@ function start() {
 
   function handlesFor(id: string): Handle[] {
     const layer = layerOf(id);
-    if (!layer) return [];
+    if (!layer || isLocked(id)) return [];
     if (layer.type === 'text') return ['e', 'w'];
     if (typeof player.layout(id)?.box.ratio === 'number') return ['nw', 'ne', 'se', 'sw'];
     // On a thin layer (a line, a bar) the corner handles would sit on top of the side ones, so keep
@@ -142,30 +185,54 @@ function start() {
   }
 
   let drawQueued = false;
-  function draw(live?: { l: number; t: number; w: number; h: number; W: number; H: number }) {
+  /** Draws outlines; `live` overrides frames for layers being dragged. */
+  function draw(live?: Map<string, Rect>) {
     hover.style.display = 'none';
     sel.style.display = 'none';
-    if (hovered && hovered !== selected && !drag) {
+    group.style.display = 'none';
+    members.forEach((m) => { m.style.display = 'none'; });
+    if (hovered && !selection.includes(hovered) && !drag && !marq) {
       const f = frame(hovered);
       if (f) place(hover, f);
     }
-    if (selected && !editing) {
-      const f = live ?? frame(selected);
-      if (f) {
-        place(sel, f);
-        const layer = layerOf(selected);
-        tag.textContent = layer?.name || layer?.id || '';
-        const shown = handlesFor(selected);
-        const pos: Record<Handle, [number, number]> = {
-          nw: [0, 0], n: [50, 0], ne: [100, 0], e: [100, 50], se: [100, 100], s: [50, 100], sw: [0, 100], w: [0, 50],
-        };
-        handleEls.forEach((d) => {
-          const h = d.dataset.h as Handle;
-          d.style.display = shown.includes(h) ? 'block' : 'none';
-          d.style.left = `${pos[h][0]}%`;
-          d.style.top = `${pos[h][1]}%`;
-        });
+    if (editing || !selection.length) return;
+    const frameOf = (id: string) => live?.get(id) ?? frame(id);
+
+    if (selection.length === 1) {
+      const id = selection[0];
+      const f = frameOf(id);
+      if (!f) return;
+      place(sel, f);
+      const layer = layerOf(id);
+      tag.textContent = `${layer?.name || layer?.id || ''}${isLocked(id) ? ' (locked)' : ''}`;
+      const shown = handlesFor(id);
+      const pos: Record<Handle, [number, number]> = {
+        nw: [0, 0], n: [50, 0], ne: [100, 0], e: [100, 50], se: [100, 100], s: [50, 100], sw: [0, 100], w: [0, 50],
+      };
+      handleEls.forEach((d) => {
+        const h = d.dataset.h as Handle;
+        d.style.display = shown.includes(h) ? 'block' : 'none';
+        d.style.left = `${pos[h][0]}%`;
+        d.style.top = `${pos[h][1]}%`;
+      });
+      return;
+    }
+    // Several layers: an outline on each, and a dashed box around the group.
+    const frames: Rect[] = [];
+    selection.forEach((id, i) => {
+      const f = frameOf(id);
+      if (!f) return;
+      frames.push(f);
+      if (!members[i]) {
+        members[i] = el('div', 'box member');
+        ov.insertBefore(members[i], sel);
       }
+      place(members[i], f);
+    });
+    const g = bounds(frames);
+    if (g) {
+      place(group, g);
+      groupTag.textContent = `${selection.length} layers`;
     }
   }
   const redraw = () => {
@@ -193,36 +260,44 @@ function start() {
   };
   (['update', 'play', 'pause', 'complete', 'breakpoint', 'rebuild'] as const).forEach((e) => player.on(e, report));
   (['breakpoint', 'rebuild'] as const).forEach((e) => player.on(e, redraw));
+  player.on('rebuild', markLocked);
+  markLocked();
   addEventListener('resize', () => { report(); redraw(); });
   addEventListener('scroll', redraw, { passive: true });
 
   // ---- selection ----
-  function select(id: string | null, notify: boolean) {
-    selected = id && layerOf(id) ? id : null;
-    if (notify) send({ type: 'upw:select', id: selected });
+  function setSelection(ids: string[], notify: boolean) {
+    selection = [...new Set(ids)].filter((id) => !!layerOf(id));
+    if (notify) send({ type: 'upw:select', ids: selection });
     redraw();
   }
 
+  /** The topmost unlocked layer under a point. */
   function layerAt(x: number, y: number): string | null {
     for (const node of document.elementsFromPoint(x, y)) {
       const layer = (node as HTMLElement).closest?.('.upw-layer') as HTMLElement | null;
-      if (layer && player.root.contains(layer)) return layer.dataset.layer ?? null;
+      if (layer && player.root.contains(layer)) {
+        const id = layer.dataset.layer ?? null;
+        if (id && !isLocked(id)) return id;
+        continue;
+      }
       if ((node as HTMLElement).classList?.contains('upw-stage')) return null;
     }
     return null;
   }
 
-  // ---- move and resize ----
+  // ---- move, resize and box select ----
   interface Drag {
-    id: string;
+    ids: string[];
     mode: 'move' | Handle;
     x0: number;
     y0: number;
-    f0: NonNullable<ReturnType<typeof frame>>;
+    f0: Map<string, Frame>;
     moved: boolean;
-    patch: Partial<Box>;
+    patches: Map<string, Partial<Box>>;
   }
   let drag: Drag | null = null;
+  let marq: { x0: number; y0: number; additive: boolean; base: string[]; moved: boolean } | null = null;
 
   function snapAxis(edges: number[], lines: number[], thr: number): { delta: number; line: number | null } {
     let best: { delta: number; line: number | null } = { delta: 0, line: null };
@@ -250,7 +325,6 @@ function start() {
 
   function onMove(e: PointerEvent) {
     if (!drag) return;
-    const { f0 } = drag;
     const dxPx = e.clientX - drag.x0;
     const dyPx = e.clientY - drag.y0;
     if (!drag.moved && Math.hypot(dxPx, dyPx) < 3) return;
@@ -258,45 +332,56 @@ function start() {
       drag.moved = true;
       player.pause();
     }
-    const dx = (dxPx / f0.W) * 100;
-    const dy = (dyPx / f0.H) * 100;
-    const layer = layerOf(drag.id)!;
+    const first = drag.f0.values().next().value as Frame;
+    const dx = (dxPx / first.W) * 100;
+    const dy = (dyPx / first.H) * 100;
     const s = safe();
-    let l = f0.l, t = f0.t, w = f0.w, h = f0.h;
+    const live = new Map<string, Rect>();
     let guideX: number | null = null;
     let guideY: number | null = null;
 
     if (drag.mode === 'move') {
-      l += dx;
-      t += dy;
+      // Move the whole group by one offset, snapping the group's edges and centre.
+      const g = bounds([...drag.f0.values()])!;
+      let ddx = dx;
+      let ddy = dy;
       if (!e.altKey) {
-        const sx = snapAxis([l, l + w / 2, l + w], [50, s, 100 - s], ((6 * k) / f0.W) * 100);
-        const sy = snapAxis([t, t + h / 2, t + h], [50, s, 100 - s], ((6 * k) / f0.H) * 100);
-        l += sx.delta;
-        t += sy.delta;
+        const sx = snapAxis([g.l + dx, g.l + dx + g.w / 2, g.l + dx + g.w], [50, s, 100 - s], ((6 * k) / g.W) * 100);
+        const sy = snapAxis([g.t + dy, g.t + dy + g.h / 2, g.t + dy + g.h], [50, s, 100 - s], ((6 * k) / g.H) * 100);
+        ddx += sx.delta;
+        ddy += sy.delta;
         guideX = sx.line;
         guideY = sy.line;
       }
-      drag.patch = { x: round(l + w * f0.ax), y: round(t + h * f0.ay) };
+      for (const [id, f] of drag.f0) {
+        const l = f.l + ddx;
+        const t = f.t + ddy;
+        drag.patches.set(id, { x: round(l + f.w * f.ax), y: round(t + f.h * f.ay) });
+        live.set(id, { l, t, w: f.w, h: f.h, W: f.W, H: f.H });
+      }
     } else {
+      const id = drag.ids[0];
+      const f0 = drag.f0.get(id)!;
+      const layer = layerOf(id)!;
       const hnd = drag.mode;
+      let l = f0.l, t = f0.t, w = f0.w, h = f0.h;
       const ratioLocked = typeof f0.box.ratio === 'number';
       if (hnd.includes('e')) w = f0.w + dx;
-      if (hnd.includes('w')) { w = f0.w - dx; l = f0.l + dx; }
+      if (hnd.includes('w')) w = f0.w - dx;
       if (layer.type !== 'text') {
         if (hnd.includes('s')) h = f0.h + dy;
-        if (hnd.includes('n')) { h = f0.h - dy; t = f0.t + dy; }
+        if (hnd.includes('n')) h = f0.h - dy;
       }
       w = Math.max(0.5, w);
       h = Math.max(0.5, h);
+      if (layer.type !== 'text' && (ratioLocked || (e.shiftKey && hnd.length === 2))) {
+        // Keep the shape: height follows the width (in pixels).
+        const r = ratioLocked ? f0.box.ratio! : (f0.w * f0.W) / (f0.h * f0.H);
+        h = (w * f0.W) / r / f0.H;
+      }
+      // Anchored at the opposite edge or corner.
       if (hnd.includes('w')) l = f0.l + f0.w - w;
       if (hnd.includes('n')) t = f0.t + f0.h - h;
-      if (layer.type !== 'text' && (ratioLocked || (e.shiftKey && hnd.length === 2))) {
-        // Keep the shape: height follows the width (in pixels), anchored at the opposite corner.
-        const r = ratioLocked ? f0.box.ratio! : (f0.w * f0.W) / (f0.h * f0.H);
-        h = ((w * f0.W) / r / f0.H);
-        if (hnd.includes('n')) t = f0.t + f0.h - h;
-      }
       // Only write what this handle changed, so an edge drag never nudges the other axis by rounding.
       const horizontal = hnd.includes('e') || hnd.includes('w');
       const vertical = layer.type !== 'text' && (hnd.includes('n') || hnd.includes('s') || ratioLocked || e.shiftKey);
@@ -309,11 +394,19 @@ function start() {
         patch.y = round(t + h * f0.ay);
         if (!ratioLocked) patch.h = round(h);
       }
-      drag.patch = patch;
+      drag.patches.set(id, patch);
+      if (layer.type === 'text') {
+        // Text height follows the wrap, so measure it after the preview lays it out.
+        player.previewLayer(id, patch);
+        const f = frame(id, { ...f0.box, ...patch });
+        if (f) live.set(id, f);
+      } else {
+        live.set(id, { l, t, w, h, W: f0.W, H: f0.H });
+      }
     }
-    player.previewLayer(drag.id, drag.patch);
-    showGuides(guideX, guideY, f0);
-    draw(layer.type === 'text' && drag.mode !== 'move' ? frame(drag.id, { ...f0.box, ...drag.patch }) ?? undefined : { l, t, w, h, W: f0.W, H: f0.H });
+    for (const [id, patch] of drag.patches) player.previewLayer(id, patch);
+    showGuides(guideX, guideY, first);
+    draw(live);
   }
 
   function onUp() {
@@ -323,39 +416,105 @@ function start() {
     removeEventListener('pointermove', onMove);
     gx.style.display = 'none';
     gy.style.display = 'none';
-    if (d.moved && Object.keys(d.patch).length) {
+    const items = [...d.patches].filter(([, p]) => Object.keys(p).length).map(([id, box]) => ({ id, box }));
+    if (d.moved && items.length) {
       // The Studio writes the change into the scene and sends the new scene back.
-      send({ type: 'upw:layout', id: d.id, box: d.patch });
+      send({ type: 'upw:layout', items });
     } else {
-      player.previewLayer(d.id, null);
+      for (const id of d.ids) player.previewLayer(id, null);
     }
     redraw();
   }
 
+  /** Layers whose frames overlap a screen rectangle. */
+  function layersInRect(x0: number, y0: number, x1: number, y1: number): string[] {
+    const cr = player.canvas().getBoundingClientRect();
+    const cv = player.canvas();
+    const toL = (x: number) => ((x - cr.left) / cv.clientWidth) * 100;
+    const toT = (y: number) => ((y - cr.top) / cv.clientHeight) * 100;
+    const l = toL(Math.min(x0, x1)), r = toL(Math.max(x0, x1));
+    const t = toT(Math.min(y0, y1)), b = toT(Math.max(y0, y1));
+    const hits: string[] = [];
+    for (const layer of scene().layers) {
+      if (isLocked(layer.id)) continue;
+      const node = player.layerElement(layer.id);
+      if (!node || getComputedStyle(node).visibility === 'hidden') continue;
+      const f = frame(layer.id);
+      if (f && f.l < r && f.l + f.w > l && f.t < b && f.t + f.h > t) hits.push(layer.id);
+    }
+    return hits;
+  }
+
+  function onMarqueeMove(e: PointerEvent) {
+    if (!marq) return;
+    if (!marq.moved && Math.hypot(e.clientX - marq.x0, e.clientY - marq.y0) < 4) return;
+    marq.moved = true;
+    Object.assign(marquee.style, {
+      display: 'block',
+      left: `${Math.min(marq.x0, e.clientX)}px`, top: `${Math.min(marq.y0, e.clientY)}px`,
+      width: `${Math.abs(e.clientX - marq.x0)}px`, height: `${Math.abs(e.clientY - marq.y0)}px`,
+    });
+    const hits = layersInRect(marq.x0, marq.y0, e.clientX, e.clientY);
+    selection = marq.additive ? [...new Set([...marq.base, ...hits])] : hits;
+    draw();
+  }
+
+  function onMarqueeUp() {
+    if (!marq) return;
+    removeEventListener('pointermove', onMarqueeMove);
+    marquee.style.display = 'none';
+    const m = marq;
+    marq = null;
+    if (m.moved) setSelection(selection, true);
+  }
+
   addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || editing) return;
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     const handle = (e.target as HTMLElement).closest?.('.h') as HTMLElement | null;
-    let id: string | null;
-    let mode: Drag['mode'] = 'move';
-    if (handle && selected) {
-      id = selected;
-      mode = handle.dataset.h as Handle;
+
+    if (handle && selection.length === 1) {
+      const id = selection[0];
+      const f0 = frame(id);
+      if (!f0) return;
+      e.preventDefault();
+      drag = { ids: [id], mode: handle.dataset.h as Handle, x0: e.clientX, y0: e.clientY, f0: new Map([[id, f0]]), moved: false, patches: new Map() };
     } else {
-      id = layerAt(e.clientX, e.clientY);
-      if (id !== selected) select(id, true);
+      const id = layerAt(e.clientX, e.clientY);
+      if (!id) {
+        // Empty space: start a box selection (adding to the selection with Shift or Ctrl).
+        if (!additive) setSelection([], true);
+        e.preventDefault();
+        marq = { x0: e.clientX, y0: e.clientY, additive, base: [...selection], moved: false };
+        addEventListener('pointermove', onMarqueeMove);
+        addEventListener('pointerup', onMarqueeUp, { once: true });
+        addEventListener('pointercancel', onMarqueeUp, { once: true });
+        return;
+      }
+      if (additive) {
+        // Shift or Ctrl + click adds or removes one layer; no dragging.
+        setSelection(selection.includes(id) ? selection.filter((x) => x !== id) : [...selection, id], true);
+        return;
+      }
+      // Clicking a layer that is already part of the selection drags the whole selection.
+      const ids = selection.includes(id) ? [...selection.filter((x) => x !== id), id] : [id];
+      setSelection(ids, true);
+      const f0 = new Map<string, Frame>();
+      for (const x of ids) {
+        const f = frame(x);
+        if (f && !isLocked(x)) f0.set(x, f);
+      }
+      if (!f0.size) return;
+      e.preventDefault();
+      drag = { ids, mode: 'move', x0: e.clientX, y0: e.clientY, f0, moved: false, patches: new Map() };
     }
-    if (!id) return;
-    const f0 = frame(id);
-    if (!f0) return;
-    e.preventDefault();
-    drag = { id, mode, x0: e.clientX, y0: e.clientY, f0, moved: false, patch: {} };
     addEventListener('pointermove', onMove);
     addEventListener('pointerup', onUp, { once: true });
     addEventListener('pointercancel', onUp, { once: true });
   });
 
   addEventListener('pointermove', (e) => {
-    if (drag || editing) return;
+    if (drag || editing || marq) return;
     const id = layerAt(e.clientX, e.clientY);
     if (id !== hovered) {
       hovered = id;
@@ -363,6 +522,78 @@ function start() {
     }
   });
   document.addEventListener('pointerleave', () => { hovered = null; redraw(); });
+
+  // ---- align and distribute ----
+  function align(mode: AlignMode, to: AlignTo) {
+    const items = selection.map((id) => ({ id, f: frame(id) })).filter((x): x is { id: string; f: Frame } => !!x.f && !isLocked(x.id));
+    if (!items.length) return;
+    const s = safe();
+    const useSelection = to === 'selection' && items.length > 1;
+    const T = useSelection
+      ? bounds(items.map((i) => i.f))!
+      : to === 'safe'
+        ? { l: s, t: s, w: 100 - 2 * s, h: 100 - 2 * s }
+        : { l: 0, t: 0, w: 100, h: 100 };
+    const next = new Map(items.map((i) => [i.id, { l: i.f.l, t: i.f.t }]));
+    const horizontal = ['left', 'hcenter', 'right', 'dist-left', 'dist-hcenter', 'dist-right', 'space-h'].includes(mode);
+
+    if (mode === 'left' || mode === 'hcenter' || mode === 'right') {
+      for (const { id, f } of items) {
+        next.get(id)!.l = mode === 'left' ? T.l : mode === 'right' ? T.l + T.w - f.w : T.l + T.w / 2 - f.w / 2;
+      }
+    } else if (mode === 'top' || mode === 'vcenter' || mode === 'bottom') {
+      for (const { id, f } of items) {
+        next.get(id)!.t = mode === 'top' ? T.t : mode === 'bottom' ? T.t + T.h - f.h : T.t + T.h / 2 - f.h / 2;
+      }
+    } else if (mode.startsWith('dist-')) {
+      // Equal spacing between the chosen edge (or centre) of each layer.
+      if (items.length < (useSelection ? 3 : 2)) return;
+      const axis = horizontal ? 'x' : 'y';
+      const part = mode.endsWith('center') ? 0.5 : mode === 'dist-left' || mode === 'dist-top' ? 0 : 1;
+      const pos = (f: Frame) => (axis === 'x' ? f.l : f.t);
+      const size = (f: Frame) => (axis === 'x' ? f.w : f.h);
+      const key = (f: Frame) => pos(f) + size(f) * part;
+      const sorted = [...items].sort((a, b) => key(a.f) - key(b.f));
+      const firstF = sorted[0].f;
+      const lastF = sorted[sorted.length - 1].f;
+      const lo = useSelection ? key(firstF) : (axis === 'x' ? T.l : T.t) + size(firstF) * part;
+      const hi = useSelection ? key(lastF) : (axis === 'x' ? T.l + T.w : T.t + T.h) - size(lastF) * (1 - part);
+      sorted.forEach(({ id, f }, i) => {
+        const k2 = lo + ((hi - lo) * i) / (sorted.length - 1);
+        if (axis === 'x') next.get(id)!.l = k2 - f.w * part;
+        else next.get(id)!.t = k2 - f.h * part;
+      });
+    } else {
+      // Equal gaps between neighbours.
+      if (items.length < (useSelection ? 3 : 2)) return;
+      const axis = mode === 'space-h' ? 'x' : 'y';
+      const pos = (f: Frame) => (axis === 'x' ? f.l : f.t);
+      const size = (f: Frame) => (axis === 'x' ? f.w : f.h);
+      const sorted = [...items].sort((a, b) => pos(a.f) - pos(b.f));
+      const start = useSelection ? pos(sorted[0].f) : axis === 'x' ? T.l : T.t;
+      const end = useSelection ? Math.max(...sorted.map((i) => pos(i.f) + size(i.f))) : axis === 'x' ? T.l + T.w : T.t + T.h;
+      const total = sorted.reduce((n, i) => n + size(i.f), 0);
+      const gap = (end - start - total) / (sorted.length - 1);
+      let cursor = start;
+      for (const { id, f } of sorted) {
+        if (axis === 'x') next.get(id)!.l = cursor;
+        else next.get(id)!.t = cursor;
+        cursor += size(f) + gap;
+      }
+    }
+
+    const out: Array<{ id: string; box: Partial<Box> }> = [];
+    for (const { id, f } of items) {
+      const n = next.get(id)!;
+      const box: Partial<Box> = {};
+      const x = round(n.l + f.w * f.ax);
+      const y = round(n.t + f.h * f.ay);
+      if (horizontal && x !== round(f.box.x)) box.x = x;
+      if (!horizontal && y !== round(f.box.y)) box.y = y;
+      if (Object.keys(box).length) out.push({ id, box });
+    }
+    if (out.length) send({ type: 'upw:layout', items: out });
+  }
 
   // ---- text editing in place ----
   function finishEdit(commit: boolean) {
@@ -382,7 +613,7 @@ function start() {
     const node = player.layerElement(id)!;
     const inner = node.querySelector('.upw-li') as HTMLElement;
     player.pause();
-    select(id, true);
+    setSelection([id], true);
     const rect = node.getBoundingClientRect();
     const cs = getComputedStyle(inner);
     const ta = el('textarea');
@@ -430,7 +661,7 @@ function start() {
     if (editing) return;
     const mod = e.ctrlKey || e.metaKey;
     const forwarded = e.code === 'Space' || e.key === 'Home' || e.key === 'Delete' || e.key === 'Backspace' || e.key === 'Escape'
-      || e.key.startsWith('Arrow') || e.key === ',' || e.key === '.' || (mod && ['z', 'y', 'd', 's'].includes(e.key.toLowerCase()));
+      || e.key.startsWith('Arrow') || e.key === ',' || e.key === '.' || (mod && ['z', 'y', 'd', 's', 'a'].includes(e.key.toLowerCase()));
     if (!forwarded) return;
     e.preventDefault();
     send({ type: 'upw:key', key: e.key, code: e.code, mod, shift: e.shiftKey, alt: e.altKey });
@@ -444,7 +675,8 @@ function start() {
     else if (m.type === 'pause') player.pause();
     else if (m.type === 'seek') player.seek(Number(m.time) || 0);
     else if (m.type === 'safe') player.setSafeArea(!!m.show);
-    else if (m.type === 'select') select(m.id ?? null, false);
+    else if (m.type === 'select') setSelection(Array.isArray(m.ids) ? m.ids : m.id ? [m.id] : [], false);
+    else if (m.type === 'align') align(m.mode as AlignMode, m.to as AlignTo);
     else if (m.type === 'ui') {
       k = Math.max(0.5, Math.min(8, 1 / (Number(m.scale) || 1)));
       ov.style.setProperty('--k', String(k));
@@ -453,7 +685,9 @@ function start() {
       if (editing) finishEdit(false);
       try {
         player.update(m.scene);
-        if (selected && !layerOf(selected)) select(null, true);
+        markLocked();
+        const kept = selection.filter((id) => layerOf(id));
+        if (kept.length !== selection.length) setSelection(kept, true);
         send({ type: 'upw:error', message: null });
       } catch (err) {
         send({ type: 'upw:error', message: (err as Error).message });

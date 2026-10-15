@@ -3,7 +3,8 @@ import type { Layer, Scene } from '@unysonplus/scene-player/types';
 import { presetMeta } from '@unysonplus/scene-player/catalog';
 import { addClip, roundTime, setClip } from '../lib/sceneOps';
 import { PRESET_MIME } from './Library';
-import type { Selection } from './Inspector';
+import { selectedIds, selectLayers, type Selection } from './Inspector';
+import { setLayerProps } from '../lib/sceneOps';
 
 const NAME_W = 172;
 const ROW_H = 30;
@@ -199,15 +200,41 @@ export function Timeline(props: Props) {
           )}
 
           {rows.map((layer) => {
-            const layerSel = selection.layerId === layer.id;
+            const layerSel = selectedIds(selection).includes(layer.id);
             const start = layer.start ?? 0;
             const end = layer.end ?? D;
             return (
               <div key={layer.id} className={`tl-row${layerSel ? ' sel' : ''}${dropRow === layer.id ? ' drop' : ''}`} style={{ height: ROW_H }}>
-                <button type="button" className="tl-name" onClick={() => props.onSelect({ layerId: layer.id, clipId: null })} aria-pressed={layerSel && !selection.clipId}>
+                <div className="tl-head">
+                <button
+                  type="button"
+                  className="tl-name"
+                  title="Click to select. Shift or Ctrl + click to add to the selection."
+                  onClick={(e) => {
+                    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                      const ids = selectedIds(selection);
+                      props.onSelect(selectLayers(ids.includes(layer.id) ? ids.filter((x) => x !== layer.id) : [...ids, layer.id]));
+                    } else props.onSelect({ layerId: layer.id, clipId: null });
+                  }}
+                  aria-pressed={layerSel && !selection.clipId}
+                >
                   <span className="tl-glyph" aria-hidden="true">{LAYER_GLYPH[layer.type]}</span>
                   <span className="tl-label">{layer.name || layer.id}</span>
                 </button>
+                <button
+                  type="button"
+                  className={`tl-lock${layer.locked ? ' on' : ''}`}
+                  aria-pressed={!!layer.locked}
+                  aria-label={`${layer.locked ? 'Unlock' : 'Lock'} ${layer.name || layer.id}`}
+                  title={layer.locked ? 'Locked: can’t be selected or moved on the stage. Click to unlock.' : 'Lock so it can’t be selected or moved on the stage'}
+                  onClick={() => props.onCommit(setLayerProps(scene, layer.id, { locked: layer.locked ? undefined : true }))}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="10" rx="2" />
+                    {layer.locked ? <path d="M8 11V8a4 4 0 0 1 8 0v3" /> : <path d="M8 11V8a4 4 0 0 1 7.5-2" />}
+                  </svg>
+                </button>
+                </div>
                 <div
                   className="tl-lane"
                   style={{ width }}

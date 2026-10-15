@@ -119,6 +119,8 @@ interface LayerBase {
   /** When the layer disappears, in seconds. Defaults to the scene's end. */
   end?: number;
   opacity?: number;
+  /** Editor only: a locked layer can't be selected or moved on the stage. Playback ignores it. */
+  locked?: boolean;
   /** Per-breakpoint changes, keyed by breakpoint id. Layout only: clips are shared by every breakpoint. */
   overrides?: Record<string, LayerOverride>;
   clips: Clip[];
