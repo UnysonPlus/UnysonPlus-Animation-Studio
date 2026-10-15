@@ -19,6 +19,7 @@ import type { GroupLayer } from '@unysonplus/scene-player/types';
 import { AlignPanel, type AlignMode, type AlignTo } from './AlignPanel';
 import { SFX_CATALOG, SFX_CATEGORY_LABELS, sfxMeta, sfxSrc, suggestedSound, type SfxCategory } from '@unysonplus/scene-player/sfx';
 import { cleanSound } from '../lib/audio';
+import { sceneTranscript } from '@unysonplus/scene-player/transcript';
 import type { ClipSound } from '@unysonplus/scene-player/types';
 
 
@@ -223,7 +224,45 @@ function SceneInspector({ scene, onCommit }: Props) {
         ))}
         <button type="button" className="btn ghost small wide-btn" onClick={() => setStage({ fonts: [...fonts, { family: 'Inter', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap' }] })}>Add font</button>
       </Section>
+
+      <TranscriptSection scene={scene} onCommit={onCommit} />
     </div>
+  );
+}
+
+/**
+ * Search engines and screen readers: the scene's words as plain text, in reading order. Shown here so the
+ * author sees exactly what Google and a screen reader get.
+ */
+function TranscriptSection({ scene, onCommit }: { scene: Scene; onCommit: (s: Scene) => void }) {
+  const t = scene.transcript ?? {};
+  const setT = (patch: Partial<NonNullable<Scene['transcript']>>) => {
+    const next = { ...t, ...patch };
+    if (next.headline === 'h2') delete next.headline;
+    if (!next.decorative) delete next.decorative;
+    const out: Scene = { ...scene, transcript: next };
+    if (!Object.keys(next).length) delete out.transcript;
+    onCommit(out);
+  };
+  const items = sceneTranscript(scene);
+  return (
+    <Section title="Search engines and screen readers">
+      <SelectField label="Headline as" value={t.headline ?? 'h2'} onChange={(v) => setT({ headline: v as 'h1' | 'h2' | 'h3' | 'p' })}
+        options={[{ value: 'h1', label: 'Heading 1 (the page’s main title)' }, { value: 'h2', label: 'Heading 2 (a section)' }, { value: 'h3', label: 'Heading 3' }, { value: 'p', label: 'Paragraph (no heading)' }]} />
+      <CheckField label="Decorative (no text)" checked={!!t.decorative} onChange={(v) => setT({ decorative: v })} />
+      <p className="field-hint wide">
+        {t.decorative
+          ? 'Search engines and screen readers skip this scene. Use it for animation that only decorates.'
+          : 'An animation shows its words a few at a time, so the page also carries them once as plain text, in this order. Search engines index it and screen readers read it; visitors see the animation. Use Heading 1 only when the scene is the page’s main title.'}
+      </p>
+      {!t.decorative && (
+        <ol className="transcript-preview wide" aria-label="What search engines and screen readers get">
+          {items.length ? items.map((i, k) => (
+            <li key={k} className={i.level ? 'is-heading' : ''}><span className="mono">{i.level ? `H${i.level}` : 'P'}</span>{i.text}</li>
+          )) : <li className="is-empty">No text in this scene yet.</li>}
+        </ol>
+      )}
+    </Section>
   );
 }
 

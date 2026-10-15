@@ -27,6 +27,15 @@ export interface Scene {
   markers?: Marker[];
   /** Sound: voice-overs, music and effects on the timeline. Silent until the visitor turns sound on. */
   audio?: AudioClip[];
+  /** How the scene's words reach search engines and screen readers (see transcript.ts). */
+  transcript?: TranscriptSettings;
+}
+
+export interface TranscriptSettings {
+  /** What the headline becomes: a heading of this level, or a paragraph. Defaults to h2. */
+  headline?: 'h1' | 'h2' | 'h3' | 'p';
+  /** Decoration only: no transcript, and the scene is hidden from screen readers. */
+  decorative?: boolean;
 }
 
 export interface AudioClip {

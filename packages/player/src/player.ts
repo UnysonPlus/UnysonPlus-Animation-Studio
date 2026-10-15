@@ -11,6 +11,7 @@ import { linkToScroll, type ScrollLink } from './scroll';
 import { load3d } from './model3d';
 import { SceneAudio } from './audio';
 import { soundTrack } from './sfx';
+import { TRANSCRIPT_CLASS, transcriptHtml } from './transcript';
 import { defaultEaseFor } from './presets/catalog';
 
 // The measured eases, usable by name in any clip (and in custom code clips).
@@ -105,12 +106,36 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
 
   injectStyles(doc);
 
+  // A transcript the page already has (written by the server, for search engines) is kept as it is.
+  const served = Array.from(host.children).find((c) => c.classList.contains(TRANSCRIPT_CLASS)) as HTMLElement | undefined;
+
   const root = doc.createElement('div');
   root.className = 'upw-scene';
-  root.setAttribute('role', 'img');
   if (options.safeArea) root.dataset.safe = '';
   host.textContent = '';
   host.appendChild(root);
+  if (served) host.appendChild(served);
+
+  /**
+   * The scene's words for search engines and screen readers: the served transcript, or one written here.
+   * The animated stage is hidden from screen readers, which read the transcript instead.
+   */
+  function syncTranscript() {
+    const decorative = !!scene.transcript?.decorative;
+    if (!served) {
+      host.querySelector(`:scope > .${TRANSCRIPT_CLASS}[data-upw-generated]`)?.remove();
+      const html = transcriptHtml(scene);
+      if (html) {
+        const box = doc.createElement('div');
+        box.innerHTML = html;
+        const el = box.firstElementChild as HTMLElement;
+        el.dataset.upwGenerated = '';
+        host.appendChild(el);
+      }
+    }
+    if (decorative) { root.removeAttribute('role'); root.removeAttribute('aria-label'); }
+    else { root.setAttribute('role', 'group'); root.setAttribute('aria-label', scene.title || 'Animation'); }
+  }
 
   // Events
   const listeners = new Map<PlayerEvent, Set<() => void>>();
@@ -224,11 +249,12 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     root.textContent = '';
     root.dataset.mode = scene.stage.heightMode;
     root.style.setProperty('--upw-offset', `${scene.stage.heightOffset ?? 0}px`);
-    if (scene.title) root.setAttribute('aria-label', scene.title);
-    else root.removeAttribute('aria-label');
+    syncTranscript();
     injectFonts(doc, scene.stage.fonts);
 
     const { stage, canvas } = createStage(doc, scene);
+    // The words are in the transcript; the animated copies would only be read twice (or mid-scramble).
+    stage.setAttribute('aria-hidden', 'true');
     canvasEl = canvas;
     stageEl = stage;
     if (soundBtn) soundBtn = null; // the old button went with the old stage

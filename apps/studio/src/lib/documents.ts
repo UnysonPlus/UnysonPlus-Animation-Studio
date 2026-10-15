@@ -1,6 +1,7 @@
 import type { Scene } from '@unysonplus/scene-player/types';
 import playerScript from '@unysonplus/scene-player/dist/scene-player.iife.js?raw';
 import editorScript from '@unysonplus/scene-player/dist/scene-editor.iife.js?raw';
+import { transcriptHtml } from '@unysonplus/scene-player/transcript';
 
 /**
  * Builds the two HTML documents the Studio produces from a scene: the preview page shown in the
@@ -66,6 +67,7 @@ ${fontStyle}</head>
 <body>
 ${hostTag(scene)}
 <script type="application/json">${safeJson(scene)}</script>
+${transcriptHtml(scene)}
 </div>
 ${opts.three ? `<script>${opts.three.replace(/<\/script/gi, '<\\/script')}</script>\n` : ''}${inlinePlayer(true)}
 </body>
@@ -117,6 +119,7 @@ export function embedCode(scene: Scene): string {
   return `<!-- Unyson+ Animation Studio: ${label} -->
 ${hostTag(scene)}
 <script type="application/json">${safeJson(scene)}</script>
+${transcriptHtml(scene)}
 </div>
 <script src="${playerUrl()}" defer></script>
 `;

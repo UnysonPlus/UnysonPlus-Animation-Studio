@@ -132,6 +132,16 @@ export function validateScene(input: unknown): ValidationResult {
     }
   }
 
+  // Transcript (search engines and screen readers)
+  if (scene.transcript !== undefined) {
+    const t = scene.transcript as unknown;
+    if (!isObj(t)) fail('transcript', 'must be an object');
+    else {
+      if (t.headline !== undefined && !['h1', 'h2', 'h3', 'p'].includes(t.headline as string)) fail('transcript.headline', 'must be h1, h2, h3 or p');
+      if (t.decorative !== undefined && typeof t.decorative !== 'boolean') fail('transcript.decorative', 'must be true or false');
+    }
+  }
+
   // Markers (pause points for click-to-advance)
   if (scene.markers !== undefined) {
     if (!Array.isArray(scene.markers) || scene.markers.length > 200) fail('markers', 'must be a list of at most 200 markers');
