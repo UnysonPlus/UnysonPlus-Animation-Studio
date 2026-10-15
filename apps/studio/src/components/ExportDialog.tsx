@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Scene } from '@unysonplus/scene-player/types';
-import { embedCode, exportHtml, hasCodeClips } from '../lib/documents';
+import { embedCode, exportHtml, hasModel, threeRuntime, hasCodeClips } from '../lib/documents';
 import { embedFonts } from '../lib/fonts';
 import { DownloadIcon } from './icons';
 
@@ -50,10 +50,10 @@ export function ExportDialog(props: {
       let note = '';
       if (withFonts && hasFonts) {
         const packed = await embedFonts(props.scene);
-        html = exportHtml(packed.scene, { fontCss: packed.css });
+        html = exportHtml(packed.scene, { fontCss: packed.css, three: hasModel(props.scene) ? await threeRuntime() : undefined });
         note = ` Fonts embedded (${kb(packed.bytes)}).`;
       } else {
-        html = exportHtml(props.scene);
+        html = exportHtml(props.scene, { three: hasModel(props.scene) ? await threeRuntime() : undefined });
       }
       const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
       const a = document.createElement('a');
@@ -108,7 +108,7 @@ export function ExportDialog(props: {
             <button type="button" className="btn primary" onClick={download} disabled={busy}>
               <DownloadIcon /> {busy ? 'Packing fonts…' : 'Download page'}
             </button>
-            <span className="export-meta">{kb(pageSize)}{withFonts && hasFonts ? ' plus fonts' : ''}</span>
+            <span className="export-meta">{kb(pageSize)}{hasModel(props.scene) ? ' plus the 3D runtime (about 790 KB)' : ''}{withFonts && hasFonts ? ' plus fonts' : ''}</span>
           </div>
         </section>
 

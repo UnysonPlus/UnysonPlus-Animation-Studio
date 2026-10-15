@@ -3,6 +3,7 @@ import type { Clip, Layer } from '../types';
 import { hash01 } from '../random';
 import { PRESET_CATALOG, type PresetMeta } from './catalog';
 import { resolveEase } from '../eases';
+import type { State3D } from '../model3d';
 import { MORE_BUILDERS } from './more';
 
 /**
@@ -43,6 +44,8 @@ export interface PresetContext {
   gsap: typeof GSAP;
   /** Whether this page allows custom code clips to run. */
   allowCode: boolean;
+  /** 3D layers: the state 3D presets animate (rotations in degrees, scale, camera orbit, tilt and dolly). */
+  model?: State3D;
 }
 
 export interface PresetDefinition extends PresetMeta {

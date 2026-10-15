@@ -11,6 +11,8 @@ function sampleScene(p: PresetMeta): Scene {
   const word = p.id === 'text-scramble' || p.id === 'text-typewriter' ? 'Motion' : p.id === 'text-count' ? '$1,280' : 'Aa';
   const layer: Layer = textual
     ? { id: 's', type: 'text', text: word, style: { fontSize: word === 'Aa' ? 30 : 17, fontWeight: 800, color: '#f4f6f8' }, box: { x: 50, y: 52 }, clips: [] }
+    : p.category === '3d'
+      ? { id: 's', type: 'model', model: { kind: 'shape', shape: 'knot' }, material: { color: '#2ad38b', finish: 'glossy' }, box: { x: 50, y: 50, w: 70, h: 80 }, clips: [] }
     : p.id === 'particles'
       ? { id: 's', type: 'shape', shape: 'rect', fill: 'transparent', box: { x: 50, y: 50, w: 100, h: 100 }, clips: [] }
       : p.id === 'gradient-flow'
@@ -58,7 +60,7 @@ export function Library(props: {
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = PRESET_CATALOG.filter((p) => !q || p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
-    const order: PresetCategory[] = ['text', 'reveal', 'motion', 'emphasis', 'ambient'];
+    const order: PresetCategory[] = ['text', 'reveal', 'motion', 'emphasis', 'ambient', '3d'];
     return order.map((c) => ({ c, items: list.filter((p) => p.category === c) })).filter((g) => g.items.length);
   }, [query]);
 

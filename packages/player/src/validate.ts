@@ -133,11 +133,24 @@ export function validateScene(input: unknown): ValidationResult {
       } else if (layer.type === 'image') {
         if (typeof layer.src !== 'string' || !layer.src) fail(`${lp}.src`, 'is required');
         if (!layer.alt) warnings.push(`${lp}.alt: add a description so screen readers can announce the image (or "" if it is decorative).`);
+      } else if (layer.type === 'model') {
+        const m = layer.model;
+        if (!isObj(m) || !['text', 'shape', 'svg', 'gltf'].includes(m.kind)) fail(`${lp}.model.kind`, 'must be text, shape, svg or gltf');
+        else {
+          if (m.kind === 'text' && (typeof m.text !== 'string' || !m.text.trim())) fail(`${lp}.model.text`, 'is required for 3D text');
+          if (m.kind === 'shape' && !['box', 'sphere', 'torus', 'knot', 'cylinder', 'crystal'].includes(m.shape as string)) fail(`${lp}.model.shape`, 'must be box, sphere, torus, knot, cylinder or crystal');
+          if ((m.kind === 'svg' || m.kind === 'gltf') && (typeof m.src !== 'string' || !m.src)) fail(`${lp}.model.src`, 'is required');
+          if (m.depth !== undefined && (!isNum(m.depth) || m.depth < 0.01 || m.depth > 4)) fail(`${lp}.model.depth`, 'must be 0.01 to 4');
+          if (m.bevel !== undefined && (!isNum(m.bevel) || m.bevel < 0 || m.bevel > 1)) fail(`${lp}.model.bevel`, 'must be 0 to 1');
+        }
+        if (layer.material !== undefined && !isObj(layer.material)) fail(`${lp}.material`, 'must be an object');
+        if (layer.pose !== undefined && !isObj(layer.pose)) fail(`${lp}.pose`, 'must be an object');
+        if (layer.light !== undefined && (!isNum(layer.light) || layer.light < 0 || layer.light > 3)) fail(`${lp}.light`, 'must be 0 to 3');
       } else if (layer.type === 'group') {
         if (layer.duration !== undefined && (!isNum(layer.duration) || layer.duration <= 0)) fail(`${lp}.duration`, 'must be more than 0 seconds');
         checkLayers(layer.layers, `${lp}.layers`, depth + 1);
       } else {
-        fail(`${lp}.type`, 'must be text, shape, image or group');
+        fail(`${lp}.type`, 'must be text, shape, image, model or group');
       }
 
       if (layer.type !== 'group') {

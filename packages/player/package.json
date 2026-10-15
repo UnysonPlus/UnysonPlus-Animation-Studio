@@ -1,6 +1,6 @@
 {
   "name": "@unysonplus/scene-player",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "private": true,
   "description": "Plays Unyson+ Animation Studio scene files in any web page.",
   "type": "module",
@@ -18,13 +18,15 @@
     "./scroll": "./src/scroll.ts"
   },
   "scripts": {
-    "build": "vite build && vite build --config vite.editor.config.ts",
+    "build": "vite build && vite build --config vite.editor.config.ts && vite build --config vite.3d.config.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "gsap": "3.13.0"
+    "gsap": "3.13.0",
+    "three": "0.186.0"
   },
   "devDependencies": {
+    "@types/three": "0.186.0",
     "typescript": "5.6.3",
     "vite": "5.4.21"
   }

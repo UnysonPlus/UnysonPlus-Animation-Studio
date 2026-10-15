@@ -1,6 +1,6 @@
 {
   "name": "unysonplus-animation-studio",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "private": true,
   "description": "Unyson+ Animation Studio: timeline motion graphics for the web, exported as plain HTML.",
   "workspaces": [
@@ -17,5 +17,9 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "^5.1.0",
+    "opentype.js": "^1.3.4"
   }
 }

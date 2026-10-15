@@ -185,7 +185,46 @@ export interface GroupLayer extends Omit<LayerBase, 'box'> {
   duration?: number;
 }
 
-export type Layer = TextLayer | ShapeLayer | ImageLayer | GroupLayer;
+/**
+ * A 3D object, drawn by three.js inside the layer's box: extruded text, a shape, an extruded SVG logo,
+ * or a glTF model. three.js loads only for scenes that have one. The box is the viewport; the object is
+ * fitted inside it. Presets made for 3D turn the object and move the camera; every other preset moves
+ * the layer as a whole, like any layer.
+ */
+export interface ModelLayer extends LayerBase {
+  type: 'model';
+  model: ModelSource;
+  material?: ModelMaterial;
+  /** The resting pose: rotation in degrees, and a scale (1 = fitted to the box). */
+  pose?: { rx?: number; ry?: number; rz?: number; scale?: number };
+  /** Light: 0 to 3 (1 = normal). */
+  light?: number;
+  /** Describes the object for screen readers ("" if it is decorative). */
+  alt?: string;
+}
+
+export interface ModelSource {
+  kind: 'text' | 'shape' | 'svg' | 'gltf';
+  /** kind text: the words to extrude (a line break starts a new line). */
+  text?: string;
+  /** kind shape. */
+  shape?: 'box' | 'sphere' | 'torus' | 'knot' | 'cylinder' | 'crystal';
+  /** kind svg: the SVG markup, a data: URL or an https address. kind gltf: a .glb / .gltf address or data: URL. */
+  src?: string;
+  /** Text and SVG: extrusion depth, relative to the object's height (0.05 to 2). */
+  depth?: number;
+  /** Text and SVG: rounded edges, relative to the depth (0 to 1). */
+  bevel?: number;
+}
+
+export interface ModelMaterial {
+  color?: string;
+  finish?: 'matte' | 'satin' | 'glossy' | 'metal' | 'chrome';
+  /** gltf: keep the model's own materials (default true). */
+  original?: boolean;
+}
+
+export type Layer = TextLayer | ShapeLayer | ImageLayer | ModelLayer | GroupLayer;
 
 export interface Clip {
   id: string;

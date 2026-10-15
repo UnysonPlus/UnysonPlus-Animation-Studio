@@ -12,6 +12,7 @@ import demo from '../scenes/demo.json';
 import { CheckField, ColorField, Field, NumberField, Section, SelectField, TextField } from './fields';
 import { groupDuration, groupOffset, groupPath } from '@unysonplus/scene-player/groups';
 import { KeyframeEditor } from './KeyframeEditor';
+import { ModelSection } from './ModelSection';
 import type { GroupLayer } from '@unysonplus/scene-player/types';
 import { AlignPanel, type AlignMode, type AlignTo } from './AlignPanel';
 
@@ -382,6 +383,8 @@ function LayerInspector({ scene, layer, bp, onCommit, onSelect, alignTo, onAlign
           <NumberField label="Outline width" value={layer.strokeWidth ?? 0.2} step={0.05} min={0} unit="su" onCommit={(v) => props({ strokeWidth: v })} />
         </Section>
       )}
+
+      {layer.type === 'model' && <ModelSection layer={layer} set={(p) => props(p as Record<string, unknown>)} />}
 
       {layer.type === 'image' && (
         <Section title="Image">

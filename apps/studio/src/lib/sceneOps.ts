@@ -176,6 +176,12 @@ export function addLayer(scene: Scene, type: Exclude<Layer['type'], 'group'>, ex
     };
   } else if (type === 'shape') {
     layer = { id, type: 'shape', name: 'Shape', shape: 'rect', fill: '#2ad38b', radius: 1, box: { x: 50, y: 50, w: 20, h: 20 }, clips: [] };
+  } else if (type === 'model') {
+    layer = {
+      id, type: 'model', name: '3D', model: { kind: 'text', text: '3D', depth: 0.35, bevel: 0.45 },
+      material: { color: '#2ad38b', finish: 'glossy' }, pose: { rx: 8, ry: -20 }, alt: '',
+      box: { x: 50, y: 50, w: 36, ratio: 1.6 }, clips: [],
+    };
   } else {
     layer = { id, type: 'image', name: 'Image', src: '', alt: '', fit: 'cover', radius: 1, box: { x: 50, y: 50, w: 30, ratio: 1.5 }, clips: [] };
   }

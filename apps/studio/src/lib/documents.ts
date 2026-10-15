@@ -27,6 +27,22 @@ const inlinePlayer = (autoMount: boolean) =>
 
 const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
+/** True when the scene (or a group in it) has a 3D layer. */
+export function hasModel(scene: Scene): boolean {
+  type L = { type: string; layers?: L[] };
+  const walk = (list: L[]): boolean => list.some((l) => l.type === 'model' || (!!l.layers && walk(l.layers)));
+  return walk(scene.layers as unknown as L[]);
+}
+
+/** The 3D runtime's source, loaded only when a downloaded page needs it inside (it is large). */
+export async function threeRuntime(): Promise<string> {
+  return (await import('@unysonplus/scene-player/dist/scene-3d.iife.js?raw')).default;
+}
+
+/** Pages the Studio builds itself (the preview, the scroll test) load scene-3d.js from the Studio's own copy. */
+const assetBaseScript = () =>
+  `<script>window.UPW_SCENE_ASSET_BASE=${JSON.stringify(new URL(`/player/${__PLAYER_VERSION__}/`, location.href).href)}</script>`;
+
 /** Where every published player version lives. A version, once published, never changes. */
 export const PLAYER_BASE = 'https://animation-studio.unysonplus.com/player/';
 export const playerUrl = () => `${PLAYER_BASE}${__PLAYER_VERSION__}/scene-player.js`;
@@ -35,7 +51,7 @@ export const playerUrl = () => `${PLAYER_BASE}${__PLAYER_VERSION__}/scene-player
  * A complete, standalone page that plays the scene, with its own copy of the player inside. Pass
  * fontCss (from embedFonts) to carry the fonts in the file too.
  */
-export function exportHtml(scene: Scene, opts: { fontCss?: string } = {}): string {
+export function exportHtml(scene: Scene, opts: { fontCss?: string; three?: string } = {}): string {
   const title = escapeHtml(scene.title || 'Animation');
   const fontStyle = opts.fontCss ? `<style>\n${opts.fontCss.replace(/<\/style/gi, '<\\/style')}</style>\n` : '';
   return `<!doctype html>
@@ -51,7 +67,7 @@ ${fontStyle}</head>
 ${hostTag(scene)}
 <script type="application/json">${safeJson(scene)}</script>
 </div>
-${inlinePlayer(true)}
+${opts.three ? `<script>${opts.three.replace(/<\/script/gi, '<\\/script')}</script>\n` : ''}${inlinePlayer(true)}
 </body>
 </html>
 `;
@@ -84,6 +100,7 @@ ${hostTag(scene)}
 <script type="application/json">${safeJson(scene)}</script>
 </div>
 <div class="page" style="min-height:120vh"><h2>Content below the scene</h2>${filler(12)}</div>
+${assetBaseScript()}
 ${inlinePlayer(true)}
 </body>
 </html>
@@ -130,6 +147,7 @@ html,body{margin:0;background:#0a0d11;color:#c9d1da;font-family:system-ui,-apple
 <div id="scene"></div>
 <div class="page" aria-hidden="true"><i></i><p>The rest of the page continues below the scene.</p><i></i><i></i><i></i></div>
 <script type="application/json" id="scene-json">${safeJson(scene)}</script>
+${assetBaseScript()}
 ${inlinePlayer(false)}
 <script>${editorScript.replace(/<\/script/gi, '<\\/script')}</script>
 </body>

@@ -33,6 +33,10 @@ KEYFRAMES (for a path or a combination no preset covers)
 - Each property moves only between the keyframes that set it and holds its first value before them. A keyframe's "ease" shapes the move into it: a named ease, or a custom curve "cubic(x1,y1,x2,y2)" (as CSS cubic-bezier; y outside 0-1 overshoots or pulls back).
 - Prefer presets; use keyframes for multi-step moves (drift then settle, a small arc), with 2-5 keyframes.
 
+3D LAYERS (only when the request asks for 3D)
+- A layer { "type": "model", "model": { "kind": "text" | "shape", "text"?: "...", "shape"?: "box" | "sphere" | "torus" | "knot" | "cylinder" | "crystal", "depth"?: 0.35, "bevel"?: 0.45 }, "material": { "color": "#...", "finish": "matte" | "satin" | "glossy" | "metal" | "chrome" }, "pose": { "rx": 8, "ry": -20 }, "alt": "...", "box": { "x", "y", "w", "ratio" } }.
+- Animate it with the 3D presets (tumble-in, spin-3d, orbit-3d, camera-push) plus any whole-layer preset (fade, slide, pop…). One 3D object per scene is plenty; keep 3D text short (one to three words).
+
 SCROLL-LINKED SCENES
 - Use "playback": { "trigger": "scroll", "loop": false, "scroll": { "pin": true, "length": 1.5, "smooth": 0.4 } } only when the request asks for the animation to follow the page scroll (scroll-driven, scrubbed, pinned, "as you scroll").
 - Then the visitor's scrolling sets the pace: build one continuous sequence (things enter, transform, and the last state holds), not a loop. "length" is how many window heights of scrolling it takes while pinned (1-3); keep the scene 3-8 s long so each scroll step moves something.

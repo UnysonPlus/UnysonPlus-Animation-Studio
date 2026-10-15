@@ -314,6 +314,10 @@
             "drift",
             "gradient-flow",
             "particles",
+            "spin-3d",
+            "tumble-in",
+            "orbit-3d",
+            "camera-push",
             "code"
           ]
         },
@@ -354,7 +358,8 @@
           "enum": [
             "text",
             "shape",
-            "image"
+            "image",
+            "model"
           ]
         },
         "box": {
@@ -441,6 +446,93 @@
         "locked": {
           "type": "boolean",
           "description": "Editor only: locked layers cannot be selected or moved on the stage."
+        },
+        "model": {
+          "type": "object",
+          "description": "3D layers: what the object is.",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "text",
+                "shape",
+                "svg",
+                "gltf"
+              ]
+            },
+            "text": {
+              "type": "string"
+            },
+            "shape": {
+              "enum": [
+                "box",
+                "sphere",
+                "torus",
+                "knot",
+                "cylinder",
+                "crystal"
+              ]
+            },
+            "src": {
+              "type": "string",
+              "description": "SVG markup, a data: URL or an https address (svg); a .glb/.gltf address or data: URL (gltf)."
+            },
+            "depth": {
+              "type": "number",
+              "minimum": 0.01,
+              "maximum": 4
+            },
+            "bevel": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "material": {
+          "type": "object",
+          "properties": {
+            "color": {
+              "type": "string"
+            },
+            "finish": {
+              "enum": [
+                "matte",
+                "satin",
+                "glossy",
+                "metal",
+                "chrome"
+              ]
+            },
+            "original": {
+              "type": "boolean"
+            }
+          }
+        },
+        "pose": {
+          "type": "object",
+          "properties": {
+            "rx": {
+              "type": "number"
+            },
+            "ry": {
+              "type": "number"
+            },
+            "rz": {
+              "type": "number"
+            },
+            "scale": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "light": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3
         }
       },
       "allOf": [
@@ -484,6 +576,20 @@
           "then": {
             "required": [
               "src"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "model"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "model"
             ]
           }
         }

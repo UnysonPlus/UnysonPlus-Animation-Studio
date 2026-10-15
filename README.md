@@ -98,6 +98,20 @@ The ease parameters and several timing rules come from frame-by-frame measuremen
 pieces published in the motionmaxxing project (Apache-2.0); the review checklist ideas also draw on the
 favstash AI video editing skills (Apache-2.0). Both are re-expressed here in our own code.
 
+### 3D layers
+
+**+ 3D** adds a 3D layer, drawn by three.js inside the layer's box: **3D text** (Inter ExtraBold, extruded with
+rounded edges), a **shape** (rounded box, sphere, ring, knot, cylinder, crystal), an **SVG logo** extruded from its
+filled shapes, or a **glTF / GLB model** (an address or an upload). Finishes: matte, satin, glossy, metal, chrome,
+lit by a built-in studio environment. The 3D presets (**Spin 3D**, **Tumble in**, **Orbit**, **Camera push**) turn
+the object and move the camera; whole-layer presets (fade, slide, pop…) work too.
+
+Every 3D frame is drawn from a small state the timeline animates (no animation loop of its own), so 3D seeks,
+scrubs, loops and scroll-links like everything else. The runtime is a separate file, `scene-3d.js` (three.js
+and the 3D font, about 210 KB gzipped), published next to each player version and loaded only by scenes with a
+3D layer. Downloaded pages carry it inside when they need it. The 3D font is built from Inter
+(`scripts/make-3d-font.mjs`, SIL OFL 1.1).
+
 ### Keyframes and curves
 
 A **Keyframes** clip animates Move X/Y (% of the layer's size), scale, rotation, opacity and blur, each property
@@ -135,7 +149,7 @@ with Chromium (set `PLAYWRIGHT_DIR` to an existing install). Run it after changi
 <div data-upw-scene>
   <script type="application/json">{ ...scene file... }</script>
 </div>
-<script src="https://animation-studio.unysonplus.com/player/0.0.9/scene-player.js" defer></script>
+<script src="https://animation-studio.unysonplus.com/player/0.0.10/scene-player.js" defer></script>
 ```
 
 ### Player versions are permanent

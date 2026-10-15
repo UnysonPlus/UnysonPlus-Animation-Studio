@@ -36,7 +36,7 @@ function tickStep(pps: number) {
   return 120;
 }
 
-const LAYER_GLYPH: Record<Layer['type'], string> = { text: 'T', shape: '◼', image: '▣', group: '❏' };
+const LAYER_GLYPH: Record<Layer['type'], string> = { text: 'T', shape: '◼', image: '▣', model: '◆', group: '❏' };
 
 export function Timeline(props: Props) {
   const { scene, selection, scope } = props;
@@ -273,6 +273,7 @@ export function Timeline(props: Props) {
           <button type="button" className="btn small" onClick={() => props.onAddLayer('text')}>+ Text</button>
           <button type="button" className="btn small" onClick={() => props.onAddLayer('shape')}>+ Shape</button>
           <button type="button" className="btn small" onClick={() => props.onAddLayer('image')}>+ Image</button>
+          <button type="button" className="btn small" onClick={() => props.onAddLayer('model')} title="A 3D object: text, a shape, an SVG logo or a glTF model">+ 3D</button>
         </div>
         <label className="tl-zoom">
           <span>Zoom</span>

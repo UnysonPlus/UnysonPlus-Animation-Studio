@@ -1,4 +1,5 @@
 import type { Anchor, Box, Layer, LayerOverride, Scene, TextStyle } from './types';
+import { REST_3D, type Runtime3D, type State3D } from './model3d';
 
 /** The elements created for one layer. */
 export interface LayerRefs {
@@ -14,6 +15,8 @@ export interface LayerRefs {
   proxy?: HTMLElement;
   /** Groups: the measured frame, in % of the stage (left, top, width, height). */
   frame?: { l: number; t: number; w: number; h: number };
+  /** 3D layers: the state presets animate, and the runtime that draws it (once scene-3d.js has loaded). */
+  model?: { state: State3D; runtime?: Runtime3D };
 }
 
 /** Every LayerRefs in a tree, groups and their contents included. */
@@ -82,6 +85,13 @@ export function createLayer(doc: Document, layer: Layer, z: number): LayerRefs {
     if (layer.stroke) inner.style.border = `${layer.strokeWidth ?? 0.2}cqw solid ${layer.stroke}`;
     inner.style.borderRadius = layer.shape === 'ellipse' ? '50%' : `${layer.radius ?? 0}cqw`;
     inner.setAttribute('aria-hidden', 'true');
+  } else if (layer.type === 'model') {
+    inner.classList.add('upw-3d');
+    if (layer.alt) {
+      inner.setAttribute('role', 'img');
+      inner.setAttribute('aria-label', layer.alt);
+    } else inner.setAttribute('aria-hidden', 'true');
+    refs.model = { state: { ...REST_3D } };
   } else if (layer.type === 'image') {
     const img = doc.createElement('img');
     img.src = layer.src;

@@ -391,6 +391,7 @@ h1, h2, p { margin: 0; }
 .clip.cat-motion { background: oklch(0.8 0.1 80); }
 .clip.cat-emphasis { background: oklch(0.76 0.11 330); }
 .clip.cat-ambient { background: oklch(0.78 0.08 290); }
+.clip.cat-3d { background: oklch(0.8 0.1 200); }
 .clip:hover { filter: brightness(1.08); }
 .clip.sel { border-color: var(--ink); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ink); z-index: 1; }
 .tl-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); z-index: 4; pointer-events: none; }

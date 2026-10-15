@@ -46,7 +46,42 @@ const setMask = (el: HTMLElement, v: string) => {
   el.style.setProperty('-webkit-mask-image', v);
 };
 
+/** 3D presets tween the layer's 3D state; the player draws it after every timeline update. */
+function tween3d(ctx: PresetContext, from: Vars, to: Vars, immediate: boolean) {
+  if (!ctx.model) return;
+  ctx.tl.fromTo(ctx.model, from, { ...to, duration: ctx.duration, ease: ctx.ease, immediateRender: immediate }, ctx.at);
+}
+
 export const MORE_BUILDERS: Record<string, (ctx: PresetContext) => void> = {
+  'spin-3d'(ctx) {
+    const axis = pick(ctx.params, 'axis', ['y', 'x', 'z'] as const, 'y');
+    const key = axis === 'x' ? 'rx' : axis === 'z' ? 'rz' : 'ry';
+    tween3d(ctx, { [key]: 0 }, { [key]: 360 * num(ctx.params, 'turns', 1) }, false);
+  },
+
+  'tumble-in'(ctx) {
+    const p = ctx.params;
+    const away = { ry: num(p, 'turn', 140), rx: num(p, 'tilt', -50), s: num(p, 'scale', 0.4) };
+    const home = { ry: 0, rx: 0, s: 1 };
+    if (isOut(p)) tween3d(ctx, home, { ry: -away.ry, rx: -away.rx, s: away.s }, false);
+    else tween3d(ctx, away, home, ctx.first);
+    // The layer fades with it, over the first (or last) part of the move.
+    const fade = Math.min(0.5, ctx.duration * 0.4);
+    if (isOut(p)) ctx.tl.fromTo(ctx.el, { opacity: 1 }, { opacity: 0, duration: fade, ease: 'none', immediateRender: false }, ctx.at + ctx.duration - fade);
+    else ctx.tl.fromTo(ctx.el, { opacity: 0 }, { opacity: 1, duration: fade, ease: 'none', immediateRender: ctx.first }, ctx.at);
+  },
+
+  'orbit-3d'(ctx) {
+    const a = num(ctx.params, 'angle', 50);
+    tween3d(ctx, { orbit: -a / 2, tilt: 0 }, { orbit: a / 2, tilt: num(ctx.params, 'tilt', 10) }, ctx.first);
+  },
+
+  'camera-push'(ctx) {
+    const d = num(ctx.params, 'distance', 2.2);
+    if (isOut(ctx.params)) tween3d(ctx, { dolly: 1 }, { dolly: d }, false);
+    else tween3d(ctx, { dolly: d }, { dolly: 1 }, ctx.first);
+  },
+
   'soft-wipe'(ctx) {
     const p = ctx.params;
     const from = pick(p, 'from', ['left', 'right', 'top', 'bottom'] as const, 'left');

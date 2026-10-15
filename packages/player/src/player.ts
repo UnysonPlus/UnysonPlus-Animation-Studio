@@ -1,5 +1,5 @@
 import { gsap } from 'gsap';
-import type { Box, Breakpoint, Scene, TextStyle } from './types';
+import type { Box, Breakpoint, ModelLayer, Scene, TextStyle } from './types';
 import { validateScene } from './validate';
 import { applyLayout, buildText, createLayer, createStage, flatRefs, layoutTree, measureGroup, resolveLayer, type LayerRefs } from './dom';
 import { groupDuration } from './groups';
@@ -8,6 +8,7 @@ import { presets, presetRand, type Timeline } from './presets';
 import { seedFrom } from './random';
 import { NAMED_EASES, resolveEase } from './eases';
 import { linkToScroll, type ScrollLink } from './scroll';
+import { load3d } from './model3d';
 import { defaultEaseFor } from './presets/catalog';
 
 // The measured eases, usable by name in any clip (and in custom code clips).
@@ -111,8 +112,35 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
 
   const reduced = !options.editor && prefersReducedMotion(win);
 
+  /** Draws every 3D layer in its current state. */
+  function render3d() {
+    for (const r of flatRefs(layers)) if (r.model?.runtime) r.model.runtime.render(r.model.state);
+  }
+
+  function dispose3d() {
+    for (const r of flatRefs(layers)) {
+      r.model?.runtime?.dispose();
+      if (r.model) r.model.runtime = undefined;
+    }
+  }
+
+  /** Starts the 3D runtime for this scene's 3D layers (loading scene-3d.js the first time). */
+  function start3d() {
+    const models = flatRefs(layers).filter((r) => r.model);
+    if (!models.length) return;
+    load3d(win).then((m) => {
+      for (const r of models) {
+        if (destroyed || !r.model || r.model.runtime || !r.outer.isConnected) continue;
+        r.model.runtime = m.create(r.inner, r.layer as ModelLayer);
+        r.model.runtime.render(r.model.state);
+        r.model.runtime.ready.then(() => emit('update'));
+      }
+    }).catch((e) => console.warn('[Unyson+ scene] 3D is unavailable:', e));
+  }
+
   /** Builds the stage and layer elements for the current scene. */
   function setupDom() {
+    dispose3d();
     root.textContent = '';
     root.dataset.mode = scene.stage.heightMode;
     root.style.setProperty('--upw-offset', `${scene.stage.heightOffset ?? 0}px`);
@@ -129,12 +157,16 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       canvas.appendChild(refs.outer);
       return refs;
     });
+    start3d();
   }
 
   function buildTimeline(): Timeline {
     const t = gsap.timeline({
       paused: true,
-      onUpdate: () => emit('update'),
+      onUpdate: () => {
+        render3d();
+        emit('update');
+      },
       onComplete: () => {
         wantPlaying = false;
         emit('complete');
@@ -184,6 +216,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
           rand: presetRand(seedFrom(`${layer.id}/${clip.id}`)),
           gsap,
           allowCode: !!options.allowCode,
+          model: refs.model?.state,
         });
       });
 
@@ -363,6 +396,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       destroyed = true;
       tl?.kill();
       scrollLink?.destroy();
+      dispose3d();
       resizeObserver.disconnect();
       io.disconnect();
       listeners.clear();

@@ -7,7 +7,7 @@ import { EXIT_EASE } from '../eases';
  * loading GSAP. presets/index.ts supplies the build function for every id listed here.
  */
 
-export type PresetCategory = 'text' | 'reveal' | 'motion' | 'emphasis' | 'ambient';
+export type PresetCategory = 'text' | 'reveal' | 'motion' | 'emphasis' | 'ambient' | '3d';
 
 export const CATEGORY_LABELS: Record<PresetCategory, string> = {
   text: 'Text',
@@ -15,6 +15,7 @@ export const CATEGORY_LABELS: Record<PresetCategory, string> = {
   motion: 'Move and scale',
   emphasis: 'Emphasis',
   ambient: 'Ambient and backgrounds',
+  '3d': '3D',
 };
 
 export type PresetField =
@@ -61,7 +62,7 @@ const SIDE: PresetField = {
   ],
 };
 // Presets that animate the layer as a whole also work on a group (its frame).
-const ALL: PresetMeta['appliesTo'] = ['text', 'shape', 'image', 'group'];
+const ALL: PresetMeta['appliesTo'] = ['text', 'shape', 'image', 'model', 'group'];
 
 export const PRESET_CATALOG: PresetMeta[] = [
   // ---- Text ----
@@ -278,6 +279,35 @@ export const PRESET_CATALOG: PresetMeta[] = [
     defaultEase: 'none', defaultDuration: 4,
     defaults: { count: 28, size: 1.2, speed: 0.12, direction: 'up', color: '#ffffff', twinkle: true },
     fields: [{ key: 'count', label: 'Count', type: 'number', min: 1, max: 150, step: 1 }, { key: 'size', label: 'Size', type: 'number', min: 0.2, max: 10, step: 0.1, unit: '%' }, { key: 'speed', label: 'Speed', type: 'number', min: 0, max: 2, step: 0.01, unit: '/s' }, { key: 'direction', label: 'Direction', type: 'select', options: [{ value: 'up', label: 'Rise' }, { value: 'down', label: 'Fall' }, { value: 'drift', label: 'Drift' }] }, { key: 'color', label: 'Colour', type: 'color' }, { key: 'twinkle', label: 'Twinkle', type: 'boolean' }],
+  },
+  // ---- 3D (3D layers only: they turn the object and move the camera) ----
+  {
+    id: 'spin-3d', label: 'Spin 3D', category: '3d', appliesTo: ['model'],
+    description: 'The object turns around one of its axes, a set number of times.',
+    defaultEase: 'softInOut', defaultDuration: 2,
+    defaults: { axis: 'y', turns: 1 },
+    fields: [{ key: 'axis', label: 'Axis', type: 'select', options: [{ value: 'y', label: 'Upright (Y)' }, { value: 'x', label: 'Forward (X)' }, { value: 'z', label: 'Flat (Z)' }] }, { key: 'turns', label: 'Turns', type: 'number', min: -10, max: 10, step: 0.25 }],
+  },
+  {
+    id: 'tumble-in', label: 'Tumble in', category: '3d', appliesTo: ['model'],
+    description: 'The object tumbles into its pose from a turned, smaller start (or tumbles away).',
+    defaultEase: 'snapSettle', defaultDuration: 1.1,
+    defaults: { direction: 'in', turn: 140, tilt: -50, scale: 0.4 },
+    fields: [DIRECTION, { key: 'turn', label: 'Turn', type: 'number', min: -720, max: 720, step: 5, unit: '°' }, { key: 'tilt', label: 'Tilt', type: 'number', min: -180, max: 180, step: 5, unit: '°' }, { key: 'scale', label: 'Start scale', type: 'number', min: 0, max: 3, step: 0.05 }],
+  },
+  {
+    id: 'orbit-3d', label: 'Orbit', category: '3d', appliesTo: ['model'],
+    description: 'The camera circles the object, rising or dipping as it goes.',
+    defaultEase: 'softInOut', defaultDuration: 3,
+    defaults: { angle: 50, tilt: 10 },
+    fields: [{ key: 'angle', label: 'Around', type: 'number', min: -360, max: 360, step: 5, unit: '°' }, { key: 'tilt', label: 'Rise', type: 'number', min: -60, max: 60, step: 1, unit: '°' }],
+  },
+  {
+    id: 'camera-push', label: 'Camera push', category: '3d', appliesTo: ['model'],
+    description: 'The camera moves in from further away (or pulls back out).',
+    defaultEase: 'softLand', defaultDuration: 1.4,
+    defaults: { direction: 'in', distance: 2.2 },
+    fields: [DIRECTION, { key: 'distance', label: 'Start distance', type: 'number', min: 0.3, max: 8, step: 0.1, unit: '×' }],
   },
   {
     id: 'code', label: 'Custom code', category: 'motion', appliesTo: ALL,

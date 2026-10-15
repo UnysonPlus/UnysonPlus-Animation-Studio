@@ -30,6 +30,7 @@ export const PLAYER_CSS = `
 .upw-wi,.upw-c{display:inline-block}
 .upw-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .upw-li img{display:block;width:100%;height:100%;border-radius:inherit}
+.upw-3d{position:relative}
 .upw-safe{position:absolute;pointer-events:none;border:1px dashed rgba(255,255,255,.6);box-shadow:0 0 0 1px rgba(0,0,0,.35);z-index:2147483000;display:none}
 .upw-scene[data-safe] .upw-safe{display:block}
 `;
