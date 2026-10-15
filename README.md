@@ -65,7 +65,9 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 | Ctrl+G, Ctrl+Shift+G | Group the selected layers, ungroup the selected group |
 | Double-click a group | Open it: its layers on its own clock, everything else dimmed (Escape steps back out) |
 | Ctrl+S | Save the project file |
-| Shift or Ctrl + click | Add a layer to (or remove it from) the selection, on the stage or the timeline |
+| Shift or Ctrl + click (stage) | Add a layer to (or remove it from) the selection |
+| Click, then Shift + click (timeline) | Select every layer between the two rows (Ctrl + Shift adds the range to the selection) |
+| Ctrl + click (timeline) | Add a layer to (or remove it from) the selection |
 | Drag on empty stage | Box-select the layers it touches (Shift or Ctrl adds to the selection) |
 | Ctrl+A | Select every unlocked layer |
 | Escape | Clear the selection |

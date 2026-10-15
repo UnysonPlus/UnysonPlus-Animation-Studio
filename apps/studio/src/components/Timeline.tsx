@@ -42,6 +42,8 @@ export function Timeline(props: Props) {
   const offset = scope ? groupOffset(scene, scope) : 0;
   const time = props.time - offset;
   const scrollRef = useRef<HTMLDivElement>(null);
+  /** The row a Shift + click range starts from: the last row clicked without Shift. */
+  const anchorRef = useRef<string | null>(null);
   const [laneW, setLaneW] = useState(600);
   const [zoom, setZoom] = useState(1);
   const [dropRow, setDropRow] = useState<string | null>(null);
@@ -267,12 +269,25 @@ export function Timeline(props: Props) {
                 <button
                   type="button"
                   className="tl-name"
-                  title="Click to select. Shift or Ctrl + click to add to the selection."
+                  title="Click to select. Shift + click selects every layer between, Ctrl + click adds or removes one."
                   onClick={(e) => {
-                    if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                      const ids = selectedIds(selection);
-                      props.onSelect(selectLayers(ids.includes(layer.id) ? ids.filter((x) => x !== layer.id) : [...ids, layer.id]));
-                    } else props.onSelect({ layerId: layer.id, clipId: null });
+                    const ids = selectedIds(selection);
+                    const additive = e.ctrlKey || e.metaKey;
+                    if (e.shiftKey) {
+                      // A range, like a file list: from the last clicked row (or the first selected one) to this
+                      // row. Locked layers in between are skipped, as on the stage.
+                      const order = rows.map((r) => r.id);
+                      const from = anchorRef.current && order.includes(anchorRef.current) && ids.includes(anchorRef.current)
+                        ? anchorRef.current
+                        : order.find((id) => ids.includes(id)) ?? layer.id;
+                      const [a, b] = [order.indexOf(from), order.indexOf(layer.id)].sort((x, y) => x - y);
+                      const range = rows.slice(a, b + 1).filter((r) => !r.locked || r.id === from || r.id === layer.id).map((r) => r.id);
+                      props.onSelect(selectLayers(additive ? [...ids, ...range.filter((id) => !ids.includes(id))] : range));
+                      return; // the anchor stays put, so a second Shift + click re-draws the range from it
+                    }
+                    anchorRef.current = layer.id;
+                    if (additive) props.onSelect(selectLayers(ids.includes(layer.id) ? ids.filter((x) => x !== layer.id) : [...ids, layer.id]));
+                    else props.onSelect({ layerId: layer.id, clipId: null });
                   }}
                   onDoubleClick={() => { if (layer.type === 'group') props.onEnter(layer.id); }}
                   aria-pressed={layerSel && !selection.clipId}
