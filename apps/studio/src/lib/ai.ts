@@ -80,13 +80,13 @@ export interface AiResult {
   repaired: boolean;
 }
 
-async function call(body: Record<string, unknown>, signal: AbortSignal) {
+async function call(body: Record<string, unknown>, signal: AbortSignal, brief?: string) {
   if (!base) await kitStatus();
   if (!base) throw new Error('The AI Dev Kit is not running on this computer.');
   const r = await fetch(`${base}/studio/ai`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...body, catalog: catalogForAi(), rules: MOTION_RULES }),
+    body: JSON.stringify({ ...body, catalog: catalogForAi(), rules: brief ? `${MOTION_RULES}\n\n${brief}` : MOTION_RULES }),
     signal,
   });
   const j = await r.json().catch(() => ({}));
@@ -130,13 +130,15 @@ export async function askForScene(opts: {
   scene: Scene;
   selection: string[];
   signal: AbortSignal;
+  /** A style's art direction (added to the rules). */
+  brief?: string;
 }): Promise<AiResult> {
   const keep = codeClips(opts.scene);
-  const first = await call({ mode: opts.mode, prompt: opts.prompt, scene: opts.scene, selection: opts.selection }, opts.signal);
+  const first = await call({ mode: opts.mode, prompt: opts.prompt, scene: opts.scene, selection: opts.selection }, opts.signal, opts.brief);
   let v = validateScene(first.scene);
   if (v.ok) return { scene: guardCode(v.scene, keep), explanation: first.explanation, model: first.model, repaired: false };
 
-  const second = await call({ mode: 'repair', prompt: opts.prompt, scene: first.scene, errors: v.errors }, opts.signal);
+  const second = await call({ mode: 'repair', prompt: opts.prompt, scene: first.scene, errors: v.errors }, opts.signal, opts.brief);
   v = validateScene(second.scene);
   if (v.ok) return { scene: guardCode(v.scene, keep), explanation: second.explanation || first.explanation, model: second.model, repaired: true };
   throw new Error(`The AI's scene still had problems after a second try:\n- ${v.errors.slice(0, 6).join('\n- ')}`);

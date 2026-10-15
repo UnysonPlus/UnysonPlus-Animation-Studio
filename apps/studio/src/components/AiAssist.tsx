@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Scene } from '@unysonplus/scene-player/types';
 import { lintScene } from '@unysonplus/scene-player/lint';
 import { askForScene, type KitStatus } from '../lib/ai';
+import { applyStyle, styleBrief, type SceneStyle } from '../lib/styles';
 
 const GUIDE = 'https://docs.unysonplus.com/guides/set-up-ai-for-unysonplus';
 
@@ -65,6 +66,10 @@ export function AiAssist(props: {
   onApply: (scene: Scene, mode: 'create' | 'edit') => void;
   onRestore: (scene: Scene, current: Scene) => void;
   onShowCheck: () => void;
+  /** Styles to choose from, and the one the AI follows. */
+  styles: SceneStyle[];
+  styleId: string | null;
+  onStyleChange: (id: string | null) => void;
 }) {
   const { status, scene, messages } = props;
   const empty = scene.layers.length === 0;
@@ -109,7 +114,10 @@ export function AiAssist(props: {
     const before = scene;
     try {
       const mode = useScope === 'new' ? 'create' : 'edit';
-      const r = await askForScene({ mode, prompt: ask, scene: before, selection: useScope === 'selection' ? props.selection : [], signal: ctl.signal });
+      const style = props.styles.find((s) => s.id === props.styleId) ?? null;
+      const r = await askForScene({ mode, prompt: ask, scene: before, selection: useScope === 'selection' ? props.selection : [], signal: ctl.signal, brief: style ? styleBrief(style) : undefined });
+      // A new scene in a style gets exactly the style's colours and fonts.
+      if (style && mode === 'create') r.scene = applyStyle(r.scene, style, { look: true, motion: false, sound: false });
       props.onApply(r.scene, mode);
       const found = lintScene(r.scene).length;
       push({
@@ -217,6 +225,13 @@ export function AiAssist(props: {
                   </button>
                 );
               })}
+            </div>
+            <div className="assist-style">
+              <label htmlFor="assist-style">Style</label>
+              <select id="assist-style" value={props.styleId ?? ''} disabled={busy} onChange={(e) => props.onStyleChange(e.target.value || null)}>
+                <option value="">None (the AI decides)</option>
+                {props.styles.map((s) => <option key={s.id} value={s.id}>{s.name}{s.custom ? ' (yours)' : ''}</option>)}
+              </select>
             </div>
             <label htmlFor="assist-input" className="sr-only">Your request</label>
             <textarea

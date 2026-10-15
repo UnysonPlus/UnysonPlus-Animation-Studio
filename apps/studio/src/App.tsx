@@ -14,6 +14,8 @@ import { addMarker } from './lib/markers';
 import { clearShareHash, hasSharedScene, readSharedScene } from './lib/share';
 import { addAudio, addSuggestedSounds, clearClipSounds, cleanSound, removeAudio, soundCounts, useSceneAudio } from './lib/audio';
 import { SoundLibrary } from './components/SoundLibrary';
+import { StyleLibrary } from './components/StyleLibrary';
+import { BUILT_IN_STYLES, applyStyle, loadCustomStyles, saveCustomStyles, starterScene, styleFromScene, type SceneStyle } from './lib/styles';
 import { sfxMeta, sfxSrc, soundTrack } from '@unysonplus/scene-player/sfx';
 import { AudioInspector } from './components/AudioInspector';
 import { useEditorConnection } from './lib/connection';
@@ -115,6 +117,14 @@ export function App() {
   const [assistOpen, setAssistOpen] = useState(false);
   /** The layer being renamed in the timeline. */
   const [renaming, setRenaming] = useState<string | null>(null);
+  /** Styles: the built-in ones plus the user's own (kept in this browser), and the one AI assist follows. */
+  const [customStyles, setCustomStyles] = useState<SceneStyle[]>(() => loadCustomStyles());
+  const allStyles = useMemo(() => [...BUILT_IN_STYLES, ...customStyles], [customStyles]);
+  const [aiStyle, setAiStyleState] = useState<string | null>(() => { try { return localStorage.getItem('upw-studio-ai-style'); } catch { return null; } });
+  const setAiStyle = useCallback((id: string | null) => {
+    setAiStyleState(id);
+    try { if (id) localStorage.setItem('upw-studio-ai-style', id); else localStorage.removeItem('upw-studio-ai-style'); } catch { /* private window */ }
+  }, []);
   /** Playing full screen. */
   const [fullscreen, setFullscreen] = useState(false);
   const [kit, setKit] = useState<KitStatus>({ state: 'checking' });
@@ -664,6 +674,42 @@ export function App() {
 
       <main className="workspace">
         <Library layerType={selectedLayer?.type ?? null} count={selectedIds(selection).length} onApply={applyPreset}
+          styles={
+            <StyleLibrary
+              styles={allStyles}
+              aiStyle={allStyles.some((s) => s.id === aiStyle) ? aiStyle : null}
+              hasScene={scene.layers.length > 0}
+              onApply={(style, parts) => {
+                commit(applyStyle(latest.current.scene, style, parts));
+                const what = [parts.look && 'colours and fonts', parts.motion && 'motion', parts.sound && 'sounds'].filter(Boolean).join(', ');
+                setNotice(`Applied ${style.name} (${what}). Undo (Ctrl+Z) brings back the previous look.`);
+              }}
+              onNew={(style) => {
+                commit(starterScene(style, latest.current.scene));
+                setScope(null);
+                setSelection({ layerId: null, clipId: null });
+                post({ type: 'seek', time: 0 });
+                setNotice(`New scene in the ${style.name} style. Edit the words, or ask AI assist to build on it. Undo brings back the one you had.`);
+              }}
+              onUseForAi={(id) => {
+                setAiStyle(id);
+                const s = allStyles.find((x) => x.id === id);
+                setNotice(s ? `AI assist now follows the ${s.name} style.` : 'AI assist no longer follows a style.');
+              }}
+              onSave={(name) => {
+                const style = styleFromScene(latest.current.scene, name);
+                const next = [...customStyles, style];
+                setCustomStyles(next);
+                setNotice(saveCustomStyles(next) ? `Saved the style “${name}”.` : `Saved “${name}” for now; this browser won't keep it after closing.`);
+              }}
+              onDelete={(id) => {
+                const next = customStyles.filter((s) => s.id !== id);
+                setCustomStyles(next);
+                saveCustomStyles(next);
+                if (aiStyle === id) setAiStyle(null);
+              }}
+            />
+          }
           sounds={(() => {
             const selClip = findClip(scene, selection.layerId, selection.clipId);
             const counts = soundCounts(scene);
@@ -749,6 +795,9 @@ export function App() {
               onApply={applyAi}
               onRestore={restoreAi}
               onShowCheck={() => setTab('check')}
+              styles={allStyles}
+              styleId={allStyles.some((s) => s.id === aiStyle) ? aiStyle : null}
+              onStyleChange={setAiStyle}
             />
           </div>
 

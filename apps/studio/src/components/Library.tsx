@@ -56,8 +56,10 @@ export function Library(props: {
   onApply: (presetId: string) => void;
   /** The Sounds tab's content. */
   sounds: ReactNode;
+  /** The Styles tab's content. */
+  styles: ReactNode;
 }) {
-  const [kind, setKind] = useState<'presets' | 'sounds'>('presets');
+  const [kind, setKind] = useState<'presets' | 'sounds' | 'styles'>('presets');
   const [query, setQuery] = useState('');
   const [hot, setHot] = useState<string | null>(null);
   const groups = useMemo(() => {
@@ -70,13 +72,13 @@ export function Library(props: {
   return (
     <aside className="library" aria-label="Library">
       <div className="lib-tabs" role="tablist" aria-label="Library">
-        {(['presets', 'sounds'] as const).map((k) => (
+        {(['presets', 'sounds', 'styles'] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={kind === k} className={kind === k ? 'on' : ''} onClick={() => setKind(k)}>
-            {k === 'presets' ? 'Presets' : 'Sounds'}
+            {k === 'presets' ? 'Presets' : k === 'sounds' ? 'Sounds' : 'Styles'}
           </button>
         ))}
       </div>
-      {kind === 'sounds' ? props.sounds : <>
+      {kind === 'sounds' ? props.sounds : kind === 'styles' ? props.styles : <>
       <div className="lib-head">
         <input type="search" className="lib-search" placeholder="Search presets" aria-label="Search presets" value={query} onChange={(e) => setQuery(e.target.value)} />
         <p className="lib-help">
