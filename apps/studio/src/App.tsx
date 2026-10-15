@@ -4,6 +4,7 @@ import type { HeightMode, Layer, Scene } from '@unysonplus/scene-player/types';
 import demo from './scenes/demo.json';
 import { previewHtml } from './lib/documents';
 import { ExportDialog } from './components/ExportDialog';
+import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
 import {
@@ -100,6 +101,13 @@ export function App() {
   const [scale, setScale] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [alignTo, setAlignTo] = useState<AlignTo>('selection');
+  // Opened from a Unyson+ page editor ("Open in Animation Studio"): load its scene, offer "Save to page".
+  const conn = useEditorConnection((incoming) => {
+    commit(incoming);
+    setSelection({ layerId: null, clipId: null });
+    setNotice('Loaded the scene from your page. Undo to go back to what you had here.');
+  });
+  const sceneAtLoad = useRef<Scene | null>(null);
   // The preview document is built once; after that, scene changes are sent to it as messages.
   const [srcDoc] = useState(() => previewHtml(scene, { safeArea: false }));
 
@@ -136,6 +144,13 @@ export function App() {
     if (alive.length !== ids.length) setSelection(selectLayers(alive));
     else if (layerId && clipId && !findClip(scene, layerId, clipId)) setSelection({ layerId, clipId: null });
   }, [scene, selection]);
+
+  // Any edit after a save means the page's copy is out of date again.
+  useEffect(() => {
+    if (sceneAtLoad.current === null) { sceneAtLoad.current = scene; return; }
+    conn.touched();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene]);
 
   // Autosave the working scene in this browser.
   useEffect(() => {
@@ -347,6 +362,7 @@ export function App() {
 
   return (
     <div className="app">
+      <div className="head">
       <header className="topbar">
         <div className="brand">
           <Logo />
@@ -390,6 +406,26 @@ export function App() {
           }} />
         </div>
       </header>
+      {conn.state.status !== 'none' && (
+        <div className={`connect-bar is-${conn.state.status}`} role="status">
+          {conn.state.status === 'waiting' && <span>Connecting to your Unyson+ page…</span>}
+          {conn.state.status === 'connected' && (
+            <>
+              <span>
+                Editing a scene for a Studio Scene element on <strong>{conn.state.site}</strong>.
+                {conn.state.saved ? ' Saved to the page. Update the page in WordPress to keep it.' : ' Save to send your changes back.'}
+              </span>
+              <button type="button" className="btn primary small" onClick={() => {
+                if (!conn.save(scene)) setNotice('The page editor is no longer open. Use Export or Save instead.');
+              }}>{conn.state.saved ? 'Saved' : 'Save to page'}</button>
+            </>
+          )}
+          {conn.state.status === 'closed' && (
+            <span>The page editor on <strong>{conn.state.site}</strong> was closed. Use Export (embed code) or Save to keep this scene.</span>
+          )}
+        </div>
+      )}
+      </div>
 
       <main className="workspace">
         <Library layerType={selectedLayer?.type ?? null} count={selectedIds(selection).length} onApply={applyPreset} />

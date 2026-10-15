@@ -1,7 +1,9 @@
 /**
  * The player's stylesheet, injected once per document.
  *
- * Structure:  .upw-scene > .upw-stage > .upw-canvas > .upw-layer > .upw-li
+ * Structure:  [data-upw-scene] > .upw-scene > .upw-stage > .upw-canvas > .upw-layer > .upw-li
+ *   host    Whatever element holds the scene. Always as wide as its container, even inside a
+ *           centring flex layout, which would otherwise shrink a box with no content width to 0.
  *   stage   The visible box. Its height follows the height mode; it clips whatever falls outside.
  *   canvas  The designed frame, always the breakpoint's exact shape and as wide as the stage,
  *           centred vertically. When the stage is shorter it is trimmed top and bottom (the safe area
@@ -11,6 +13,7 @@
  *   li      The animated element.
  */
 export const PLAYER_CSS = `
+[data-upw-scene]{display:block;width:100%;min-width:0;align-self:stretch;max-width:100%}
 .upw-scene{position:relative;display:block;width:100%;--upw-ar:16/9;--upw-offset:0px}
 .upw-stage{position:relative;display:block;width:100%;overflow:hidden;aspect-ratio:var(--upw-ar);isolation:isolate;contain:paint}
 .upw-scene[data-mode="ratio-capped"] .upw-stage{max-height:calc(100vh - var(--upw-offset));max-height:calc(100svh - var(--upw-offset))}

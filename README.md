@@ -78,7 +78,7 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 <div data-upw-scene>
   <script type="application/json">{ ...scene file... }</script>
 </div>
-<script src="https://animation-studio.unysonplus.com/player/0.0.2/scene-player.js" defer></script>
+<script src="https://animation-studio.unysonplus.com/player/0.0.3/scene-player.js" defer></script>
 ```
 
 ### Player versions are permanent
