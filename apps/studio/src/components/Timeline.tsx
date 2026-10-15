@@ -4,6 +4,8 @@ import { presetMeta } from '@unysonplus/scene-player/catalog';
 import { addClip, layersIn, roundTime, scopePath, setClip } from '../lib/sceneOps';
 import { groupDuration, groupOffset } from '@unysonplus/scene-player/groups';
 import { PRESET_MIME } from './Library';
+import { SAME_MOMENT, framesOf, isKeyframes, moveKey, writeFrames } from '../lib/keyframes';
+import type { Clip } from '@unysonplus/scene-player/types';
 import { selectedIds, selectLayers, type Selection } from './Inspector';
 import { setLayerProps } from '../lib/sceneOps';
 
@@ -143,6 +145,44 @@ export function Timeline(props: Props) {
       removeEventListener('pointermove', move);
       removeEventListener('pointerup', up);
       if (started) live.current.onEnd();
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+  };
+
+  /* ---- keyframes: click a diamond to select it (and jump there), drag to move it in time ---- */
+  const onKeyDown = (e: React.PointerEvent, layer: Layer, clip: Clip, index: number) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const frames0 = framesOf(clip);
+    const f0 = frames0[index];
+    props.onSelect({ layerId: layer.id, clipId: clip.id, key: index });
+    props.onSeek(offset + clip.start + f0.t);
+    const x0 = e.clientX;
+    let started = false;
+    let current = index;
+    const move = (ev: PointerEvent) => {
+      if (!started) {
+        if (Math.abs(ev.clientX - x0) < 3) return;
+        started = true;
+        live.current.onBegin();
+      }
+      let t = Math.round((f0.t + (ev.clientX - x0) / pps) * 100) / 100;
+      t = Math.max(0, Math.min(clip.duration, t));
+      // Don't land on another keyframe's moment.
+      if (frames0.some((f, j) => j !== index && Math.abs(f.t - t) < SAME_MOMENT)) return;
+      const r = moveKey(frames0, index, t, clip.duration);
+      current = r.index;
+      live.current.onLive(writeFrames(live.current.scene, layer.id, clip.id, r.frames));
+      live.current.onSeek(offset + clip.start + t);
+    };
+    const up = () => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      if (started) {
+        live.current.onEnd();
+        live.current.onSelect({ layerId: layer.id, clipId: clip.id, key: current });
+      }
     };
     addEventListener('pointermove', move);
     addEventListener('pointerup', up);
@@ -348,6 +388,17 @@ export function Timeline(props: Props) {
                         title={`${meta?.label ?? c.preset}${out ? ' (out)' : ''} · ${c.start.toFixed(2)}–${(c.start + c.duration).toFixed(2)}s`}
                       >
                         <span className="clip-label">{meta?.label ?? c.preset}{out ? ' ↗' : ''}</span>
+                        {isKeyframes(c) && framesOf(c).map((f, i) => (
+                          <span
+                            key={i}
+                            role="button"
+                            tabIndex={-1}
+                            className={`kf-dot${sel && selection.key === i ? ' on' : ''}`}
+                            style={{ left: f.t * pps }}
+                            title={`Keyframe at ${f.t.toFixed(2)} s (drag to move it)`}
+                            onPointerDown={(e) => onKeyDown(e, layer, c, i)}
+                          />
+                        ))}
                       </button>
                     );
                   })}

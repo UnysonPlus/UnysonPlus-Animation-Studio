@@ -10,7 +10,8 @@ import { SCROLL_DEFAULTS } from '@unysonplus/scene-player/scroll';
 import { scrollTestHtml } from '../lib/documents';
 import demo from '../scenes/demo.json';
 import { CheckField, ColorField, Field, NumberField, Section, SelectField, TextField } from './fields';
-import { groupDuration } from '@unysonplus/scene-player/groups';
+import { groupDuration, groupOffset, groupPath } from '@unysonplus/scene-player/groups';
+import { KeyframeEditor } from './KeyframeEditor';
 import type { GroupLayer } from '@unysonplus/scene-player/types';
 import { AlignPanel, type AlignMode, type AlignTo } from './AlignPanel';
 
@@ -23,6 +24,8 @@ export interface Selection {
   /** The primary layer: the one the inspector shows. */
   layerId: string | null;
   clipId: string | null;
+  /** In a Keyframes clip: the selected keyframe (its index in time order). */
+  key?: number;
   /** Every selected layer, primary last, when more than one is selected. */
   multi?: string[];
 }
@@ -49,6 +52,9 @@ interface Props {
   onEnter: (groupId: string) => void;
   onGroup: () => void;
   onUngroup: () => void;
+  /** The playhead, in scene time. */
+  time: number;
+  onSeek: (sceneTime: number) => void;
 }
 
 const EASES = [
@@ -471,7 +477,10 @@ function ImageSource({ scene, layer, onCommit }: { scene: Scene; layer: Extract<
 
 /* ------------------------------------------------------------------ clip */
 
-function ClipInspector({ scene, layer, clipId, onCommit, onSelect }: Props & { layer: Layer; clipId: string }) {
+function ClipInspector({ scene, layer, clipId, onCommit, onSelect, selection, time, onSeek }: Props & { layer: Layer; clipId: string }) {
+  // Clip times are in the layer's container's time (a group's own clock inside a group).
+  const parents = groupPath(scene, layer.id);
+  const containerStart = parents.length ? groupOffset(scene, parents[parents.length - 1].id) : 0;
   const clip = layer.clips.find((c) => c.id === clipId)!;
   const meta = presetMeta[clip.preset];
   const params = { ...(meta?.defaults ?? {}), ...(clip.params ?? {}) };
@@ -524,11 +533,17 @@ function ClipInspector({ scene, layer, clipId, onCommit, onSelect }: Props & { l
         </Section>
       )}
       {clip.preset === 'keyframes' && (
-        <Section title="Keyframes">
-          <TextField label="Frames (JSON)" multiline mono value={JSON.stringify(params.frames ?? [])}
-            onCommit={(v) => { try { const frames = JSON.parse(v); if (Array.isArray(frames)) setParam('frames', frames); } catch { /* keep the old value */ } }} />
-          <p className="field-hint wide">Each frame: t (seconds into the clip) and any of x, y (%), scale, rotate, opacity, blur.</p>
-        </Section>
+        <section className="insp-section">
+          <header><h3>Keyframes</h3></header>
+          <KeyframeEditor
+            scene={scene} layerId={layer.id} clip={clip}
+            playhead={time - containerStart - clip.start}
+            selectedKey={selection.key}
+            onSelectKey={(key) => onSelect({ layerId: layer.id, clipId: clip.id, key })}
+            onCommit={onCommit}
+            onSeek={(t) => onSeek(containerStart + clip.start + t)}
+          />
+        </section>
       )}
 
       <div className="insp-actions">

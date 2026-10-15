@@ -6,7 +6,7 @@ import { groupDuration } from './groups';
 import { injectFonts, injectStyles } from './styles';
 import { presets, presetRand, type Timeline } from './presets';
 import { seedFrom } from './random';
-import { NAMED_EASES } from './eases';
+import { NAMED_EASES, resolveEase } from './eases';
 import { linkToScroll, type ScrollLink } from './scroll';
 import { defaultEaseFor } from './presets/catalog';
 
@@ -178,7 +178,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
           chars: refs.chars,
           at: clip.start,
           duration: clip.duration,
-          ease: clip.ease ?? defaultEaseFor(preset, clip.params),
+          ease: resolveEase(clip.ease ?? defaultEaseFor(preset, clip.params)),
           params: { ...preset.defaults, ...(clip.params ?? {}) },
           first: idx === 0,
           rand: presetRand(seedFrom(`${layer.id}/${clip.id}`)),

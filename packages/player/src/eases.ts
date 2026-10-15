@@ -73,3 +73,71 @@ export const namedEase: Record<string, NamedEase> = Object.fromEntries(NAMED_EAS
 
 /** The ease an exit uses when its clip doesn't set one. */
 export const EXIT_EASE = 'accelExit';
+
+/* ---------- custom curves: "cubic(x1,y1,x2,y2)", a CSS-style cubic Bézier ---------- */
+
+const CUBIC_RE = /^cubic\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)$/;
+
+/** A cubic Bézier ease (as CSS cubic-bezier): x1 and x2 are kept within 0..1 so time only moves forward. */
+export function cubicBezier(x1: number, y1: number, x2: number, y2: number): Ease {
+  const cx = Math.min(1, Math.max(0, x1));
+  const dx = Math.min(1, Math.max(0, x2));
+  const bx = (t: number) => 3 * cx * t * (1 - t) ** 2 + 3 * dx * t * t * (1 - t) + t ** 3;
+  const by = (t: number) => 3 * y1 * t * (1 - t) ** 2 + 3 * y2 * t * t * (1 - t) + t ** 3;
+  return ends((x) => {
+    // Solve bx(t) = x by bisection (monotonic in t), then read y.
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 30; i++) {
+      const mid = (lo + hi) / 2;
+      if (bx(mid) < x) lo = mid;
+      else hi = mid;
+    }
+    return by((lo + hi) / 2);
+  });
+}
+
+/** The four control values of a "cubic(…)" ease, or null. */
+export function parseCubic(name: string): [number, number, number, number] | null {
+  const m = CUBIC_RE.exec(name.trim());
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])] : null;
+}
+
+export const cubicName = (c: readonly number[]) => `cubic(${c.map((v) => Math.round(v * 1000) / 1000).join(',')})`;
+
+/** What the player hands the animation engine: a function for a custom curve, otherwise the name. */
+export function resolveEase(name: string): string | Ease {
+  const c = parseCubic(name);
+  return c ? cubicBezier(...c) : name;
+}
+
+/* ---------- every ease name as a plain function (for drawing curves and in-between values in the editor) ---------- */
+
+const outOf = (f: Ease): Ease => (t) => 1 - f(1 - t);
+const inOutOf = (f: Ease): Ease => (t) => (t < 0.5 ? f(t * 2) / 2 : 1 - f((1 - t) * 2) / 2);
+const families: Record<string, Ease> = {
+  power1: (t) => t ** 2, power2: (t) => t ** 3, power3: (t) => t ** 4, power4: (t) => t ** 5,
+  quad: (t) => t ** 2, cubic: (t) => t ** 3, quart: (t) => t ** 4, quint: (t) => t ** 5,
+  expo: (t) => (t === 0 ? 0 : 2 ** (10 * (t - 1))),
+  sine: (t) => 1 - Math.cos((t * Math.PI) / 2),
+  circ: (t) => 1 - Math.sqrt(1 - t * t),
+};
+
+/** Any ease name the Studio uses, as a function of 0..1. Unknown names fall back to a steady speed. */
+export function easeFunction(name: string | undefined): Ease {
+  if (!name || name === 'none' || name === 'linear') return (t) => t;
+  const named = namedEase[name];
+  if (named) return named.fn;
+  const c = parseCubic(name);
+  if (c) return cubicBezier(...c);
+  const m = /^([a-z0-9]+)\.(in|out|inOut)(?:\(([-\d.]+)\))?$/.exec(name);
+  if (!m) return (t) => t;
+  const [, fam, dir, arg] = m;
+  let base: Ease | undefined = families[fam];
+  if (fam === 'back') {
+    const s = arg ? Number(arg) : 1.70158;
+    base = (t) => t * t * ((s + 1) * t - s);
+  }
+  if (!base) return (t) => t;
+  return dir === 'in' ? base : dir === 'out' ? outOf(base) : inOutOf(base);
+}

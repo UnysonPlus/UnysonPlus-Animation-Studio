@@ -19,7 +19,10 @@ export interface ValidationResult {
 const HEIGHT_MODES: HeightMode[] = ['ratio', 'ratio-capped', 'fill'];
 const ANCHORS: Anchor[] = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
 const TRIGGERS = ['load', 'view', 'manual', 'scroll'];
-const EASE_RE = /^[a-zA-Z0-9.]+(\([0-9., ]*\))?$/;
+// A name, optionally with numbers in brackets: "power3.out", "back.out(1.6)", "cubic(0.3,-0.4,0.7,1.4)".
+/** What a keyframe can set: x, y (% of the layer's own size), scale, rotate (degrees), opacity, blur (stage units). */
+export const KEYFRAME_PROPS = ['x', 'y', 'scale', 'rotate', 'opacity', 'blur'] as const;
+const EASE_RE = /^[a-zA-Z0-9.]+(\([0-9., -]*\))?$/;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -171,6 +174,17 @@ export function validateScene(input: unknown): ValidationResult {
         }
         if (clip.ease !== undefined && (typeof clip.ease !== 'string' || !EASE_RE.test(clip.ease))) fail(`${cp}.ease`, 'is not a valid easing name');
         if (clip.params !== undefined && !isObj(clip.params)) fail(`${cp}.params`, 'must be an object');
+        if (clip.preset === 'keyframes' && isObj(clip.params) && clip.params.frames !== undefined) {
+          const frames = clip.params.frames;
+          if (!Array.isArray(frames) || frames.length > 200) fail(`${cp}.params.frames`, 'must be a list of at most 200 keyframes');
+          else frames.forEach((f: unknown, k: number) => {
+            const fp = `${cp}.params.frames[${k}]`;
+            if (!isObj(f)) return fail(fp, 'must be an object');
+            if (!isNum(f.t) || f.t < 0) fail(`${fp}.t`, 'must be 0 or more seconds into the clip');
+            for (const key of KEYFRAME_PROPS) if (f[key] !== undefined && !isNum(f[key])) fail(`${fp}.${key}`, 'must be a number');
+            if (f.ease !== undefined && (typeof f.ease !== 'string' || !EASE_RE.test(f.ease))) fail(`${fp}.ease`, 'is not a valid easing name');
+          });
+        }
         if (clip.preset === 'code' && isObj(clip.params) && clip.params.code !== undefined
           && (typeof clip.params.code !== 'string' || clip.params.code.length > 20000)) fail(`${cp}.params.code`, 'must be text (20,000 characters at most)');
       });

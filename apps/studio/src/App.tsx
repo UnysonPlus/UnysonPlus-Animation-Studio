@@ -8,11 +8,12 @@ import { AiAssist, type ChatMessage } from './components/AiAssist';
 import { CheckPanel } from './components/CheckPanel';
 import { kitStatus, type KitStatus } from './lib/ai';
 import { lintScene, type LintIssue } from '@unysonplus/scene-player/lint';
+import { clipEase, framesOf, isKeyframes, setKey, valueAt, writeFrames } from './lib/keyframes';
 import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
 import {
-  addClip, addLayer, containerOf, duplicateLayer, findClip, findLayer, groupLayers, layersIn, moveBy, removeClip,
+  addClip, addLayer, boxAt, containerOf, duplicateLayer, findClip, findLayer, groupLayers, layersIn, moveBy, removeClip,
   removeLayer, roundTime, setClip, ungroupLayer, writeLayout,
 } from './lib/sceneOps';
 import { groupDuration, groupOffset, groupPath } from '@unysonplus/scene-player/groups';
@@ -389,13 +390,44 @@ export function App() {
         case 'upw:error':
           setFrameError(m.message ? String(m.message) : null);
           break;
-        case 'upw:select':
-          setSelection(selectLayers(Array.isArray(m.ids) ? m.ids : m.id ? [m.id] : []));
+        case 'upw:select': {
+          const ids: string[] = Array.isArray(m.ids) ? m.ids : m.id ? [m.id] : [];
+          // Pressing the layer that is already selected keeps its selected clip and keyframe (so a drag
+          // with a Keyframes clip selected can set a keyframe).
+          const cur = latest.current.selection;
+          if (ids.length === 1 && ids[0] === cur.layerId && !(cur.multi && cur.multi.length > 1)) break;
+          setSelection(selectLayers(ids));
           break;
+        }
         case 'upw:layout': {
           // One or more layers moved, resized or aligned: one undo step for all of them.
-          const items: Array<{ id: string; box?: Record<string, number>; move?: { dx: number; dy: number } }> =
+          const items: Array<{ id: string; box?: Record<string, number>; move?: { dx: number; dy: number }; mode?: string; size?: { w: number; h: number } }> =
             Array.isArray(m.items) ? m.items : m.id ? [{ id: m.id, box: m.box }] : [];
+          // Animate by dragging: with a Keyframes clip selected and the playhead inside it, moving its
+          // layer sets Move X/Y at the playhead instead of changing the layout.
+          const one = items.length === 1 ? items[0] : null;
+          const sel = latest.current.selection;
+          const kfLayer = one && one.mode === 'move' && one.box && one.size && sel.layerId === one.id ? findLayer(s, one.id) : null;
+          const kfClip = kfLayer && sel.clipId ? findClip(s, one!.id, sel.clipId) : null;
+          if (kfLayer && kfClip && isKeyframes(kfClip)) {
+            const parents = groupPath(s, kfLayer.id);
+            const t = st.time - (parents.length ? groupOffset(s, parents[parents.length - 1].id) : 0) - kfClip.start;
+            if (t >= -1e-6 && t <= kfClip.duration + 1e-6) {
+              const b0 = boxAt(kfLayer, st.breakpoint);
+              const dx = (one!.box!.x ?? b0.x) - b0.x;
+              const dy = (one!.box!.y ?? b0.y) - b0.y;
+              const frames = framesOf(kfClip);
+              const fe = clipEase(kfClip);
+              const vals: Record<string, number> = {};
+              const r1 = (v: number) => Math.round(v * 10) / 10;
+              if (Math.abs(dx) > 1e-3 && one!.size!.w > 0) vals.x = r1((valueAt(frames, 'x', t, fe) ?? 0) + (dx / one!.size!.w) * 100);
+              if (Math.abs(dy) > 1e-3 && one!.size!.h > 0) vals.y = r1((valueAt(frames, 'y', t, fe) ?? 0) + (dy / one!.size!.h) * 100);
+              const r = setKey(frames, Math.max(0, Math.min(kfClip.duration, t)), vals);
+              commit(writeFrames(s, kfLayer.id, kfClip.id, r.frames));
+              setSelection({ layerId: kfLayer.id, clipId: kfClip.id, key: r.index });
+              break;
+            }
+          }
           let next = s;
           for (const it of items) {
             if (!findLayer(next, it.id)) continue;
@@ -646,7 +678,7 @@ export function App() {
               <CheckPanel issues={issues} aiReady={kit.state === 'ready'} onFix={fixIssue} onFixAll={fixAll} onShow={showIssue} onAskAi={askAiToFix} />
             )}
             {tab === 'check' ? null : tab === 'inspect'
-              ? <Inspector scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
+              ? <Inspector time={state.time} onSeek={seek} scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
               : <ScenePanel scene={scene} onCommit={commit} />}
           </div>
         </aside>

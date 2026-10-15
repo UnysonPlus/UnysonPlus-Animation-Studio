@@ -5,7 +5,7 @@
  *   Studio → preview  play · pause · seek {time} · safe {show} · scene {scene} · select {ids}
  *                     ui {scale} · align {mode, to} · scope {id}
  *   preview → Studio  upw:ready · upw:state · upw:error · upw:select {ids} · upw:enter {id}
- *                     upw:layout {items: [{id, box} | {id, move: {dx, dy}}]} · upw:text {id, text}
+ *                     upw:layout {items: [{id, box, mode, size} | {id, move: {dx, dy}}]} · upw:text {id, text}
  *                     upw:key {key, code, mod, shift, alt}
  *
  * Scope: the group being edited (null = the whole scene). Clicks pick layers at that level only, so
@@ -469,7 +469,8 @@ function start() {
     gx.style.display = 'none';
     gy.style.display = 'none';
     const items = [...d.patches].filter(([, p]) => Object.keys(p).length).map(([id, box]) => {
-      if (!isGroup(id)) return { id, box };
+      // The laid-out size (canvas %) and the kind of drag let the Studio turn a move into a keyframe.
+      if (!isGroup(id)) { const f0 = d.f0.get(id)!; return { id, box, mode: d.mode === 'move' ? 'move' : 'resize', size: { w: round(f0.w), h: round(f0.h) } }; }
       // A group's frame is measured, not stored: send how far it moved.
       const f0 = d.f0.get(id)!;
       return { id, move: { dx: round((box.x ?? f0.l) - f0.l), dy: round((box.y ?? f0.t) - f0.t) } };

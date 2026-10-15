@@ -2,6 +2,7 @@ import type { gsap as GSAP } from 'gsap';
 import type { Clip, Layer } from '../types';
 import { hash01 } from '../random';
 import { PRESET_CATALOG, type PresetMeta } from './catalog';
+import { resolveEase } from '../eases';
 
 /**
  * Preset animation code. Each builder adds its tweens to the scene timeline at the clip's start.
@@ -30,7 +31,8 @@ export interface PresetContext {
   chars: HTMLElement[];
   at: number;
   duration: number;
-  ease: string;
+  /** A name the engine knows, or a function for a custom curve. */
+  ease: string | ((t: number) => number);
   params: Record<string, unknown>;
   /** True for the earliest clip on the layer. */
   first: boolean;
@@ -274,33 +276,29 @@ const BUILDERS: Record<string, (ctx: PresetContext) => void> = {
   },
 
   keyframes(ctx) {
+    // Each property is its own track, as in a video editor: it animates between the keyframes that set
+    // it and holds its first value before them. A keyframe's "ease" shapes the move INTO it (else the
+    // clip's ease).
     const raw = Array.isArray(ctx.params.frames) ? (ctx.params.frames as Vars[]) : [];
-    const KEYS = ['x', 'y', 'scale', 'rotate', 'opacity', 'blur'] as const;
     const frames = raw
       .filter((f) => f && typeof f.t === 'number' && f.t >= 0 && f.t <= ctx.duration + 1e-6)
       .sort((a, b) => (a.t as number) - (b.t as number));
-    const toVars = (f: Vars, prev: Vars) => {
-      const out: Vars = {};
-      for (const k of KEYS) {
-        const v = typeof f[k] === 'number' ? f[k] : prev[k];
-        if (typeof v !== 'number') continue;
-        if (k === 'x') out.xPercent = v;
-        else if (k === 'y') out.yPercent = v;
-        else if (k === 'rotate') out.rotation = v;
-        else if (k === 'blur') out.filter = blurOf(v);
-        else out[k] = v;
+    const prop = (k: string, v: number): Vars =>
+      k === 'x' ? { xPercent: v } : k === 'y' ? { yPercent: v } : k === 'rotate' ? { rotation: v } : k === 'blur' ? { filter: blurOf(v) } : { [k]: v };
+    for (const k of ['x', 'y', 'scale', 'rotate', 'opacity', 'blur']) {
+      const keyed = frames.filter((f) => typeof f[k] === 'number');
+      if (!keyed.length) continue;
+      const v0 = keyed[0][k] as number;
+      // Hold the first value from the clip's start (also sets the starting state for scrubbing).
+      ctx.tl.fromTo(ctx.el, prop(k, v0), { ...prop(k, v0), duration: Math.max(0.001, keyed[0].t as number), ease: 'none', immediateRender: ctx.first }, ctx.at);
+      for (let i = 1; i < keyed.length; i++) {
+        const a = keyed[i - 1];
+        const b = keyed[i];
+        const span = (b.t as number) - (a.t as number);
+        if (span <= 0) continue;
+        const ease = typeof b.ease === 'string' ? resolveEase(b.ease) : ctx.ease;
+        ctx.tl.fromTo(ctx.el, prop(k, a[k] as number), { ...prop(k, b[k] as number), duration: span, ease, immediateRender: false }, ctx.at + (a.t as number));
       }
-      return out;
-    };
-    let prev: Vars = {};
-    for (let i = 0; i < frames.length - 1; i++) {
-      const a = frames[i];
-      const b = frames[i + 1];
-      const fromVars = toVars(a, prev);
-      prev = { ...prev, ...a };
-      const span = (b.t as number) - (a.t as number);
-      if (span <= 0) continue;
-      ctx.tl.fromTo(ctx.el, fromVars, { ...toVars(b, prev), duration: span, ease: ctx.ease, immediateRender: ctx.first && i === 0 }, ctx.at + (a.t as number));
     }
   },
 

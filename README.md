@@ -98,6 +98,15 @@ The ease parameters and several timing rules come from frame-by-frame measuremen
 pieces published in the motionmaxxing project (Apache-2.0); the review checklist ideas also draw on the
 favstash AI video editing skills (Apache-2.0). Both are re-expressed here in our own code.
 
+### Keyframes and curves
+
+A **Keyframes** clip animates Move X/Y (% of the layer's size), scale, rotation, opacity and blur, each property
+on its own track between the keyframes that set it. In the Inspector: **Add keyframe at playhead**, pick a
+keyframe to edit its values (empty = not keyed there; the grey number is the in-between value), and shape the
+move into it with a named ease or a **custom curve** (drag two handles; stored as `cubic(x1,y1,x2,y2)` and played
+by the player itself, no plugin). With the clip selected and the playhead inside it, **dragging the layer on the
+stage** sets its Move X/Y keyframe at the playhead. Diamonds on the timeline select keyframes and drag them in time.
+
 ### Scroll-linked playback
 
 Set **Starts** to **As the page scrolls** and the page's scroll position becomes the playhead, forwards and back.
@@ -126,7 +135,7 @@ with Chromium (set `PLAYWRIGHT_DIR` to an existing install). Run it after changi
 <div data-upw-scene>
   <script type="application/json">{ ...scene file... }</script>
 </div>
-<script src="https://animation-studio.unysonplus.com/player/0.0.7/scene-player.js" defer></script>
+<script src="https://animation-studio.unysonplus.com/player/0.0.8/scene-player.js" defer></script>
 ```
 
 ### Player versions are permanent
