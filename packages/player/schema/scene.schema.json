@@ -168,6 +168,14 @@
               "description": "Seconds the playhead takes to catch up with the scroll."
             }
           }
+        },
+        "advance": {
+          "enum": [
+            "auto",
+            "click"
+          ],
+          "default": "auto",
+          "description": "click: a presentation that waits at each marker for a click, a tap or the arrow keys."
         }
       }
     },
@@ -175,6 +183,89 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/layer"
+      }
+    },
+    "markers": {
+      "type": "array",
+      "maxItems": 200,
+      "description": "Pause points for click-to-advance presentations (playback.advance click).",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "t"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "t": {
+            "type": "number",
+            "minimum": 0
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "audio": {
+      "type": "array",
+      "maxItems": 100,
+      "description": "Voice-overs, music and sound effects on the timeline. Silent on a page until the visitor turns sound on.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "src",
+          "start"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "name": {
+            "type": "string"
+          },
+          "src": {
+            "type": "string",
+            "pattern": "^(data:audio/|https?://)"
+          },
+          "start": {
+            "type": "number",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "number",
+            "minimum": 0
+          },
+          "duration": {
+            "type": "number",
+            "minimum": 0
+          },
+          "volume": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "fadeIn": {
+            "type": "number",
+            "minimum": 0
+          },
+          "fadeOut": {
+            "type": "number",
+            "minimum": 0
+          },
+          "role": {
+            "enum": [
+              "voice",
+              "music",
+              "sfx"
+            ]
+          }
+        }
       }
     }
   },

@@ -6,6 +6,8 @@ import { groupDuration, groupOffset } from '@unysonplus/scene-player/groups';
 import { PRESET_MIME } from './Library';
 import { SAME_MOMENT, framesOf, isKeyframes, moveKey, writeFrames } from '../lib/keyframes';
 import { addMarker, moveMarker, removeMarker } from '../lib/markers';
+import { setAudio, type AudioInfo } from '../lib/audio';
+import type { AudioClip } from '@unysonplus/scene-player/types';
 import type { Clip } from '@unysonplus/scene-player/types';
 import { selectedIds, selectLayers, type Selection } from './Inspector';
 import { setLayerProps } from '../lib/sceneOps';
@@ -34,6 +36,30 @@ interface Props {
   onRename: (id: string | null) => void;
   /** Runs a row-menu command on the current selection, the same way its keyboard shortcut does. */
   onCommand: (command: 'duplicate' | 'delete' | 'group' | 'ungroup') => void;
+  /** Audio files' lengths and waveforms, by source. */
+  audioInfo: Record<string, AudioInfo>;
+  peaksPerSecond: number;
+  onAddAudio: () => void;
+}
+
+/** A waveform as an SVG path for the part of the file a clip plays. */
+function waveform(peaks: number[], perSecond: number, from: number, len: number, width: number, height: number) {
+  const a = Math.floor(from * perSecond);
+  const b = Math.min(peaks.length, Math.ceil((from + len) * perSecond));
+  const n = Math.max(1, b - a);
+  const cols = Math.max(1, Math.min(n, Math.floor(width / 2)));
+  const mid = height / 2;
+  let d = '';
+  for (let c = 0; c < cols; c++) {
+    const i0 = a + Math.floor((c / cols) * n);
+    const i1 = a + Math.floor(((c + 1) / cols) * n);
+    let m = 0;
+    for (let i = i0; i < Math.max(i1, i0 + 1); i++) m = Math.max(m, peaks[i] ?? 0);
+    const x = ((c + 0.5) / cols) * width;
+    const h = Math.max(0.5, m * (height - 4) / 2);
+    d += `M${x.toFixed(1)} ${(mid - h).toFixed(1)}V${(mid + h).toFixed(1)}`;
+  }
+  return d;
 }
 
 /** A tick spacing that keeps labels at least ~64px apart at this zoom. */
@@ -291,6 +317,7 @@ export function Timeline(props: Props) {
           <button type="button" className="btn small" onClick={() => props.onAddLayer('shape')}>+ Shape</button>
           <button type="button" className="btn small" onClick={() => props.onAddLayer('image')}>+ Image</button>
           <button type="button" className="btn small" onClick={() => props.onAddLayer('model')} title="A 3D object: text, a shape, an SVG logo or a glTF model">+ 3D</button>
+          {!scope && <button type="button" className="btn small" onClick={props.onAddAudio} title="A voice-over, music or a sound effect (MP3, WAV, OGG…)">+ Audio</button>}
           {!scope && (
             <button type="button" className="btn small" onClick={() => props.onCommit(addMarker(scene, props.time))}
               title="A marker at the playhead (M). In a click-to-advance scene, the presentation stops there until a click.">+ Marker</button>
@@ -486,6 +513,62 @@ export function Timeline(props: Props) {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            );
+          })}
+
+          {!scope && (scene.audio ?? []).map((a: AudioClip) => {
+            const inf = props.audioInfo[a.src];
+            const trimIn = a.offset ?? 0;
+            const len = a.duration ?? (inf ? Math.max(0.1, inf.duration - trimIn) : 1);
+            const sel = selection.audio === a.id;
+            const w = Math.max(6, len * pps);
+            const onDown = (e: React.PointerEvent) => {
+              if (e.button !== 0) return;
+              e.stopPropagation();
+              props.onSelect({ layerId: null, clipId: null, audio: a.id });
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const edge = Math.min(8, rect.width / 4);
+              const mode = e.clientX - rect.left < edge ? 'in' : rect.right - e.clientX < edge ? 'out' : 'move';
+              const x0 = e.clientX;
+              const fileLen = inf ? inf.duration : trimIn + len;
+              let started = false;
+              const move = (ev: PointerEvent) => {
+                if (!started) { if (Math.abs(ev.clientX - x0) < 3) return; started = true; live.current.onBegin(); }
+                const dt = (ev.clientX - x0) / pps;
+                let patch: Partial<AudioClip>;
+                if (mode === 'move') patch = { start: Math.max(0, a.start + dt) };
+                else if (mode === 'in') {
+                  // Trim the start: the clip's sound stays put on the timeline, only less of it plays.
+                  const d = Math.max(-trimIn, Math.min(len - 0.1, dt));
+                  patch = { start: Math.max(0, a.start + d), offset: trimIn + d, duration: len - d };
+                } else patch = { duration: Math.max(0.1, Math.min(fileLen - trimIn, len + dt)) };
+                live.current.onLive(setAudio(live.current.scene, a.id, patch));
+              };
+              const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); if (started) live.current.onEnd(); };
+              addEventListener('pointermove', move);
+              addEventListener('pointerup', up);
+            };
+            return (
+              <div key={a.id} className={`tl-row tl-audio-row${sel ? ' sel' : ''}`} style={{ height: ROW_H }}>
+                <div className="tl-head">
+                  <button type="button" className="tl-name" onClick={() => props.onSelect({ layerId: null, clipId: null, audio: a.id })} aria-pressed={sel}>
+                    <span className="tl-glyph" aria-hidden="true">♪</span>
+                    <span className="tl-label">{a.name || a.id}</span>
+                  </button>
+                </div>
+                <div className="tl-lane" style={{ width }}>
+                  <button type="button" className={`clip clip-audio role-${a.role ?? 'sfx'}${sel ? ' sel' : ''}`} style={{ left: a.start * pps, width: w }}
+                    onPointerDown={onDown} onClick={(e) => e.stopPropagation()}
+                    title={`${a.name || a.id} · ${a.start.toFixed(2)}–${(a.start + len).toFixed(2)}s (drag to move, drag an edge to trim)`}>
+                    {inf && (
+                      <svg className="wave" viewBox={`0 0 ${w} ${ROW_H - 8}`} preserveAspectRatio="none" aria-hidden="true">
+                        <path d={waveform(inf.peaks, props.peaksPerSecond, trimIn, len, w, ROW_H - 8)} />
+                      </svg>
+                    )}
+                    <span className="clip-label">{a.name || a.id}</span>
+                  </button>
                 </div>
               </div>
             );

@@ -25,6 +25,8 @@ export interface Selection {
   clipId: string | null;
   /** In a Keyframes clip: the selected keyframe (its index in time order). */
   key?: number;
+  /** A selected audio clip (by id). */
+  audio?: string;
   /** Every selected layer, primary last, when more than one is selected. */
   multi?: string[];
 }

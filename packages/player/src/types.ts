@@ -25,6 +25,26 @@ export interface Scene {
    * waits for a click, a tap or the arrow keys: a presentation.
    */
   markers?: Marker[];
+  /** Sound: voice-overs, music and effects on the timeline. Silent until the visitor turns sound on. */
+  audio?: AudioClip[];
+}
+
+export interface AudioClip {
+  id: string;
+  name?: string;
+  /** An audio file: a data: URL (uploaded) or an https address (must allow loading from other sites). */
+  src: string;
+  /** Seconds from the start of the scene. */
+  start: number;
+  /** Seconds into the file where the clip begins (trims the start). */
+  offset?: number;
+  /** How long the clip plays, in seconds; defaults to the rest of the file. */
+  duration?: number;
+  /** 0 to 2 (1 = as recorded). */
+  volume?: number;
+  fadeIn?: number;
+  fadeOut?: number;
+  role?: 'voice' | 'music' | 'sfx';
 }
 
 export interface Marker {

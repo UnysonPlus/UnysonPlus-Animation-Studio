@@ -111,6 +111,26 @@ export function validateScene(input: unknown): ValidationResult {
     }
   }
 
+  // Audio
+  if (scene.audio !== undefined) {
+    if (!Array.isArray(scene.audio) || scene.audio.length > 100) fail('audio', 'must be a list of at most 100 clips');
+    else {
+      const seen = new Set<string>();
+      scene.audio.forEach((a: unknown, i: number) => {
+        const ap = `audio[${i}]`;
+        if (!isObj(a)) return fail(ap, 'must be an object');
+        if (typeof a.id !== 'string' || !ID_RE.test(a.id)) fail(`${ap}.id`, 'must be a short id');
+        else if (seen.has(a.id)) fail(`${ap}.id`, `"${a.id}" is used twice`);
+        else seen.add(a.id);
+        if (typeof a.src !== 'string' || !/^(data:audio\/|https?:\/\/)/.test(a.src)) fail(`${ap}.src`, 'must be an audio data: URL or an http(s) address');
+        if (!isNum(a.start) || a.start < 0) fail(`${ap}.start`, 'must be 0 or more seconds');
+        for (const k of ['offset', 'duration', 'fadeIn', 'fadeOut'] as const) if (a[k] !== undefined && (!isNum(a[k]) || (a[k] as number) < 0)) fail(`${ap}.${k}`, 'must be 0 or more seconds');
+        if (a.volume !== undefined && (!isNum(a.volume) || a.volume < 0 || a.volume > 2)) fail(`${ap}.volume`, 'must be 0 to 2');
+        if (a.role !== undefined && !['voice', 'music', 'sfx'].includes(a.role as string)) fail(`${ap}.role`, 'must be voice, music or sfx');
+      });
+    }
+  }
+
   // Markers (pause points for click-to-advance)
   if (scene.markers !== undefined) {
     if (!Array.isArray(scene.markers) || scene.markers.length > 200) fail('markers', 'must be a list of at most 200 markers');

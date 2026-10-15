@@ -23,7 +23,7 @@ export function FullscreenPlayer(props: { scene: Scene; startAt: number; onClose
     let player: ScenePlayer | null = null;
     try {
       // present: in a click-to-advance scene, clicks and the keys move through the slides.
-      player = mount(hostRef.current!, scene, { autoplay: false, editor: true, present: true });
+      player = mount(hostRef.current!, scene, { autoplay: false, editor: true, present: true, soundOn: true });
       playerRef.current = player;
       player.seek(props.startAt);
       player.play();

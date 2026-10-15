@@ -9,6 +9,7 @@ import { seedFrom } from './random';
 import { NAMED_EASES, resolveEase } from './eases';
 import { linkToScroll, type ScrollLink } from './scroll';
 import { load3d } from './model3d';
+import { SceneAudio } from './audio';
 import { defaultEaseFor } from './presets/catalog';
 
 // The measured eases, usable by name in any clip (and in custom code clips).
@@ -31,6 +32,10 @@ export interface MountOptions {
    * scene has focus, so they never take over the page's own scrolling.
    */
   present?: boolean;
+  /** Play the scene's sound (default true). The Studio's preview passes false and plays it itself. */
+  audio?: boolean;
+  /** Start with sound on (only after a user gesture, such as the click that opened full screen). */
+  soundOn?: boolean;
 }
 
 export type PlayerEvent = 'update' | 'play' | 'pause' | 'complete' | 'breakpoint' | 'rebuild';
@@ -124,6 +129,52 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
 
   const reduced = !options.editor && prefersReducedMotion(win);
 
+  // ---- sound ----
+  const hasAudio = () => options.audio !== false && !!scene.audio?.length && scene.playback.trigger !== 'scroll';
+  let sound: SceneAudio | null = null;
+  let soundBtn: HTMLButtonElement | null = null;
+  /** Keeps the sound in step with the timeline: playing from its time, or stopped. */
+  function syncAudio() {
+    if (!sound) return;
+    if (tl && !tl.paused() && !reduced) sound.play(tl.time());
+    else sound.stop();
+  }
+  function setupSound() {
+    if (!hasAudio()) {
+      sound?.dispose();
+      sound = null;
+      soundBtn?.remove();
+      soundBtn = null;
+      return;
+    }
+    if (!sound) sound = new SceneAudio(win);
+    sound.setClips(scene.audio);
+    if (!soundBtn) {
+      soundBtn = doc.createElement('button');
+      soundBtn.type = 'button';
+      soundBtn.className = 'upw-sound';
+      soundBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!sound) return;
+        if (sound.on) sound.disable();
+        else sound.enable().then(syncAudio);
+        paintSound();
+      });
+    }
+    root.appendChild(soundBtn);
+    paintSound();
+  }
+  function paintSound() {
+    if (!soundBtn || !sound) return;
+    const on = sound.on;
+    soundBtn.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on');
+    soundBtn.title = on ? 'Sound on' : 'Tap for sound';
+    soundBtn.dataset.on = on ? '1' : '0';
+    soundBtn.innerHTML = on
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Tap for sound</span>';
+  }
+
   // ---- click-to-advance ----
   const clickMode = () => scene.playback.advance === 'click' && scene.playback.trigger !== 'scroll';
   const markerTimes = () => [...new Set((scene.markers ?? []).map((m) => m.t))].sort((a, b) => a - b);
@@ -133,6 +184,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     if (on) {
       root.dataset.waiting = '';
       wantPlaying = false;
+      sound?.stop();
       emit('pause');
     } else delete root.dataset.waiting;
   }
@@ -178,6 +230,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     const { stage, canvas } = createStage(doc, scene);
     canvasEl = canvas;
     stageEl = stage;
+    if (soundBtn) soundBtn = null; // the old button went with the old stage
     root.appendChild(stage);
     layers = scene.layers.map((layer, i) => {
       const refs = createLayer(doc, layer, i + 1);
@@ -185,6 +238,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       return refs;
     });
     start3d();
+    setupSound();
   }
 
   function buildTimeline(): Timeline {
@@ -194,7 +248,9 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
         render3d();
         emit('update');
       },
+      onRepeat: () => syncAudio(),
       onComplete: () => {
+        sound?.stop();
         if (clickMode()) { tl?.pause(); setWaiting(true); }
         wantPlaying = false;
         emit('complete');
@@ -283,6 +339,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     tl = buildTimeline();
     tl.time(Math.min(time, scene.duration), false);
     if (play) tl.play();
+    syncAudio();
     emit('rebuild');
   }
 
@@ -325,8 +382,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   const io = new IntersectionObserver((entries) => {
     inView = entries.some((e) => e.isIntersecting);
     if (!tl || reduced) return;
-    if (inView && wantPlaying && armed && tl.paused()) tl.play();
-    else if (!inView && !tl.paused() && scene.playback.loop) tl.pause();
+    if (inView && wantPlaying && armed && tl.paused()) { tl.play(); syncAudio(); } else if (!inView && !tl.paused() && scene.playback.loop) { tl.pause(); syncAudio(); }
   }, { threshold: 0.2 });
   io.observe(root);
 
@@ -356,6 +412,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       }
       wantPlaying = true;
       tl.play();
+      syncAudio();
       emit('play');
     },
     prev() {
@@ -366,6 +423,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       const target = before[before.length - 1] ?? 0;
       tl.pause();
       tl.time(target, false);
+      sound?.stop();
       setWaiting(true);
       emit('update');
     },
@@ -375,12 +433,14 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       wantPlaying = true;
       if (!scene.playback.loop && tl.time() >= scene.duration - 1e-3) tl.time(0);
       tl.play();
+      syncAudio();
       emit('play');
     },
     pause() {
       if (!tl) return;
       wantPlaying = false;
       tl.pause();
+      sound?.stop();
       emit('pause');
     },
     seek(seconds) {
@@ -388,6 +448,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       wantPlaying = false;
       tl.pause();
       tl.time(Math.max(0, Math.min(scene.duration, seconds)), false);
+      sound?.stop();
       emit('pause');
       emit('update');
     },
@@ -460,6 +521,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       tl?.kill();
       scrollLink?.destroy();
       dispose3d();
+      sound?.dispose();
       root.removeEventListener('click', onClick);
       win.removeEventListener('keydown', onKey as EventListener);
       root.removeEventListener('keydown', onKey as EventListener);
@@ -502,6 +564,10 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     marks();
     listeners.set('rebuild', new Set([...(listeners.get('rebuild') ?? []), marks]));
   }
+
+  // (setupSound ran inside setupDom; TypeScript cannot see that from here.)
+  const startSound = sound as SceneAudio | null;
+  if (options.soundOn && startSound) { startSound.enable().then(syncAudio); paintSound(); }
 
   // Start
   const ready = waitForFonts(doc, scene).then(() => {

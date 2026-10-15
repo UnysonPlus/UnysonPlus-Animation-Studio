@@ -102,6 +102,15 @@ The ease parameters and several timing rules come from frame-by-frame measuremen
 pieces published in the motionmaxxing project (Apache-2.0); the review checklist ideas also draw on the
 favstash AI video editing skills (Apache-2.0). Both are re-expressed here in our own code.
 
+### Sound
+
+**+ Audio** adds a voice-over, music or a sound effect (MP3, WAV, OGG, M4A; uploads up to 15 MB are stored in the
+scene, or use an address). Audio clips sit on their own timeline rows with a waveform: drag to move, drag an edge to
+trim; the Inspector sets start, trim, length, volume and fades. The Studio plays the sound in step with the preview
+(the speaker button by Play mutes it). On pages, scenes with sound start muted with a "Tap for sound" button,
+because browsers block sound until the visitor interacts; scroll-linked scenes stay silent. Video exports mix the
+sound in (capture service 1.12.16 and later).
+
 ### Share links
 
 **Export → Share link** puts the whole scene, compressed, into the link (`#s=1.<base64url deflate-raw>`). Opening it

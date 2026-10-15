@@ -37,6 +37,11 @@ export const PLAYER_CSS = `
 .upw-scene[data-waiting]::after{content:"";position:absolute;right:max(14px,2cqw);bottom:max(14px,2cqw);width:12px;height:12px;border-right:2.5px solid rgba(255,255,255,.75);border-bottom:2.5px solid rgba(255,255,255,.75);transform:rotate(-45deg);animation:upw-nudge 1.4s ease-in-out infinite;pointer-events:none;z-index:2147483001}
 @keyframes upw-nudge{0%,100%{opacity:.35;translate:0 0}50%{opacity:1;translate:4px 0}}
 @media (prefers-reduced-motion:reduce){.upw-scene[data-waiting]::after{animation:none;opacity:.8}}
+.upw-sound{position:absolute;left:max(10px,1.4cqw);bottom:max(10px,1.4cqw);z-index:2147483002;display:inline-flex;align-items:center;gap:6px;height:34px;min-width:34px;padding:0 9px;border:0;border-radius:17px;background:rgba(10,13,17,.62);color:#fff;font:600 12px/1 system-ui,sans-serif;cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.upw-sound svg{width:18px;height:18px;flex:none}
+.upw-sound[data-on="1"]{padding:0;width:34px;justify-content:center;opacity:.75}
+.upw-sound:hover,.upw-sound:focus-visible{opacity:1;background:rgba(10,13,17,.82)}
+.upw-sound:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .upw-safe{position:absolute;pointer-events:none;border:1px dashed rgba(255,255,255,.6);box-shadow:0 0 0 1px rgba(0,0,0,.35);z-index:2147483000;display:none}
 .upw-scene[data-safe] .upw-safe{display:block}
 `;

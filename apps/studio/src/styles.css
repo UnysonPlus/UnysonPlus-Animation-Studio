@@ -662,3 +662,14 @@ h1, h2, p { margin: 0; }
 /* ---------- export: share link ---------- */
 .share-link { width: 100%; height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border-soft); background: var(--surface); color: var(--muted); font-size: 11.5px; text-overflow: ellipsis; }
 .share-link:focus-visible { outline: none; border-color: var(--accent); color: var(--ink); }
+
+/* ---------- audio ---------- */
+.tl-audio-row .tl-glyph { background: oklch(0.35 0.06 200); }
+.clip.clip-audio { background: oklch(0.36 0.05 210); color: var(--ink); overflow: hidden; }
+.clip.clip-audio.role-voice { background: oklch(0.38 0.07 160); }
+.clip.clip-audio.role-music { background: oklch(0.38 0.07 290); }
+.clip.clip-audio .wave { position: absolute; inset: 4px 0; width: 100%; height: calc(100% - 8px); pointer-events: none; }
+.clip.clip-audio .wave path { stroke: oklch(0.85 0.06 170 / .75); stroke-width: 1.2; fill: none; }
+.clip.clip-audio .clip-label { position: relative; text-shadow: 0 1px 2px oklch(0 0 0 / .6); }
+.sound-btn { color: var(--faint); }
+.sound-btn.on { color: var(--accent); }

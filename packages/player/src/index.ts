@@ -9,6 +9,7 @@ export { defaultEaseFor } from './presets/catalog';
 export { lintScene, readingTime, type LintIssue } from './lint';
 export { SCROLL_DEFAULTS } from './scroll';
 export { setAssetBase, REST_3D, type State3D } from './model3d';
+export { SceneAudio } from './audio';
 export { allLayers, groupDuration, groupOffset, groupPath } from './groups';
 
 export const PLAYER_VERSION = __PLAYER_VERSION__;

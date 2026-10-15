@@ -12,6 +12,8 @@ import { lintScene, type LintIssue } from '@unysonplus/scene-player/lint';
 import { clipEase, framesOf, isKeyframes, setKey, valueAt, writeFrames } from './lib/keyframes';
 import { addMarker } from './lib/markers';
 import { clearShareHash, hasSharedScene, readSharedScene } from './lib/share';
+import { addAudio, removeAudio, useSceneAudio } from './lib/audio';
+import { AudioInspector } from './components/AudioInspector';
 import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
@@ -117,6 +119,10 @@ export function App() {
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [queued, setQueued] = useState<string | null>(null);
   const [state, setState] = useState<PreviewState>({ time: 0, duration: scene.duration, playing: false, breakpoint: null, stageHeight: 0 });
+  /** Sound in the Studio (the preview's audio, played here in step with it). */
+  const [soundOn, setSoundOn] = useState(true);
+  const { engine: audioEngine, info: audioInfo, peaksPerSecond } = useSceneAudio(scene, state, soundOn);
+  const audioRef = useRef<HTMLInputElement>(null);
   const [frameError, setFrameError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -331,6 +337,11 @@ export function App() {
       // First clear the selection; with nothing selected, step out of the group being edited.
       if (selectedIds(sel).length) setSelection({ layerId: null, clipId: null });
       else if (sc) leaveTo(containerOf(s, sc));
+      return true;
+    }
+    if ((key === 'Delete' || key === 'Backspace') && sel.audio) {
+      commit(removeAudio(s, sel.audio));
+      setSelection({ layerId: null, clipId: null });
       return true;
     }
     if (key === 'Delete' || key === 'Backspace') {
@@ -589,6 +600,27 @@ export function App() {
           <button type="button" className="btn" onClick={saveProject} title="Save the project as a .scene.json file (Ctrl+S)"><SaveIcon /> Save</button>
           <button type="button" className="btn primary" onClick={() => setExporting(true)}><DownloadIcon /> Export</button>
           <input ref={openRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openProject(f); e.target.value = ''; }} />
+          <input ref={audioRef} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" hidden onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file) return;
+            if (file.size > 15 * 1024 * 1024) { setNotice(`${file.name} is ${(file.size / 1048576).toFixed(1)} MB. Audio files up to 15 MB can be added; use an address for bigger ones.`); return; }
+            const reader = new FileReader();
+            reader.onload = async () => {
+              const src = String(reader.result);
+              const len = await audioEngine.durationOf(src);
+              if (len === null) { setNotice(`${file.name} couldn't be read as audio.`); return; }
+              const s = latest.current.scene;
+              const start = Math.max(0, Math.min(s.duration - 0.1, Math.round(latest.current.state.time * 100) / 100));
+              const r = addAudio(s, { name: file.name.replace(/\.[^.]+$/, ''), src, start, role: len > 8 ? 'voice' : 'sfx' });
+              // A voice-over longer than the scene makes the scene as long as it.
+              const end = start + len;
+              commit(end > s.duration ? { ...r.scene, duration: Math.ceil(end * 10) / 10 } : r.scene);
+              setSelection({ layerId: null, clipId: null, audio: r.id });
+              setNotice(`Added ${file.name} (${len.toFixed(1)} s)${end > s.duration ? '; the scene now runs to its end' : ''}.`);
+            };
+            reader.readAsDataURL(file);
+          }} />
           <input ref={imageRef} type="file" accept="image/*" hidden onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = '';
@@ -693,6 +725,9 @@ export function App() {
             onPlay={play}
             onPause={pause}
             onSeek={seek}
+            hasAudio={!!scene.audio?.length}
+            soundOn={soundOn}
+            onSound={setSoundOn}
           />
 
           <Timeline
@@ -711,6 +746,9 @@ export function App() {
             onLeaveTo={leaveTo}
             renaming={renaming}
             onRename={setRenaming}
+            audioInfo={audioInfo}
+            peaksPerSecond={peaksPerSecond}
+            onAddAudio={() => audioRef.current?.click()}
             onCommand={(c) => {
               // After a right-click the selection may only just have changed: let it land first.
               setTimeout(() => handleKey(c === 'duplicate' ? { key: 'd', code: 'KeyD', mod: true, shift: false, alt: false }
@@ -732,7 +770,10 @@ export function App() {
             {tab === 'check' && (
               <CheckPanel issues={issues} aiReady={kit.state === 'ready'} onFix={fixIssue} onFixAll={fixAll} onShow={showIssue} onAskAi={askAiToFix} />
             )}
-            {tab === 'check' ? null : tab === 'inspect'
+            {tab === 'inspect' && selection.audio && scene.audio?.some((a) => a.id === selection.audio) ? (
+              <AudioInspector scene={scene} clip={scene.audio!.find((a) => a.id === selection.audio)!} info={audioInfo[scene.audio!.find((a) => a.id === selection.audio)!.src]}
+                onCommit={commit} onDeselect={() => setSelection({ layerId: null, clipId: null })} />
+            ) : tab === 'check' ? null : tab === 'inspect'
               ? <Inspector time={state.time} onSeek={seek} scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
               : <ScenePanel scene={scene} onCommit={commit} />}
           </div>
