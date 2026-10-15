@@ -2,6 +2,7 @@ import type { AudioClip, Scene } from '@unysonplus/scene-player/types';
 import { NumberField, Section, SelectField, TextField } from './fields';
 import { removeAudio, setAudio, type AudioInfo } from '../lib/audio';
 import { SFX_CATALOG, parseSfxSrc, sfxMeta, sfxSrc } from '@unysonplus/scene-player/sfx';
+import { WordsSection } from './WordsSection';
 
 /** The Inspector for a selected audio clip: timing, trim, volume and fades. */
 export function AudioInspector(props: {
@@ -10,6 +11,8 @@ export function AudioInspector(props: {
   info: AudioInfo | undefined;
   onCommit: (scene: Scene) => void;
   onDeselect: () => void;
+  /** Jump the playhead (clicking a word). */
+  onSeek: (t: number) => void;
 }) {
   const { scene, clip, info } = props;
   const set = (patch: Partial<AudioClip>) => props.onCommit(setAudio(scene, clip.id, patch));
@@ -42,6 +45,8 @@ export function AudioInspector(props: {
           options={[{ value: 'voice', label: 'Voice-over' }, { value: 'music', label: 'Music' }, { value: 'sfx', label: 'Sound effect' }]} />
         <p className="field-hint wide">Drag the clip on the timeline to move it; drag an edge to trim. Length left empty plays to the end of the file.</p>
       </Section>
+
+      {!builtIn && <WordsSection scene={scene} clip={clip} onCommit={props.onCommit} onSeek={props.onSeek} />}
 
       <Section title="Level">
         <NumberField label="Volume" value={Math.round((clip.volume ?? 1) * 100)} step={5} min={0} max={200} unit="%" onCommit={(v) => set({ volume: v === undefined || v === 100 ? undefined : v / 100 })} />

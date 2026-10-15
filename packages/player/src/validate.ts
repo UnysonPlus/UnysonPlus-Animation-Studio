@@ -128,6 +128,15 @@ export function validateScene(input: unknown): ValidationResult {
         for (const k of ['offset', 'duration', 'fadeIn', 'fadeOut'] as const) if (a[k] !== undefined && (!isNum(a[k]) || (a[k] as number) < 0)) fail(`${ap}.${k}`, 'must be 0 or more seconds');
         if (a.volume !== undefined && (!isNum(a.volume) || a.volume < 0 || a.volume > 2)) fail(`${ap}.volume`, 'must be 0 to 2');
         if (a.role !== undefined && !['voice', 'music', 'sfx'].includes(a.role as string)) fail(`${ap}.role`, 'must be voice, music or sfx');
+        if (a.words !== undefined) {
+          if (!Array.isArray(a.words) || a.words.length > 20000) fail(`${ap}.words`, 'must be a list of at most 20,000 words');
+          else {
+            const bad = a.words.findIndex((w: unknown) => !isObj(w) || typeof w.w !== 'string' || w.w.length > 100 || !isNum(w.t) || w.t < 0 || !isNum(w.d) || w.d < 0
+              || (w.s !== undefined && (!isNum(w.s) || w.s < 0 || w.s > 1)) || (w.p !== undefined && (!isNum(w.p) || w.p < 0)));
+            if (bad >= 0) fail(`${ap}.words[${bad}]`, 'must be { w: text, t: seconds, d: seconds, s?: 0-1, p?: seconds }');
+          }
+        }
+        if (a.speech !== undefined && !isObj(a.speech)) fail(`${ap}.speech`, 'must be an object');
       });
     }
   }

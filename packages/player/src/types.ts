@@ -57,6 +57,41 @@ export interface AudioClip {
   fadeIn?: number;
   fadeOut?: number;
   role?: 'voice' | 'music' | 'sfx';
+  /**
+   * The spoken words (from transcription), timed from the start of the FILE, so moving or trimming the
+   * clip keeps them in place: a word plays at start + (t - offset).
+   */
+  words?: SpokenWord[];
+  /** How the recording is delivered, from the same analysis. */
+  speech?: SpeechInfo;
+}
+
+export interface SpokenWord {
+  /** The word as heard. */
+  w: string;
+  /** Seconds from the start of the file. */
+  t: number;
+  /** Seconds the word lasts. */
+  d: number;
+  /** Emphasis, 0 to 1 (loudness, pitch and length against the speaker's own average). */
+  s?: number;
+  /** Pause before the word, in seconds (only when noticeable). */
+  p?: number;
+}
+
+export interface SpeechInfo {
+  /** Language code, e.g. "en". */
+  language?: string;
+  /** Words per minute of speaking. */
+  wpm?: number;
+  pace?: 'slow' | 'steady' | 'brisk' | 'fast' | 'silent';
+  /** Loudness range in dB, and pitch range in semitones (10th to 90th percentile). */
+  dynamics?: number;
+  pitchRange?: number;
+  /** e.g. ["energetic"], ["calm"], ["expressive"], ["conversational"]. */
+  delivery?: string[];
+  /** The speech model used ("base", "small"). */
+  model?: string;
 }
 
 export interface Marker {

@@ -573,6 +573,24 @@ export function Timeline(props: Props) {
                       </svg>
                     )}
                     <span className="clip-label">{a.name || a.id}</span>
+                    {a.words && a.words.length > 0 && (() => {
+                      // Words along the waveform: each where it is said; only those with room to show.
+                      // (after the clip's name, which sits at its left edge)
+                      let lastEnd = (a.name || a.id).length * 6.5 + 12;
+                      return (
+                        <span className="clip-words" aria-hidden="true">
+                          {a.words.map((wd, k) => {
+                            const x = (wd.t - trimIn) * pps;
+                            if (wd.t < trimIn - 0.05 || x > w) return null;
+                            const strong = (wd.s ?? 0) >= 0.75;
+                            const need = wd.w.length * (strong ? 6.4 : 5.6) + 6;
+                            if (x < lastEnd) return null;
+                            lastEnd = x + need;
+                            return <span key={k} className={strong ? 'strong' : ''} style={{ left: x }}>{wd.w}</span>;
+                          })}
+                        </span>
+                      );
+                    })()}
                   </button>
                 </div>
               </div>

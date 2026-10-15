@@ -859,7 +859,7 @@ export function App() {
             )}
             {tab === 'inspect' && selection.audio && scene.audio?.some((a) => a.id === selection.audio) ? (
               <AudioInspector scene={scene} clip={scene.audio!.find((a) => a.id === selection.audio)!} info={audioInfo[scene.audio!.find((a) => a.id === selection.audio)!.src]}
-                onCommit={commit} onDeselect={() => setSelection({ layerId: null, clipId: null })} />
+                onCommit={commit} onDeselect={() => setSelection({ layerId: null, clipId: null })} onSeek={seek} />
             ) : tab === 'check' ? null : tab === 'inspect'
               ? <Inspector onPreviewSound={(src, v) => { audioEngine.preview(src, v); }} time={state.time} onSeek={seek} scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
               : <ScenePanel scene={scene} onCommit={commit} />}
