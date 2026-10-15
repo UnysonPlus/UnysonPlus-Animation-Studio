@@ -98,6 +98,15 @@ The ease parameters and several timing rules come from frame-by-frame measuremen
 pieces published in the motionmaxxing project (Apache-2.0); the review checklist ideas also draw on the
 favstash AI video editing skills (Apache-2.0). Both are re-expressed here in our own code.
 
+### Scroll-linked playback
+
+Set **Starts** to **As the page scrolls** and the page's scroll position becomes the playhead, forwards and back.
+**Pin while playing** holds the stage still (CSS sticky, below the scene's header offset) for **Scroll length**
+window heights; unpinned, the scene runs while the stage crosses the window. **Smoothing** lets the playhead
+glide to the scroll position. Written without a scroll plugin (`packages/player/src/scroll.ts`). Pinning needs
+every ancestor to have visible overflow; where a theme hides it, the scene still plays as it scrolls through.
+**Try scrolling in a test page** (Inspector → Playback) opens the scene between stand-in page content.
+
 ### Self-test
 
 `npm run selftest` plays a scene using every preset frame by frame, then jumps to the same frames in a
@@ -117,7 +126,7 @@ with Chromium (set `PLAYWRIGHT_DIR` to an existing install). Run it after changi
 <div data-upw-scene>
   <script type="application/json">{ ...scene file... }</script>
 </div>
-<script src="https://animation-studio.unysonplus.com/player/0.0.6/scene-player.js" defer></script>
+<script src="https://animation-studio.unysonplus.com/player/0.0.7/scene-player.js" defer></script>
 ```
 
 ### Player versions are permanent

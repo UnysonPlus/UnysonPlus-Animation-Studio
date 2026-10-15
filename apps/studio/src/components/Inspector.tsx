@@ -6,6 +6,8 @@ import {
   removeClip, removeLayer, setClip, setClipParam, setLayerProps, writeLayout, type LayoutPatch,
 } from '../lib/sceneOps';
 import { validateScene } from '@unysonplus/scene-player/validate';
+import { SCROLL_DEFAULTS } from '@unysonplus/scene-player/scroll';
+import { scrollTestHtml } from '../lib/documents';
 import demo from '../scenes/demo.json';
 import { CheckField, ColorField, Field, NumberField, Section, SelectField, TextField } from './fields';
 import { groupDuration } from '@unysonplus/scene-player/groups';
@@ -80,6 +82,7 @@ function SceneInspector({ scene, onCommit }: Props) {
   const set = (patch: Partial<Scene>) => onCommit({ ...scene, ...patch });
   const setStage = (patch: Partial<Scene['stage']>) => onCommit({ ...scene, stage: { ...scene.stage, ...patch } });
   const setPlayback = (patch: Partial<Scene['playback']>) => onCommit({ ...scene, playback: { ...scene.playback, ...patch } });
+  const setScroll = (patch: NonNullable<Scene['playback']['scroll']>) => setPlayback({ scroll: { ...(scene.playback.scroll ?? {}), ...patch } });
   const setBp = (i: number, patch: Partial<Breakpoint>) =>
     setStage({ breakpoints: scene.stage.breakpoints.map((b, j) => (j === i ? { ...b, ...patch } : b)) });
   const fonts = scene.stage.fonts ?? [];
@@ -104,11 +107,33 @@ function SceneInspector({ scene, onCommit }: Props) {
         <SelectField
           label="Starts"
           value={scene.playback.trigger}
-          options={[{ value: 'view', label: 'When scrolled into view' }, { value: 'load', label: 'When the page loads' }, { value: 'manual', label: 'Only when told to' }]}
+          options={[
+            { value: 'view', label: 'When scrolled into view' }, { value: 'load', label: 'When the page loads' },
+            { value: 'scroll', label: 'As the page scrolls' }, { value: 'manual', label: 'Only when told to' },
+          ]}
           onChange={(v) => setPlayback({ trigger: v })}
         />
-        <CheckField label="Loop" checked={scene.playback.loop} onChange={(v) => setPlayback({ loop: v })} />
-        {scene.playback.loop && (
+        {scene.playback.trigger === 'scroll' ? (
+          <>
+            <CheckField label="Pin while playing" checked={scene.playback.scroll?.pin ?? SCROLL_DEFAULTS.pin} onChange={(v) => setScroll({ pin: v })} />
+            {(scene.playback.scroll?.pin ?? SCROLL_DEFAULTS.pin) && (
+              <NumberField label="Scroll length" value={scene.playback.scroll?.length ?? SCROLL_DEFAULTS.length} unit="screens" step={0.1} min={0.2} max={10} onCommit={(v) => setScroll({ length: v ?? SCROLL_DEFAULTS.length })} />
+            )}
+            <NumberField label="Smoothing" value={scene.playback.scroll?.smooth ?? SCROLL_DEFAULTS.smooth} unit="s" step={0.05} min={0} max={3} onCommit={(v) => setScroll({ smooth: v ?? SCROLL_DEFAULTS.smooth })} />
+            <p className="field-hint wide">
+              Scrolling plays the scene forwards and back. Pinned, the stage holds still while the page scrolls the given
+              number of screens. Scrub the timeline here to see any moment; try it on a real page:
+            </p>
+            <button type="button" className="btn small wide-btn" onClick={() => {
+              const url = URL.createObjectURL(new Blob([scrollTestHtml(scene)], { type: 'text/html' }));
+              window.open(url, '_blank', 'noopener');
+              setTimeout(() => URL.revokeObjectURL(url), 60000);
+            }}>Try scrolling in a test page</button>
+          </>
+        ) : (
+          <CheckField label="Loop" checked={scene.playback.loop} onChange={(v) => setPlayback({ loop: v })} />
+        )}
+        {scene.playback.loop && scene.playback.trigger !== 'scroll' && (
           <NumberField label="Pause between loops" value={scene.playback.repeatDelay ?? 0} unit="s" step={0.1} min={0} onCommit={(v) => setPlayback({ repeatDelay: v ?? 0 })} />
         )}
         <NumberField

@@ -58,6 +58,39 @@ ${inlinePlayer(true)}
 }
 
 /**
+ * A test page for a scroll-linked scene: the scene between blocks of stand-in page content, so scrolling
+ * plays it exactly as on a real site (pinning included).
+ */
+export function scrollTestHtml(scene: Scene): string {
+  const filler = (n: number) => Array.from({ length: n }, () => '<p class="bar"></p><p class="bar short"></p><p class="bar"></p>').join('');
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scroll test: ${escapeHtml(scene.title || 'Animation')}</title>
+<style>
+html,body{margin:0;background:#0a0d11;color:#aeb6c0;font:15px/1.5 system-ui,sans-serif}
+.note{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9;background:#1b2129;border:1px solid #2c3540;border-radius:999px;padding:6px 14px;font-size:13px}
+.page{max-width:760px;margin:0 auto;padding:40px 20px}
+.bar{height:12px;border-radius:6px;background:#1c232c;margin:14px 0}.bar.short{width:60%}
+h2{color:#e6eaee;font-size:22px;margin:0 0 8px}
+</style>
+</head>
+<body>
+<p class="note">Scroll test: scroll down to play the scene, up to rewind</p>
+<div class="page" style="min-height:90vh"><h2>Content above the scene</h2>${filler(8)}</div>
+${hostTag(scene)}
+<script type="application/json">${safeJson(scene)}</script>
+</div>
+<div class="page" style="min-height:120vh"><h2>Content below the scene</h2>${filler(12)}</div>
+${inlinePlayer(true)}
+</body>
+</html>
+`;
+}
+
+/**
  * Code to paste into any page (a Custom HTML block, a page template…). The scene file travels inline;
  * the player loads from its permanent versioned address, so the scene keeps playing exactly as it was
  * made even after later Studio releases.

@@ -7,6 +7,7 @@ import { injectFonts, injectStyles } from './styles';
 import { presets, presetRand, type Timeline } from './presets';
 import { seedFrom } from './random';
 import { NAMED_EASES } from './eases';
+import { linkToScroll, type ScrollLink } from './scroll';
 import { defaultEaseFor } from './presets/catalog';
 
 // The measured eases, usable by name in any clip (and in custom code clips).
@@ -97,6 +98,8 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   const emit = (e: PlayerEvent) => listeners.get(e)?.forEach((fn) => fn());
 
   let canvasEl!: HTMLElement;
+  let stageEl!: HTMLElement;
+  let scrollLink: ScrollLink | null = null;
   let layers: LayerRefs[] = [];
   let forced: string | null = options.breakpoint ?? null;
   let current: Breakpoint | null = null;
@@ -119,6 +122,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
 
     const { stage, canvas } = createStage(doc, scene);
     canvasEl = canvas;
+    stageEl = stage;
     root.appendChild(stage);
     layers = scene.layers.map((layer, i) => {
       const refs = createLayer(doc, layer, i + 1);
@@ -141,7 +145,8 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     t.set({}, {}, scene.duration);
 
     addLayers(t, layers, scene.duration);
-    if (scene.playback.loop) t.repeat(-1).repeatDelay(scene.playback.repeatDelay ?? 0);
+    // A scroll-linked scene follows the page, so it never loops on its own.
+    if (scene.playback.loop && scene.playback.trigger !== 'scroll') t.repeat(-1).repeatDelay(scene.playback.repeatDelay ?? 0);
     return t;
   }
 
@@ -246,6 +251,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   const resizeObserver = new ResizeObserver((entries) => {
     const w = entries[0]?.contentRect.width;
     if (w) setBreakpointFromWidth(w);
+    scrollLink?.refresh();
   });
   resizeObserver.observe(root);
 
@@ -301,6 +307,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       setupDom();
       applyBreakpoint(chooseBreakpoint(root.getBoundingClientRect().width || win.innerWidth));
       rebuild(time, play);
+      scrollLink?.refresh();
       emit('breakpoint');
       emit('update');
     },
@@ -355,6 +362,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       if (destroyed) return;
       destroyed = true;
       tl?.kill();
+      scrollLink?.destroy();
       resizeObserver.disconnect();
       io.disconnect();
       listeners.clear();
@@ -374,6 +382,15 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     const trigger = scene.playback.trigger;
     if (trigger === 'load') {
       ready.then(() => !destroyed && player.play());
+    } else if (trigger === 'scroll') {
+      // The page's scroll position is the playhead.
+      ready.then(() => {
+        if (destroyed) return;
+        scrollLink = linkToScroll({
+          win, root, stage: () => stageEl, settings: scene.playback.scroll, offset: scene.stage.heightOffset ?? 0,
+          setProgress: (p) => { if (tl) tl.progress(p, false); },
+        });
+      });
     } else if (trigger === 'view') {
       // Arm the observer: the first time it reports the scene on screen, play.
       wantPlaying = true;

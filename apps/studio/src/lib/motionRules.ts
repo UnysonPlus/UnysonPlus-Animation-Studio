@@ -28,6 +28,10 @@ TYPE
 - Text must be at least about 12 px on screen at every breakpoint: a font size (in stage units) of at least 1.2 on desktop and 3.3 on a 360 px phone stage.
 - Type letter by letter (text-typewriter) only for small text such as a search box or a prompt, never a headline.
 
+SCROLL-LINKED SCENES
+- Use "playback": { "trigger": "scroll", "loop": false, "scroll": { "pin": true, "length": 1.5, "smooth": 0.4 } } only when the request asks for the animation to follow the page scroll (scroll-driven, scrubbed, pinned, "as you scroll").
+- Then the visitor's scrolling sets the pace: build one continuous sequence (things enter, transform, and the last state holds), not a loop. "length" is how many window heights of scrolling it takes while pinned (1-3); keep the scene 3-8 s long so each scroll step moves something.
+
 AVOID
 - Two moving clips overlapping in time on the same layer (they fight over the same property).
 - Endless motion everywhere: pulse, shake and float are accents, not wallpaper.

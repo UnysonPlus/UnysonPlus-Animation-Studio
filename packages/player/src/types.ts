@@ -58,13 +58,28 @@ export interface FontAsset {
 }
 
 export interface Playback {
-  /** load: play as soon as the scene is ready. view: play when it scrolls into view. manual: never on its own. */
-  trigger: 'load' | 'view' | 'manual';
+  /**
+   * load: play as soon as the scene is ready. view: play when it scrolls into view. manual: never on its own.
+   * scroll: the page's scroll position plays the scene forwards and backwards (see `scroll`).
+   */
+  trigger: 'load' | 'view' | 'manual' | 'scroll';
+  /** Ignored when the trigger is scroll. */
   loop: boolean;
+  /** Scroll trigger settings. */
+  scroll?: ScrollSettings;
   /** Pause between loops, in seconds. */
   repeatDelay?: number;
   /** The frame shown to visitors who ask for reduced motion, in seconds. Defaults to the end. */
   posterTime?: number;
+}
+
+export interface ScrollSettings {
+  /** Hold the stage in place while the page scrolls through the scene. Defaults to true. */
+  pin?: boolean;
+  /** Pinned: how far the page scrolls while the scene plays, in window heights. Defaults to 1.5. */
+  length?: number;
+  /** Seconds the playhead takes to catch up with the scroll position. Defaults to 0.4; 0 follows exactly. */
+  smooth?: number;
 }
 
 export type Anchor =

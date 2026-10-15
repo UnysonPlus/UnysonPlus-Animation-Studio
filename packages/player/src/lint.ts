@@ -256,11 +256,11 @@ export function lintScene(scene: Scene): LintIssue[] {
     }
   }
 
-  // Long stretches where nothing moves.
+  // Long stretches where nothing moves (not for scroll-linked scenes: there the visitor sets the pace).
   const spans = all.flatMap((e) => e.layer.clips.map((c) => [e.offset + c.start, e.offset + c.start + c.duration] as [number, number])).sort((a, b) => a[0] - b[0]);
   let reach = spans.length ? spans[0][1] : 0;
   for (const [s0, s1] of spans) {
-    if (s0 - reach > MAX_STILL) {
+    if (scene.playback.trigger !== 'scroll' && s0 - reach > MAX_STILL) {
       const from = reach;
       const len = s0 - reach;
       const target = texts

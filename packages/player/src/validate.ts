@@ -18,7 +18,7 @@ export interface ValidationResult {
 
 const HEIGHT_MODES: HeightMode[] = ['ratio', 'ratio-capped', 'fill'];
 const ANCHORS: Anchor[] = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
-const TRIGGERS = ['load', 'view', 'manual'];
+const TRIGGERS = ['load', 'view', 'manual', 'scroll'];
 const EASE_RE = /^[a-zA-Z0-9.]+(\([0-9., ]*\))?$/;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -95,6 +95,15 @@ export function validateScene(input: unknown): ValidationResult {
     if (pb.repeatDelay !== undefined && (!isNum(pb.repeatDelay) || pb.repeatDelay < 0)) fail('playback.repeatDelay', 'must be 0 or more seconds');
     if (pb.posterTime !== undefined && (!isNum(pb.posterTime) || pb.posterTime < 0 || pb.posterTime > scene.duration)) {
       fail('playback.posterTime', 'must be within the scene');
+    }
+    if (pb.scroll !== undefined) {
+      const sc = pb.scroll;
+      if (!isObj(sc)) fail('playback.scroll', 'must be an object');
+      else {
+        if (sc.pin !== undefined && typeof sc.pin !== 'boolean') fail('playback.scroll.pin', 'must be true or false');
+        if (sc.length !== undefined && (!isNum(sc.length) || sc.length < 0.2 || sc.length > 10)) fail('playback.scroll.length', 'must be 0.2 to 10 window heights');
+        if (sc.smooth !== undefined && (!isNum(sc.smooth) || sc.smooth < 0 || sc.smooth > 3)) fail('playback.scroll.smooth', 'must be 0 to 3 seconds');
+      }
     }
   }
 

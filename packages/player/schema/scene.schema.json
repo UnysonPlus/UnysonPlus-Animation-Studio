@@ -127,7 +127,8 @@
           "enum": [
             "load",
             "view",
-            "manual"
+            "manual",
+            "scroll"
           ]
         },
         "loop": {
@@ -141,6 +142,32 @@
           "type": "number",
           "minimum": 0,
           "description": "Frame shown when the visitor asks for reduced motion."
+        },
+        "scroll": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Scroll trigger: the page scroll plays the scene forwards and backwards.",
+          "properties": {
+            "pin": {
+              "type": "boolean",
+              "default": true,
+              "description": "Hold the stage in place while the page scrolls through the scene."
+            },
+            "length": {
+              "type": "number",
+              "minimum": 0.2,
+              "maximum": 10,
+              "default": 1.5,
+              "description": "Pinned: scroll distance in window heights."
+            },
+            "smooth": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3,
+              "default": 0.4,
+              "description": "Seconds the playhead takes to catch up with the scroll."
+            }
+          }
         }
       }
     },

@@ -7,6 +7,7 @@ export { autoMount } from './auto';
 export { NAMED_EASES, NAMED_EASE_IDS, namedEase, EXIT_EASE, type NamedEase } from './eases';
 export { defaultEaseFor } from './presets/catalog';
 export { lintScene, readingTime, type LintIssue } from './lint';
+export { SCROLL_DEFAULTS } from './scroll';
 export { allLayers, groupDuration, groupOffset, groupPath } from './groups';
 
 export const PLAYER_VERSION = __PLAYER_VERSION__;
