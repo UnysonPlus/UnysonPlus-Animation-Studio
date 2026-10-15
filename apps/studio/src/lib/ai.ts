@@ -14,6 +14,8 @@ let base: string | null = null;
 export type KitStatus =
   | { state: 'checking' }
   | { state: 'missing' }
+  /** The browser refuses to let this site reach apps on the user's computer (its local-network permission). */
+  | { state: 'blocked' }
   | { state: 'outdated' }
   | { state: 'off'; version: string }
   | { state: 'ready'; version: string; model: string; backend: string };
@@ -36,7 +38,19 @@ export async function kitStatus(): Promise<KitStatus> {
       // Not running at this address (or the browser blocked it): try the next.
     }
   }
-  return { state: 'missing' };
+  // Nothing answered. Browsers now ask before a website may reach apps on the user's own computer;
+  // if that was refused, say so rather than claiming the kit isn't running.
+  return (await localNetworkPermission()) === 'denied' ? { state: 'blocked' } : { state: 'missing' };
+}
+
+/** The browser's "apps and services on this device" permission for this site, where it exists. */
+async function localNetworkPermission(): Promise<PermissionState | 'unknown'> {
+  try {
+    const s = await navigator.permissions.query({ name: 'local-network-access' as PermissionName });
+    return s.state;
+  } catch {
+    return 'unknown';
+  }
 }
 
 /** The preset catalogue, trimmed to what the AI needs to use each preset well. */

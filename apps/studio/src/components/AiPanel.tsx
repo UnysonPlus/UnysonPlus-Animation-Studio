@@ -83,7 +83,14 @@ export function AiPanel(props: {
         {status.state === 'missing' && (
           <span>
             The AI Dev Kit isn't running on this computer. <a href={GUIDE} target="_blank" rel="noopener noreferrer">Set it up</a>,
-            start it (start.bat), then check again.
+            start it (start.bat), then check again. If your browser asks to let this site connect to apps on your device,
+            choose <strong>Allow</strong>: that is how the Studio reaches the kit.
+          </span>
+        )}
+        {status.state === 'blocked' && (
+          <span>
+            Your browser is stopping this site from reaching the AI Dev Kit on your computer. Click the icon to the left of the
+            address, allow access to <strong>apps on this device</strong> (local network access), then check again.
           </span>
         )}
         {status.state !== 'checking' && status.state !== 'ready' && (
