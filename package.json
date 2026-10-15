@@ -1,6 +1,6 @@
 {
   "name": "unysonplus-animation-studio",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "private": true,
   "description": "Unyson+ Animation Studio: timeline motion graphics for the web, exported as plain HTML.",
   "workspaces": [
@@ -12,7 +12,8 @@
     "dev": "npm run build:player && npm run dev -w apps/studio",
     "build": "npm run build:player && npm run build -w apps/studio",
     "preview": "npm run preview -w apps/studio",
-    "typecheck": "npm run typecheck -w packages/player && npm run typecheck -w apps/studio"
+    "typecheck": "npm run typecheck -w packages/player && npm run typecheck -w apps/studio",
+    "selftest": "node scripts/selftest.mjs"
   },
   "engines": {
     "node": ">=20"

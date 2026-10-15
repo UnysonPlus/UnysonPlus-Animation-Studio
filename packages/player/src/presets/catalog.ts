@@ -1,4 +1,5 @@
 import type { Layer } from '../types';
+import { EXIT_EASE } from '../eases';
 
 /**
  * The preset catalogue: everything about a preset except the animation code. Kept free of the
@@ -43,6 +44,10 @@ const DIRECTION: PresetField = {
   options: [{ value: 'in', label: 'In' }, { value: 'out', label: 'Out' }],
 };
 const STAGGER: PresetField = { key: 'stagger', label: 'Stagger', type: 'number', min: 0, max: 1, step: 0.005, unit: 's' };
+const RHYTHM: PresetField = {
+  key: 'rhythm', label: 'Rhythm', type: 'select',
+  options: [{ value: 'natural', label: 'Natural (uneven gaps)' }, { value: 'even', label: 'Even' }],
+};
 const BY: PresetField = {
   key: 'by', label: 'Animate by', type: 'select',
   options: [{ value: 'chars', label: 'Letter' }, { value: 'words', label: 'Word' }],
@@ -63,8 +68,8 @@ export const PRESET_CATALOG: PresetMeta[] = [
     id: 'text-rise', label: 'Rise', category: 'text', appliesTo: ['text'],
     description: 'Letters or words rise into place one after another, from behind an invisible mask.',
     defaultEase: 'power4.out', defaultDuration: 0.9,
-    defaults: { direction: 'in', by: 'chars', stagger: 0.03, distance: 130, mask: true },
-    fields: [DIRECTION, BY, STAGGER, { key: 'distance', label: 'Distance', type: 'number', min: 0, max: 400, step: 5, unit: '%' }, { key: 'mask', label: 'Mask', type: 'boolean' }],
+    defaults: { direction: 'in', by: 'chars', stagger: 0.03, rhythm: 'natural', distance: 130, mask: true },
+    fields: [DIRECTION, BY, STAGGER, RHYTHM, { key: 'distance', label: 'Distance', type: 'number', min: 0, max: 400, step: 5, unit: '%' }, { key: 'mask', label: 'Mask', type: 'boolean' }],
   },
   {
     id: 'text-slam', label: 'Slam', category: 'text', appliesTo: ALL,
@@ -77,8 +82,8 @@ export const PRESET_CATALOG: PresetMeta[] = [
     id: 'text-stretch', label: 'Stretch', category: 'text', appliesTo: ['text'],
     description: 'Letters grow out of a line, squashed, then spring to full size.',
     defaultEase: 'expo.out', defaultDuration: 0.9,
-    defaults: { direction: 'in', axis: 'y', stagger: 0.04, squash: 1.8 },
-    fields: [DIRECTION, { key: 'axis', label: 'Axis', type: 'select', options: [{ value: 'y', label: 'Vertical' }, { value: 'x', label: 'Horizontal' }] }, STAGGER, { key: 'squash', label: 'Squash', type: 'number', min: 1, max: 4, step: 0.1 }],
+    defaults: { direction: 'in', axis: 'y', stagger: 0.04, rhythm: 'natural', squash: 1.8 },
+    fields: [DIRECTION, { key: 'axis', label: 'Axis', type: 'select', options: [{ value: 'y', label: 'Vertical' }, { value: 'x', label: 'Horizontal' }] }, STAGGER, RHYTHM, { key: 'squash', label: 'Squash', type: 'number', min: 1, max: 4, step: 0.1 }],
   },
   {
     id: 'text-scramble', label: 'Scramble', category: 'text', appliesTo: ['text'],
@@ -98,15 +103,15 @@ export const PRESET_CATALOG: PresetMeta[] = [
     id: 'text-blur', label: 'Blur in', category: 'text', appliesTo: ['text'],
     description: 'Letters or words sharpen out of a soft blur, one after another.',
     defaultEase: 'power2.out', defaultDuration: 1,
-    defaults: { direction: 'in', by: 'chars', stagger: 0.03, blur: 0.8 },
-    fields: [DIRECTION, BY, STAGGER, { key: 'blur', label: 'Blur', type: 'number', min: 0, max: 4, step: 0.1 }],
+    defaults: { direction: 'in', by: 'chars', stagger: 0.03, rhythm: 'natural', blur: 0.8 },
+    fields: [DIRECTION, BY, STAGGER, RHYTHM, { key: 'blur', label: 'Blur', type: 'number', min: 0, max: 4, step: 0.1 }],
   },
   {
     id: 'text-flip', label: 'Flip', category: 'text', appliesTo: ['text'],
     description: 'Letters or words flip up into place in 3D, like a departure board.',
     defaultEase: 'power3.out', defaultDuration: 0.9,
-    defaults: { direction: 'in', by: 'chars', stagger: 0.04 },
-    fields: [DIRECTION, BY, STAGGER],
+    defaults: { direction: 'in', by: 'chars', stagger: 0.04, rhythm: 'natural' },
+    fields: [DIRECTION, BY, STAGGER, RHYTHM],
   },
   {
     id: 'text-tracking', label: 'Tracking', category: 'text', appliesTo: ['text'],
@@ -119,15 +124,15 @@ export const PRESET_CATALOG: PresetMeta[] = [
     id: 'text-wave', label: 'Wave', category: 'emphasis', appliesTo: ['text'],
     description: 'A ripple runs through the letters: each one hops and settles.',
     defaultEase: 'sine.inOut', defaultDuration: 1,
-    defaults: { height: 30, stagger: 0.05 },
-    fields: [{ key: 'height', label: 'Height', type: 'number', min: 0, max: 200, step: 5, unit: '%' }, STAGGER],
+    defaults: { height: 30, stagger: 0.05, rhythm: 'natural' },
+    fields: [{ key: 'height', label: 'Height', type: 'number', min: 0, max: 200, step: 5, unit: '%' }, STAGGER, RHYTHM],
   },
   // ---- Reveal and exit ----
   {
     id: 'fade', label: 'Fade', category: 'reveal', appliesTo: ALL,
-    description: 'Fades in or out, optionally drifting, scaling or blurring as it goes.',
-    defaultEase: 'power2.out', defaultDuration: 0.6,
-    defaults: { direction: 'in', x: 0, y: 0, scale: 1, blur: 0 },
+    description: 'Fades in or out with a small drift, optionally scaling or blurring as it goes.',
+    defaultEase: 'softLand', defaultDuration: 0.5,
+    defaults: { direction: 'in', x: 0, y: 12, scale: 1, blur: 0 },
     fields: [DIRECTION, { key: 'x', label: 'Drift X', type: 'number', min: -200, max: 200, step: 5, unit: '%' }, { key: 'y', label: 'Drift Y', type: 'number', min: -200, max: 200, step: 5, unit: '%' }, { key: 'scale', label: 'Scale', type: 'number', min: 0, max: 4, step: 0.05 }, { key: 'blur', label: 'Blur', type: 'number', min: 0, max: 5, step: 0.1 }],
   },
   {
@@ -147,7 +152,7 @@ export const PRESET_CATALOG: PresetMeta[] = [
   {
     id: 'slide', label: 'Slide', category: 'reveal', appliesTo: ALL,
     description: 'Slides in from a side (or out to one) while fading.',
-    defaultEase: 'power3.out', defaultDuration: 0.7,
+    defaultEase: 'softLand', defaultDuration: 0.6,
     defaults: { direction: 'in', from: 'bottom', distance: 60 },
     fields: [DIRECTION, SIDE, { key: 'distance', label: 'Distance', type: 'number', min: 0, max: 400, step: 5, unit: '%' }],
   },
@@ -161,15 +166,15 @@ export const PRESET_CATALOG: PresetMeta[] = [
   // ---- Move and scale ----
   {
     id: 'pop', label: 'Pop', category: 'motion', appliesTo: ALL,
-    description: 'Scales up from nothing with a little overshoot (or down to nothing).',
-    defaultEase: 'back.out(1.6)', defaultDuration: 0.5,
-    defaults: { direction: 'in', from: 0 },
+    description: 'Scales up into place with a little overshoot (or down and away).',
+    defaultEase: 'popOver', defaultDuration: 0.5,
+    defaults: { direction: 'in', from: 0.5 },
     fields: [DIRECTION, { key: 'from', label: 'Start scale', type: 'number', min: 0, max: 1, step: 0.05 }],
   },
   {
     id: 'zoom', label: 'Zoom', category: 'motion', appliesTo: ALL,
-    description: 'Eases in from smaller (or larger) with a fade, no overshoot.',
-    defaultEase: 'power3.out', defaultDuration: 0.8,
+    description: 'Eases in from smaller (or larger) with a fade, no overshoot. A start scale above 1 lands it from close up.',
+    defaultEase: 'softLand', defaultDuration: 0.6,
     defaults: { direction: 'in', scale: 0.7 },
     fields: [DIRECTION, { key: 'scale', label: 'Start scale', type: 'number', min: 0, max: 4, step: 0.05 }],
   },
@@ -227,4 +232,13 @@ export const PRESET_CATALOG: PresetMeta[] = [
 ];
 
 export const PRESET_IDS = PRESET_CATALOG.map((p) => p.id);
+
+/**
+ * The ease a clip uses when it doesn't set one. Exits default to the leaving curve, which speeds up
+ * out of frame: an exit is new motion, not the entrance played backwards.
+ */
+export function defaultEaseFor(meta: PresetMeta, params?: Record<string, unknown>): string {
+  const dir = params && 'direction' in params ? params.direction : meta.defaults.direction;
+  return dir === 'out' && meta.fields.some((f) => f.key === 'direction') ? EXIT_EASE : meta.defaultEase;
+}
 export const presetMeta: Record<string, PresetMeta> = Object.fromEntries(PRESET_CATALOG.map((p) => [p.id, p]));

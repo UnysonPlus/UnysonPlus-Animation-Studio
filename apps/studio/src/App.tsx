@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { validateScene } from '@unysonplus/scene-player/validate';
 import type { HeightMode, Layer, Scene } from '@unysonplus/scene-player/types';
 import demo from './scenes/demo.json';
 import { previewHtml } from './lib/documents';
 import { ExportDialog } from './components/ExportDialog';
-import { AiPanel } from './components/AiPanel';
+import { AiAssist, type ChatMessage } from './components/AiAssist';
+import { CheckPanel } from './components/CheckPanel';
+import { kitStatus, type KitStatus } from './lib/ai';
+import { lintScene, type LintIssue } from '@unysonplus/scene-player/lint';
 import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
@@ -12,7 +15,7 @@ import {
   addClip, addLayer, containerOf, duplicateLayer, findClip, findLayer, groupLayers, layersIn, moveBy, removeClip,
   removeLayer, roundTime, setClip, ungroupLayer, writeLayout,
 } from './lib/sceneOps';
-import { groupDuration, groupOffset } from '@unysonplus/scene-player/groups';
+import { groupDuration, groupOffset, groupPath } from '@unysonplus/scene-player/groups';
 import { DEVICES, Preview, type Device } from './components/Preview';
 import { Transport } from './components/Transport';
 import { ScenePanel } from './components/ScenePanel';
@@ -96,7 +99,12 @@ export function App() {
   const [selection, setSelection] = useState<Selection>({ layerId: null, clipId: null });
   const [deviceId, setDeviceId] = useState<Device['id']>('desktop');
   const [safe, setSafe] = useState(false);
-  const [tab, setTab] = useState<'inspect' | 'ai' | 'json'>('inspect');
+  const [tab, setTab] = useState<'inspect' | 'check' | 'json'>('inspect');
+  // AI assist: the chat with the AI Dev Kit, and whether the kit is there.
+  const [assistOpen, setAssistOpen] = useState(false);
+  const [kit, setKit] = useState<KitStatus>({ state: 'checking' });
+  const [chat, setChat] = useState<ChatMessage[]>([]);
+  const [queued, setQueued] = useState<string | null>(null);
   const [state, setState] = useState<PreviewState>({ time: 0, duration: scene.duration, playing: false, breakpoint: null, stageHeight: 0 });
   const [frameError, setFrameError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -423,6 +431,60 @@ export function App() {
   const bp = scene.stage.breakpoints.find((b) => b.id === state.breakpoint);
   const selectedLayer = findLayer(scene, selection.layerId);
 
+  // ---- Check scene + AI assist ----
+  const issues = useMemo(() => lintScene(scene), [scene]);
+  const problems = issues.filter((i) => i.severity === 'warn').length;
+  const recheckKit = useCallback(() => { setKit({ state: 'checking' }); kitStatus().then(setKit); }, []);
+  useEffect(recheckKit, [recheckKit]);
+  const openAssist = useCallback((open: boolean) => {
+    setAssistOpen(open);
+    if (open && kit.state !== 'ready' && kit.state !== 'checking') recheckKit();
+  }, [kit.state, recheckKit]);
+
+  const applyAi = useCallback((next: Scene, mode: 'create' | 'edit') => {
+    commit(next);
+    if (mode === 'create') {
+      setScope(null);
+      setSelection({ layerId: null, clipId: null });
+    }
+    post({ type: 'seek', time: 0 });
+    post({ type: 'play' });
+  }, [commit, post]);
+
+  const restoreAi = useCallback((before: Scene, after: Scene) => {
+    if (latest.current.scene !== after
+      && !window.confirm('The scene has changed since this answer. Going back also undoes those later changes (Undo brings them back). Go back?')) return;
+    commit(before);
+    setNotice('Back to the scene from before that answer. Undo to return.');
+  }, [commit]);
+
+  const fixIssue = useCallback((issue: LintIssue) => {
+    if (!issue.fix) return;
+    commit(issue.fix.apply(latest.current.scene));
+    setNotice(`Fixed: ${issue.fix.label.toLowerCase()}.`);
+  }, [commit]);
+
+  const fixAll = useCallback(() => {
+    let next = latest.current.scene;
+    let n = 0;
+    for (const i of lintScene(next)) if (i.fix) { next = i.fix.apply(next); n++; }
+    commit(next);
+    setNotice(`Applied ${n} fixes. Undo to go back.`);
+  }, [commit]);
+
+  const showIssue = useCallback((issue: LintIssue) => {
+    if (!issue.layerId) return;
+    const path = groupPath(latest.current.scene, issue.layerId);
+    setScope(path.length ? path[path.length - 1].id : null);
+    setSelection({ layerId: issue.layerId, clipId: issue.clipId ?? null });
+  }, []);
+
+  const askAiToFix = useCallback(() => {
+    const list = lintScene(latest.current.scene).map((i) => `- ${i.message}`).join('\n');
+    setQueued(`Fix these problems Check scene found, changing as little as possible and keeping everything else as it is:\n${list}`);
+    openAssist(true);
+  }, [openAssist]);
+
   return (
     <div className="app">
       <div className="head">
@@ -522,7 +584,25 @@ export function App() {
             </p>
           </div>
 
-          <Preview ref={iframeRef} device={device} srcDoc={srcDoc} label="Scene preview" onScale={setScale} />
+          <div className="preview-wrap">
+            <Preview ref={iframeRef} device={device} srcDoc={srcDoc} label="Scene preview" onScale={setScale} />
+            <AiAssist
+              open={assistOpen}
+              onOpenChange={openAssist}
+              status={kit}
+              onRecheck={recheckKit}
+              scene={scene}
+              selection={selectedIds(selection)}
+              problems={problems}
+              messages={chat}
+              onMessages={setChat}
+              queued={queued}
+              onQueuedTaken={() => setQueued(null)}
+              onApply={applyAi}
+              onRestore={restoreAi}
+              onShowCheck={() => setTab('check')}
+            />
+          </div>
 
           {frameError && <p className="frame-error" role="alert">{frameError}</p>}
 
@@ -556,21 +636,16 @@ export function App() {
         <aside className="panel" aria-label="Properties">
           <div className="tabs" role="tablist" aria-label="Panel">
             <button type="button" role="tab" aria-selected={tab === 'inspect'} className={tab === 'inspect' ? 'on' : undefined} onClick={() => setTab('inspect')}>Inspector</button>
-            <button type="button" role="tab" aria-selected={tab === 'ai'} className={tab === 'ai' ? 'on' : undefined} onClick={() => setTab('ai')}>AI</button>
+            <button type="button" role="tab" aria-selected={tab === 'check'} className={tab === 'check' ? 'on' : undefined} onClick={() => setTab('check')}>
+              Check{issues.length > 0 && <span className={`tab-count${problems ? ' warn' : ''}`}>{issues.length}</span>}
+            </button>
             <button type="button" role="tab" aria-selected={tab === 'json'} className={tab === 'json' ? 'on' : undefined} onClick={() => setTab('json')}>Scene file</button>
           </div>
           <div className="panel-body" role="tabpanel">
-            {tab === 'ai' && (
-              <AiPanel scene={scene} selection={selectedIds(selection)} onApply={(next, note) => {
-                commit(next);
-                setScope(null);
-                setSelection({ layerId: null, clipId: null });
-                setNotice(note);
-                post({ type: 'seek', time: 0 });
-                post({ type: 'play' });
-              }} />
+            {tab === 'check' && (
+              <CheckPanel issues={issues} aiReady={kit.state === 'ready'} onFix={fixIssue} onFixAll={fixAll} onShow={showIssue} onAskAi={askAiToFix} />
             )}
-            {tab === 'ai' ? null : tab === 'inspect'
+            {tab === 'check' ? null : tab === 'inspect'
               ? <Inspector scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
               : <ScenePanel scene={scene} onCommit={commit} />}
           </div>

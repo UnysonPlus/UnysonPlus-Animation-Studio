@@ -6,6 +6,11 @@ import { groupDuration } from './groups';
 import { injectFonts, injectStyles } from './styles';
 import { presets, presetRand, type Timeline } from './presets';
 import { seedFrom } from './random';
+import { NAMED_EASES } from './eases';
+import { defaultEaseFor } from './presets/catalog';
+
+// The measured eases, usable by name in any clip (and in custom code clips).
+NAMED_EASES.forEach((e) => gsap.registerEase(e.id, e.fn));
 
 export interface MountOptions {
   /** Start playback according to the scene's trigger. Defaults to true. */
@@ -168,7 +173,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
           chars: refs.chars,
           at: clip.start,
           duration: clip.duration,
-          ease: clip.ease ?? preset.defaultEase,
+          ease: clip.ease ?? defaultEaseFor(preset, clip.params),
           params: { ...preset.defaults, ...(clip.params ?? {}) },
           first: idx === 0,
           rand: presetRand(seedFrom(`${layer.id}/${clip.id}`)),

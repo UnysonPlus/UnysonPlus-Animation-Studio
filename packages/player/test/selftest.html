@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scene player self-test</title>
+<style>body{margin:0;background:#111;color:#ddd;font:14px system-ui}#host{width:960px}#out{padding:12px;white-space:pre-wrap}</style>
+</head>
+<body>
+<div id="host"></div>
+<div id="out">Running…</div>
+<script src="../dist/scene-player.iife.js" data-auto-mount="false"></script>
+<script>
+/*
+ * Determinism self-test: every frame must be a pure function of time. Builds a scene with every preset
+ * (an entrance and an exit each, plus a group), plays it frame by frame recording what every element
+ * looks like, then jumps to the same frames in a random order through a detour and compares.
+ * Open in a browser (after building the player) or run scripts/selftest.mjs. window.selfTestResult
+ * holds { ok, frames, mismatches }.
+ */
+(function () {
+  const S = window.UnysonPlusScene;
+  const FPS = 30;
+  const layers = [];
+  let t = 0.1;
+  S.PRESET_CATALOG.forEach((p, i) => {
+    const text = p.appliesTo.includes('text') && !p.appliesTo.includes('shape');
+    const hasDir = p.fields.some((f) => f.key === 'direction');
+    const clips = [{ id: 'a' + i, preset: p.id, start: t, duration: p.defaultDuration }];
+    if (hasDir) clips.push({ id: 'b' + i, preset: p.id, start: t + p.defaultDuration + 0.4, duration: 0.5, params: { direction: 'out' } });
+    const box = { x: 10 + (i % 5) * 20, y: 12 + Math.floor(i / 5) * 18, w: 16, h: text ? undefined : 10, anchor: 'center' };
+    layers.push(text
+      ? { id: 'l' + i, type: 'text', text: 'Moving words ' + i, style: { fontSize: 2 }, box, clips }
+      : { id: 'l' + i, type: 'shape', shape: 'rect', fill: '#4c9', box, clips });
+    t += 0.25;
+  });
+  layers.push({ id: 'g', type: 'group', start: 1, clips: [{ id: 'gf', preset: 'slide', start: 0.2, duration: 0.6 }], layers: [
+    { id: 'g1', type: 'text', text: 'In a group', style: { fontSize: 3 }, box: { x: 50, y: 92 }, clips: [{ id: 'c', preset: 'text-rise', start: 0.5, duration: 0.8 }] },
+  ] });
+  const scene = { format: 'unysonplus-scene', version: 1, duration: Math.ceil(t + 2), stage: { breakpoints: [{ id: 'd', minWidth: 0, aspect: [16, 9] }], heightMode: 'ratio' }, playback: { trigger: 'manual', loop: false }, layers };
+
+  const player = S.mount(document.getElementById('host'), scene, { autoplay: false, editor: true, allowCode: true });
+  const els = () => Array.from(document.querySelectorAll('.upw-canvas *'));
+  const snap = () => els().map((el) => {
+    const c = getComputedStyle(el);
+    // "none" and the identity matrix draw the same; GSAP leaves the second behind once it has touched an element.
+    const tf = c.transform === 'matrix(1, 0, 0, 1, 0, 0)' ? 'none' : c.transform;
+    return [tf, c.opacity, c.filter, c.clipPath, c.visibility, c.letterSpacing, c.color, c.backgroundColor, el.children.length ? '' : el.textContent].join('|');
+  }).join('\n');
+
+  // A fixed pseudo-random order, so a failure is reproducible.
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+  const total = Math.round(scene.duration * FPS);
+  const want = new Set();
+  while (want.size < 24) want.add(Math.floor(rnd() * total));
+  const recorded = new Map();
+  for (let f = 0; f <= total; f++) {
+    player.seek(f / FPS);
+    if (want.has(f)) recorded.set(f, snap());
+  }
+  const mismatches = [];
+  for (const f of [...want].sort(() => rnd() - 0.5)) {
+    player.seek(rnd() * scene.duration); // detour
+    player.seek(f / FPS);
+    const now = snap();
+    if (now !== recorded.get(f)) {
+      const a = recorded.get(f).split('\n');
+      const b = now.split('\n');
+      const i = a.findIndex((x, k) => x !== b[k]);
+      mismatches.push({ frame: f, time: +(f / FPS).toFixed(3), element: i, played: a[i], jumped: b[i] });
+    }
+  }
+  window.selfTestResult = { ok: mismatches.length === 0, frames: want.size, presets: S.PRESET_CATALOG.length, mismatches };
+  document.getElementById('out').textContent = (mismatches.length ? 'FAIL' : 'PASS') + ': ' + want.size + ' frames, ' + S.PRESET_CATALOG.length + ' presets\n' + JSON.stringify(mismatches, null, 2);
+})();
+</script>
+</body>
+</html>

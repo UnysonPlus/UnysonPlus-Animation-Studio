@@ -1,6 +1,7 @@
 import type { Scene } from '@unysonplus/scene-player/types';
 import { PRESET_CATALOG } from '@unysonplus/scene-player/catalog';
 import { validateScene } from '@unysonplus/scene-player/validate';
+import { MOTION_RULES } from './motionRules';
 
 /**
  * The Studio's link to the AI Dev Kit running on the user's own computer. The kit's local service
@@ -79,7 +80,7 @@ async function call(body: Record<string, unknown>, signal: AbortSignal) {
   const r = await fetch(`${base}/studio/ai`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...body, catalog: catalogForAi() }),
+    body: JSON.stringify({ ...body, catalog: catalogForAi(), rules: MOTION_RULES }),
     signal,
   });
   const j = await r.json().catch(() => ({}));

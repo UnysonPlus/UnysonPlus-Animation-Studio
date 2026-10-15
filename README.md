@@ -73,6 +73,37 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 | Escape | Clear the selection |
 | Alt while dragging | Turn snapping off |
 
+## Two ways to make a scene
+
+- **By hand.** Drag presets onto the timeline. Their defaults follow measured motion-design timing, and
+  **Check scene** (the Check tab) points out what could be better as you work: text that leaves before it
+  can be read, text too small on a screen size, text off the stage or on other text, two clips fighting
+  over one layer, long stretches where nothing moves. Most items have a one-click fix.
+- **With AI, then by hand.** **✦ AI assist** (bottom right of the stage) is a chat with the AI Dev Kit on
+  your computer. Each answer is a change to the scene: one undo step, a "Go back to before this" link,
+  and a Check scene count. Select layers first to change only those. Check scene's **Fix with AI** sends
+  its findings to the AI.
+
+The AI writes scene data only, never code, and receives the Studio's motion rules with every request
+(`apps/studio/src/lib/motionRules.ts`), the same rules Check scene measures.
+
+### Motion rules and eases
+
+Clips can use twelve **measured eases** (Soft land, Snap and settle, Glide, Whip, Pop over, Crash in,
+Bounce hard, Cruise, Soft in-out, Gentle in, Leave, Crash out), listed first in the Easing menu with what
+each is for. Exits default to **Leave**, which speeds up out of frame. Staggered text presets have a
+**Rhythm** setting: natural (uneven, seeded gaps, the default) or even.
+
+The ease parameters and several timing rules come from frame-by-frame measurements of professional motion
+pieces published in the motionmaxxing project (Apache-2.0); the review checklist ideas also draw on the
+favstash AI video editing skills (Apache-2.0). Both are re-expressed here in our own code.
+
+### Self-test
+
+`npm run selftest` plays a scene using every preset frame by frame, then jumps to the same frames in a
+random order and checks they draw the same (`packages/player/test/selftest.html`). It needs Playwright
+with Chromium (set `PLAYWRIGHT_DIR` to an existing install). Run it after changing the player.
+
 ## Exporting
 
 **Export** in the Studio offers two things:
@@ -86,7 +117,7 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 <div data-upw-scene>
   <script type="application/json">{ ...scene file... }</script>
 </div>
-<script src="https://animation-studio.unysonplus.com/player/0.0.4/scene-player.js" defer></script>
+<script src="https://animation-studio.unysonplus.com/player/0.0.6/scene-player.js" defer></script>
 ```
 
 ### Player versions are permanent

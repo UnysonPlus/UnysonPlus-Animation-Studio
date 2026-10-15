@@ -1,5 +1,6 @@
 import type { Anchor, Breakpoint, Layer, Scene } from '@unysonplus/scene-player/types';
-import { PRESET_CATALOG, presetMeta, type PresetField } from '@unysonplus/scene-player/catalog';
+import { PRESET_CATALOG, defaultEaseFor, presetMeta, type PresetField } from '@unysonplus/scene-player/catalog';
+import { NAMED_EASES, NAMED_EASE_IDS } from '@unysonplus/scene-player/eases';
 import {
   clearOverride, containerOf, duplicateLayer, layersIn, editsOverride, findClip, findLayer, moveLayer, primaryBreakpoint,
   removeClip, removeLayer, setClip, setClipParam, setLayerProps, writeLayout, type LayoutPatch,
@@ -451,7 +452,10 @@ function ClipInspector({ scene, layer, clipId, onCommit, onSelect }: Props & { l
   const params = { ...(meta?.defaults ?? {}), ...(clip.params ?? {}) };
   const set = (p: Record<string, unknown>) => onCommit(setClip(scene, layer.id, clip.id, p));
   const setParam = (key: string, value: unknown) => onCommit(setClipParam(scene, layer.id, clip.id, key, value));
-  const ease = clip.ease ?? meta?.defaultEase ?? 'none';
+  const fallbackEase = meta ? defaultEaseFor(meta, clip.params) : 'none';
+  const ease = clip.ease ?? fallbackEase;
+  const knownEase = EASES.includes(ease) || NAMED_EASE_IDS.includes(ease);
+  const easeInfo = NAMED_EASES.find((e) => e.id === ease);
 
   return (
     <div className="insp">
@@ -475,12 +479,18 @@ function ClipInspector({ scene, layer, clipId, onCommit, onSelect }: Props & { l
         <NumberField label="Length" value={clip.duration} step={0.05} min={0.05} max={scene.duration} unit="s" onCommit={(v) => v && set({ duration: v })} />
         <Field label="Easing">
           {(id) => (
-            <select id={id} value={EASES.includes(ease) ? ease : '__custom'} onChange={(e) => set({ ease: e.target.value === meta?.defaultEase ? undefined : e.target.value })}>
-              {!EASES.includes(ease) && <option value="__custom">{ease}</option>}
-              {EASES.map((e) => <option key={e} value={e}>{e}{e === meta?.defaultEase ? ' (default)' : ''}</option>)}
+            <select id={id} value={knownEase ? ease : '__custom'} onChange={(e) => set({ ease: e.target.value === fallbackEase ? undefined : e.target.value })}>
+              {!knownEase && <option value="__custom">{ease}</option>}
+              <optgroup label="Measured (recommended)">
+                {NAMED_EASES.map((e) => <option key={e.id} value={e.id}>{e.label} · {e.role === 'enter' ? 'in' : e.role === 'exit' ? 'out' : 'any'}{e.id === fallbackEase ? ' (default)' : ''}</option>)}
+              </optgroup>
+              <optgroup label="Classic">
+                {EASES.map((e) => <option key={e} value={e}>{e}{e === fallbackEase ? ' (default)' : ''}</option>)}
+              </optgroup>
             </select>
           )}
         </Field>
+        {easeInfo && <p className="field-hint wide">{easeInfo.use} Typical length {easeInfo.seconds} s.</p>}
       </Section>
 
       {meta && meta.fields.length > 0 && (

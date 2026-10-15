@@ -74,11 +74,25 @@ function inOut(ctx: PresetContext, targets: unknown, hidden: Vars, shown: Vars, 
   ctx.tl.fromTo(targets as object, from, { ...to, duration: ctx.duration, ease: ctx.ease, immediateRender: ctx.first, ...extra }, ctx.at);
 }
 
+/**
+ * Start times for a staggered group. "natural" rhythm varies each gap by up to ±40% (seeded, so every
+ * play is the same) while keeping the overall span: even gaps read as mechanical, uneven ones as
+ * hand-timed.
+ */
+function rhythm(ctx: PresetContext, count: number, each: number): number | ((i: number) => number) {
+  if (ctx.params.rhythm !== 'natural' || count < 3 || each <= 0) return each;
+  const gaps = Array.from({ length: count - 1 }, (_, i) => 1 + 0.4 * (ctx.rand(i, 7) * 2 - 1));
+  const scale = (each * (count - 1)) / gaps.reduce((a, b) => a + b, 0);
+  const starts = [0];
+  gaps.forEach((g, i) => starts.push(starts[i] + g * scale));
+  return (i: number) => starts[i] ?? 0;
+}
+
 /** Staggered in/out over letters or words. */
 function inOutStaggered(ctx: PresetContext, targets: HTMLElement[], hidden: Vars, shown: Vars, each: number, hiddenOut?: Vars) {
   const s = staggered(ctx.duration, targets.length, each);
   const [from, to] = isOut(ctx.params) ? [shown, hiddenOut ?? hidden] : [hidden, shown];
-  ctx.tl.fromTo(targets, from, { ...to, duration: s.itemDuration, ease: ctx.ease, stagger: s.each, immediateRender: ctx.first }, ctx.at);
+  ctx.tl.fromTo(targets, from, { ...to, duration: s.itemDuration, ease: ctx.ease, stagger: rhythm(ctx, targets.length, s.each), immediateRender: ctx.first }, ctx.at);
 }
 
 const BUILDERS: Record<string, (ctx: PresetContext) => void> = {
@@ -198,7 +212,7 @@ const BUILDERS: Record<string, (ctx: PresetContext) => void> = {
     const s = staggered(ctx.duration, chars.length, num(p, 'stagger', 0.05));
     ctx.tl.fromTo(chars, { yPercent: 0 }, {
       yPercent: -num(p, 'height', 30), duration: s.itemDuration / 2, ease: ctx.ease,
-      yoyo: true, repeat: 1, stagger: s.each, immediateRender: false,
+      yoyo: true, repeat: 1, stagger: rhythm(ctx, chars.length, s.each), immediateRender: false,
     }, ctx.at);
   },
 
