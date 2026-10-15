@@ -176,8 +176,19 @@ const scene = {
   playback: { trigger: 'view', loop: true, repeatDelay: 0.4, posterTime: 4 },
   layers: [backdrop, act1, act2, act3, act4, act5, act6],
 };
-// Built-in sounds on the moments that matter (not every clip): each moves with its clip.
+// Built-in sounds on the moments that matter, every one of the 25 used somewhere (the demo shows the whole
+// set, as it shows every preset). Each sound rides on its clip and moves with it.
 const SOUNDS = {
+  'glow-in': { name: 'swell', volume: 0.6 },
+  'd-in': { name: 'pop' },
+  'c1-in': { name: 'tick' }, 'c2-in': { name: 'tap' }, 'c3-in': { name: 'tick' }, 'c4-in': { name: 'tap' }, 'c5-in': { name: 'tick' }, 'c6-in': { name: 'tap' },
+  'k3-in': { name: 'reveal' },
+  'b3-in': { name: 'slide' },
+  'k5-in': { name: 'beep', volume: 0.7 },
+  'b5-in': { name: 'click' },
+  't5-green': { name: 'success' },
+  'u6-in': { name: 'notify', delay: 0.3, volume: 0.8 },
+  'act6-out': { name: 'drop', volume: 0.6 },
   'slit-in': { name: 'swish' },
   'k-in': { name: 'glitch', volume: 0.7 },
   'l2-in': { name: 'impact', at: 'end', delay: -0.15 },
@@ -188,12 +199,12 @@ const SOUNDS = {
   'n3-count': { name: 'typing', volume: 0.6 },
   'n3-pulse': { name: 'soft-pop' },
   'act3-out': { name: 'whoosh-out' },
-  'kn-in': { name: 'impact', at: 'end', delay: -0.2 },
+  'kn-in': { name: 'sub-hit', at: 'end', delay: -0.2 },
   't4a-in': { name: 'thud', at: 'end', delay: -0.1 },
   'act4-out': { name: 'swish' },
   'p5-type': { name: 'typing', volume: 0.7 },
   'b5-shake': { name: 'thud' },
-  'b5-sheen': { name: 'sparkle', volume: 0.8 },
+  'b5-sheen': { name: 'sparkle', delay: 0.3, volume: 0.6 },
   'act5-out': { name: 'whoosh-out' },
   'b3d-push': { name: 'riser' },
   't6-in': { name: 'chime', delay: 0.3 },

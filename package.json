@@ -1,6 +1,6 @@
 {
   "name": "unysonplus-animation-studio",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "private": true,
   "description": "Unyson+ Animation Studio: timeline motion graphics for the web, exported as plain HTML.",
   "workspaces": [
