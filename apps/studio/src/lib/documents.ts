@@ -17,9 +17,17 @@ const inlinePlayer = (autoMount: boolean) =>
 
 const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
-/** A complete, standalone page that plays the scene. */
-export function exportHtml(scene: Scene): string {
+/** Where every published player version lives. A version, once published, never changes. */
+export const PLAYER_BASE = 'https://animation-studio.unysonplus.com/player/';
+export const playerUrl = () => `${PLAYER_BASE}${__PLAYER_VERSION__}/scene-player.js`;
+
+/**
+ * A complete, standalone page that plays the scene, with its own copy of the player inside. Pass
+ * fontCss (from embedFonts) to carry the fonts in the file too.
+ */
+export function exportHtml(scene: Scene, opts: { fontCss?: string } = {}): string {
   const title = escapeHtml(scene.title || 'Animation');
+  const fontStyle = opts.fontCss ? `<style>\n${opts.fontCss.replace(/<\/style/gi, '<\\/style')}</style>\n` : '';
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -28,7 +36,7 @@ export function exportHtml(scene: Scene): string {
 <meta name="generator" content="Unyson+ Animation Studio ${__STUDIO_VERSION__}">
 <title>${title}</title>
 <style>html,body{margin:0;background:#0a0d11}</style>
-</head>
+${fontStyle}</head>
 <body>
 <div data-upw-scene>
 <script type="application/json">${safeJson(scene)}</script>
@@ -36,6 +44,21 @@ export function exportHtml(scene: Scene): string {
 ${inlinePlayer(true)}
 </body>
 </html>
+`;
+}
+
+/**
+ * Code to paste into any page (a Custom HTML block, a page template…). The scene file travels inline;
+ * the player loads from its permanent versioned address, so the scene keeps playing exactly as it was
+ * made even after later Studio releases.
+ */
+export function embedCode(scene: Scene): string {
+  const label = (scene.title || 'Animation').replace(/--/g, '-');
+  return `<!-- Unyson+ Animation Studio: ${label} -->
+<div data-upw-scene>
+<script type="application/json">${safeJson(scene)}</script>
+</div>
+<script src="${playerUrl()}" defer></script>
 `;
 }
 

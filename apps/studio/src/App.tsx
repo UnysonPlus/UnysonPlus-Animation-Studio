@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { validateScene } from '@unysonplus/scene-player/validate';
 import type { HeightMode, Layer, Scene } from '@unysonplus/scene-player/types';
 import demo from './scenes/demo.json';
-import { exportHtml, previewHtml } from './lib/documents';
+import { previewHtml } from './lib/documents';
+import { ExportDialog } from './components/ExportDialog';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
 import {
@@ -96,6 +97,7 @@ export function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [scale, setScale] = useState(1);
+  const [exporting, setExporting] = useState(false);
   // The preview document is built once; after that, scene changes are sent to it as messages.
   const [srcDoc] = useState(() => previewHtml(scene, { safeArea: false }));
 
@@ -173,11 +175,6 @@ export function App() {
     setNotice('Project saved to your downloads.');
   }, []);
 
-  const exportPage = () => {
-    download(`${slug(scene)}.html`, 'text/html', exportHtml(scene));
-    setNotice('HTML page saved to your downloads.');
-  };
-
   const openProject = (file: File) => {
     file.text().then((text) => {
       let data: unknown;
@@ -252,7 +249,8 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el.closest('input, textarea, select, [contenteditable]')) return;
+      // Keys typed into a field, or pressed inside an open window (Escape closes it), aren't shortcuts.
+      if (el.closest('input, textarea, select, [contenteditable], dialog')) return;
       if (el.closest('button, a, [role="radio"]') && (e.code === 'Space' || e.key === 'Enter')) return;
       if (handleKey({ key: e.key, code: e.code, mod: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey })) e.preventDefault();
     };
@@ -316,8 +314,16 @@ export function App() {
         <div className="brand">
           <Logo />
           <div>
-            <h1>Animation Studio</h1>
-            <p className="brand-sub">Unyson+ · preview build {__STUDIO_VERSION__}</p>
+            <h1>
+              Animation Studio
+              <button type="button" className="stage-tag" {...{ popovertarget: 'stage-info' }} aria-describedby="stage-info">Alpha</button>
+            </h1>
+            <p className="brand-sub">Unyson+ · {__STUDIO_VERSION__}</p>
+            <div id="stage-info" className="stage-info" {...{ popover: 'auto' }} role="note">
+              <strong>Alpha: early testing</strong>
+              <p>The Studio works, but features are still missing, things may break, and the scene file format may change between versions.</p>
+              <p>Use <em>Save</em> to keep a project file of anything you want to hold on to. Pages you export or embed keep working whatever changes later.</p>
+            </div>
           </div>
         </div>
         <div className="top-actions">
@@ -327,7 +333,7 @@ export function App() {
           </div>
           <button type="button" className="btn" onClick={() => openRef.current?.click()} title="Open a saved .scene.json file"><OpenIcon /> Open</button>
           <button type="button" className="btn" onClick={saveProject} title="Save the project as a .scene.json file (Ctrl+S)"><SaveIcon /> Save</button>
-          <button type="button" className="btn primary" onClick={exportPage}><DownloadIcon /> Download HTML</button>
+          <button type="button" className="btn primary" onClick={() => setExporting(true)}><DownloadIcon /> Export</button>
           <input ref={openRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openProject(f); e.target.value = ''; }} />
           <input ref={imageRef} type="file" accept="image/*" hidden onChange={(e) => {
             const file = e.target.files?.[0];
@@ -421,6 +427,7 @@ export function App() {
         </aside>
       </main>
 
+      <ExportDialog open={exporting} scene={scene} fileName={slug(scene)} onClose={() => setExporting(false)} onDone={setNotice} />
       {notice && <div className="toast" role="status">{notice}</div>}
     </div>
   );

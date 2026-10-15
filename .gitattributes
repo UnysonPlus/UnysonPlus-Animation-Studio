@@ -1,0 +1,2 @@
+# Published player builds must stay byte-for-byte identical on every checkout.
+apps/studio/public/player/** binary

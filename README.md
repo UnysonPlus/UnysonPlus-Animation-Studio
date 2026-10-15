@@ -62,17 +62,34 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 | Escape | Clear the selection |
 | Alt while dragging | Turn snapping off |
 
-## Embedding an exported scene
+## Exporting
 
-The Studio's **Download HTML** produces a standalone page. To place a scene inside another page, use the
-same two parts:
+**Export** in the Studio offers two things:
+
+- **Web page:** one `.html` file carrying the scene and its own copy of the player. Optionally embeds the
+  web fonts (Latin character sets) so the page works offline and loads nothing from a font service.
+- **Embed code:** the scene inline, plus a `<script>` that loads the player from its permanent, versioned
+  address, for pasting into any page (for example a Custom HTML block in WordPress):
 
 ```html
 <div data-upw-scene>
   <script type="application/json">{ ...scene file... }</script>
 </div>
-<script src="scene-player.iife.js"></script>
+<script src="https://animation-studio.unysonplus.com/player/0.0.2/scene-player.js" defer></script>
 ```
+
+### Player versions are permanent
+
+Every player version is published once, at `apps/studio/public/player/<version>/`, and never changes, so an
+embedded scene keeps playing exactly as it was made. `npm run build:player` publishes a new version
+automatically and **stops the build if the player's code changed without a version bump** in
+`packages/player/package.json`. Commit the new folder: the site is rebuilt from the repository on each
+deploy, so only committed versions stay online.
+
+## Release stage
+
+The Studio is in **alpha**: features are still missing and the scene file format may change between
+versions. Exported pages and embeds keep working regardless, since they carry or pin their player.
 
 ## Deploy
 
