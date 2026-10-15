@@ -16,6 +16,8 @@ export interface MountOptions {
   safeArea?: boolean;
   /** Force a breakpoint instead of choosing one from the stage width. */
   breakpoint?: string | null;
+  /** Let custom code clips run. Off by default: only pages that trust the scene's author turn it on. */
+  allowCode?: boolean;
 }
 
 export type PlayerEvent = 'update' | 'play' | 'pause' | 'complete' | 'breakpoint' | 'rebuild';
@@ -170,6 +172,8 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
           params: { ...preset.defaults, ...(clip.params ?? {}) },
           first: idx === 0,
           rand: presetRand(seedFrom(`${layer.id}/${clip.id}`)),
+          gsap,
+          allowCode: !!options.allowCode,
         });
       });
 

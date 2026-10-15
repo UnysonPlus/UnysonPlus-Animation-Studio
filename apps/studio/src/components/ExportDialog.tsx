@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Scene } from '@unysonplus/scene-player/types';
-import { embedCode, exportHtml } from '../lib/documents';
+import { embedCode, exportHtml, hasCodeClips } from '../lib/documents';
 import { embedFonts } from '../lib/fonts';
 import { DownloadIcon } from './icons';
 
@@ -125,6 +125,12 @@ export function ExportDialog(props: {
             <button type="button" className="btn" onClick={copy}>{copied ? 'Copied' : 'Copy code'}</button>
             <span className="export-meta">{kb(codeSize)}</span>
           </div>
+          {hasCodeClips(props.scene) && (
+            <p className="export-warn">
+              This scene has custom code clips, so the code turns them on (data-upw-allow-code). They run as JavaScript on
+              the page they are pasted into. Only use scenes whose code you wrote or trust.
+            </p>
+          )}
           {codeSize > HEAVY_EMBED && (
             <p className="export-warn">
               This code is large, usually because uploaded images are stored inside it. For a lighter embed, use image

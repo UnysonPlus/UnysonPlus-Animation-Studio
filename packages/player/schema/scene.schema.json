@@ -278,7 +278,8 @@
             "pulse",
             "shake",
             "float",
-            "recolor"
+            "recolor",
+            "code"
           ]
         },
         "start": {

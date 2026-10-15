@@ -85,7 +85,7 @@ function start() {
 
   let player: ScenePlayer;
   try {
-    player = api.mount(host, initial, { editor: true, autoplay: false, safeArea: safeInitial });
+    player = api.mount(host, initial, { editor: true, autoplay: false, safeArea: safeInitial, allowCode: true });
   } catch (e) {
     const box = el('div', 'err');
     box.textContent = (e as Error).message;

@@ -11,6 +11,16 @@ import editorScript from '@unysonplus/scene-player/dist/scene-editor.iife.js?raw
 /** JSON that is safe inside a <script> element (no "</script>" or "<!--" can end it early). */
 const safeJson = (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c');
 
+/** Whether any layer, at any depth, has a custom code clip. */
+export function hasCodeClips(scene: Scene): boolean {
+  type L = { clips: Array<{ preset: string }>; layers?: L[] };
+  const walk = (list: L[]): boolean => list.some((l) => l.clips.some((c) => c.preset === 'code') || (!!l.layers && walk(l.layers)));
+  return walk(scene.layers as unknown as L[]);
+}
+
+/** The scene host element. Code clips run only where the host says so, which the author's own exports do. */
+const hostTag = (scene: Scene) => (hasCodeClips(scene) ? '<div data-upw-scene data-upw-allow-code>' : '<div data-upw-scene>');
+
 /** The player inlined into a page. */
 const inlinePlayer = (autoMount: boolean) =>
   `<script${autoMount ? '' : ' data-auto-mount="false"'}>/* Unyson+ scene player ${__PLAYER_VERSION__} */\n${playerScript.replace(/<\/script/gi, '<\\/script')}</script>`;
@@ -38,7 +48,7 @@ export function exportHtml(scene: Scene, opts: { fontCss?: string } = {}): strin
 <style>html,body{margin:0;background:#0a0d11}</style>
 ${fontStyle}</head>
 <body>
-<div data-upw-scene>
+${hostTag(scene)}
 <script type="application/json">${safeJson(scene)}</script>
 </div>
 ${inlinePlayer(true)}
@@ -55,7 +65,7 @@ ${inlinePlayer(true)}
 export function embedCode(scene: Scene): string {
   const label = (scene.title || 'Animation').replace(/--/g, '-');
   return `<!-- Unyson+ Animation Studio: ${label} -->
-<div data-upw-scene>
+${hostTag(scene)}
 <script type="application/json">${safeJson(scene)}</script>
 </div>
 <script src="${playerUrl()}" defer></script>

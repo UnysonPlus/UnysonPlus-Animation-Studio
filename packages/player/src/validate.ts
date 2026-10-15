@@ -162,6 +162,8 @@ export function validateScene(input: unknown): ValidationResult {
         }
         if (clip.ease !== undefined && (typeof clip.ease !== 'string' || !EASE_RE.test(clip.ease))) fail(`${cp}.ease`, 'is not a valid easing name');
         if (clip.params !== undefined && !isObj(clip.params)) fail(`${cp}.params`, 'must be an object');
+        if (clip.preset === 'code' && isObj(clip.params) && clip.params.code !== undefined
+          && (typeof clip.params.code !== 'string' || clip.params.code.length > 20000)) fail(`${cp}.params.code`, 'must be text (20,000 characters at most)');
       });
     });
   };

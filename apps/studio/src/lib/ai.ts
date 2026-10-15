@@ -55,7 +55,7 @@ async function localNetworkPermission(): Promise<PermissionState | 'unknown'> {
 
 /** The preset catalogue, trimmed to what the AI needs to use each preset well. */
 function catalogForAi() {
-  return PRESET_CATALOG.map((p) => ({
+  return PRESET_CATALOG.filter((p) => !p.aiExcluded).map((p) => ({
     id: p.id,
     label: p.label,
     description: p.description,
@@ -87,6 +87,32 @@ async function call(body: Record<string, unknown>, signal: AbortSignal) {
   return j as { scene: unknown; explanation: string; model: string };
 }
 
+type AnyLayer = { id: string; clips: Array<{ id: string; preset: string; params?: Record<string, unknown> }>; layers?: AnyLayer[] };
+
+/** The custom code clips already in a scene, by layer and clip id, with their code. */
+function codeClips(scene: Scene): Map<string, unknown> {
+  const out = new Map<string, unknown>();
+  const walk = (list: AnyLayer[]) => list.forEach((l) => {
+    l.clips.forEach((c) => { if (c.preset === 'code') out.set(`${l.id}/${c.id}`, c.params?.code); });
+    if (l.layers) walk(l.layers);
+  });
+  walk(scene.layers as unknown as AnyLayer[]);
+  return out;
+}
+
+/**
+ * The AI writes scene data, never code: any code clip it added, or whose code it changed, is dropped.
+ * Code clips the author wrote come back exactly as they were.
+ */
+function guardCode(scene: Scene, keep: Map<string, unknown>): Scene {
+  const walk = (list: AnyLayer[]): AnyLayer[] => list.map((l) => ({
+    ...l,
+    clips: l.clips.filter((c) => c.preset !== 'code' || (keep.has(`${l.id}/${c.id}`) && keep.get(`${l.id}/${c.id}`) === c.params?.code)),
+    ...(l.layers ? { layers: walk(l.layers) } : {}),
+  }));
+  return { ...scene, layers: walk(scene.layers as unknown as AnyLayer[]) as unknown as Scene['layers'] };
+}
+
 /**
  * Asks for a new scene ("create") or a change to the current one ("edit"). The answer is validated;
  * if it is invalid, the AI gets one chance to repair it with the validator's errors.
@@ -98,12 +124,13 @@ export async function askForScene(opts: {
   selection: string[];
   signal: AbortSignal;
 }): Promise<AiResult> {
+  const keep = codeClips(opts.scene);
   const first = await call({ mode: opts.mode, prompt: opts.prompt, scene: opts.scene, selection: opts.selection }, opts.signal);
   let v = validateScene(first.scene);
-  if (v.ok) return { scene: v.scene, explanation: first.explanation, model: first.model, repaired: false };
+  if (v.ok) return { scene: guardCode(v.scene, keep), explanation: first.explanation, model: first.model, repaired: false };
 
   const second = await call({ mode: 'repair', prompt: opts.prompt, scene: first.scene, errors: v.errors }, opts.signal);
   v = validateScene(second.scene);
-  if (v.ok) return { scene: v.scene, explanation: second.explanation || first.explanation, model: second.model, repaired: true };
+  if (v.ok) return { scene: guardCode(v.scene, keep), explanation: second.explanation || first.explanation, model: second.model, repaired: true };
   throw new Error(`The AI's scene still had problems after a second try:\n- ${v.errors.slice(0, 6).join('\n- ')}`);
 }

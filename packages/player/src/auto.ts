@@ -8,6 +8,7 @@ import { mount, type ScenePlayer } from './player';
  *   </div>
  *
  * or <div data-upw-scene data-upw-src="scene.json"></div> to load the scene file from an address.
+ * Add data-upw-allow-code to let the scene's custom code clips run (only for scenes you trust).
  * A scene that fails to load or validate is reported in the console and left empty; it never stops
  * the rest of the page.
  */
@@ -24,7 +25,8 @@ export async function autoMount(root: ParentNode = document): Promise<ScenePlaye
             if (!r.ok) throw new Error(`Couldn't load the scene file (HTTP ${r.status}).`);
             return r.json();
           });
-      players.push(mount(host, scene));
+      // Custom code clips run only when the page that placed the scene says so.
+      players.push(mount(host, scene, { allowCode: host.hasAttribute('data-upw-allow-code') }));
     } catch (err) {
       console.error('[Unyson+ scene]', err);
     }

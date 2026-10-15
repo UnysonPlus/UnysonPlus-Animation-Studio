@@ -20,7 +20,8 @@ export type PresetField =
   | { key: string; label: string; type: 'select'; options: Array<{ value: string; label: string }> }
   | { key: string; label: string; type: 'boolean' }
   | { key: string; label: string; type: 'text' }
-  | { key: string; label: string; type: 'color' };
+  | { key: string; label: string; type: 'color' }
+  | { key: string; label: string; type: 'code' };
 
 export interface PresetMeta {
   id: string;
@@ -33,6 +34,8 @@ export interface PresetMeta {
   defaultDuration: number;
   defaults: Record<string, unknown>;
   fields: PresetField[];
+  /** Left out of what the AI may use (the AI writes data, never code). */
+  aiExcluded?: boolean;
 }
 
 const DIRECTION: PresetField = {
@@ -212,6 +215,14 @@ export const PRESET_CATALOG: PresetMeta[] = [
     defaultEase: 'power2.inOut', defaultDuration: 0.6,
     defaults: { to: '#ffffff' },
     fields: [{ key: 'to', label: 'Colour', type: 'color' }],
+  },
+  {
+    id: 'code', label: 'Custom code', category: 'motion', appliesTo: ALL,
+    description: 'Your own GSAP code, for an effect no preset covers. It only runs where the page allows custom code (the Studio, downloaded pages and embeds; in WordPress, pages by authors trusted with unfiltered HTML).',
+    defaultEase: 'none', defaultDuration: 1,
+    defaults: { code: "tl.fromTo(el, { rotation: 0 }, { rotation: 360, duration: duration, ease: 'power2.inOut' }, at);" },
+    fields: [{ key: 'code', label: 'Code', type: 'code' }],
+    aiExcluded: true,
   },
 ];
 

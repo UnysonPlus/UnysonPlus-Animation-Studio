@@ -515,5 +515,16 @@ function ParamField({ field, value, onChange }: { field: PresetField; value: unk
       return <ColorField label={field.label} value={typeof value === 'string' ? value : ''} onCommit={onChange} />;
     case 'text':
       return <TextField label={field.label} value={typeof value === 'string' ? value : ''} wide mono onCommit={onChange} />;
+    case 'code':
+      return (
+        <>
+          <TextField label={field.label} value={typeof value === 'string' ? value : ''} wide mono multiline onCommit={onChange} />
+          <p className="field-hint wide">
+            JavaScript run once when the scene builds. You get <code>el</code> (the layer), <code>tl</code> (the scene timeline),
+            {' '}<code>gsap</code>, <code>at</code> (this clip's start), <code>duration</code>, <code>ease</code> and <code>layer</code>.
+            Add your tweens to <code>tl</code> at <code>at</code> so scrubbing and looping work. Embeds run custom code only when you allow it.
+          </p>
+        </>
+      );
   }
 }

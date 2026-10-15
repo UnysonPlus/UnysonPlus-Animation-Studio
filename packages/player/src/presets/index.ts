@@ -36,6 +36,10 @@ export interface PresetContext {
   first: boolean;
   /** A repeatable number in [0, 1) for this clip and the given integers. */
   rand: (...ints: number[]) => number;
+  /** The animation engine, for custom code clips. */
+  gsap: typeof GSAP;
+  /** Whether this page allows custom code clips to run. */
+  allowCode: boolean;
 }
 
 export interface PresetDefinition extends PresetMeta {
@@ -313,6 +317,21 @@ const BUILDERS: Record<string, (ctx: PresetContext) => void> = {
       yPercent: -num(ctx.params, 'height', 6), duration: ctx.duration / (cycles * 2), ease: ctx.ease,
       yoyo: true, repeat: cycles * 2 - 1, immediateRender: false,
     }, ctx.at);
+  },
+
+  code(ctx) {
+    // Runs only where the page opted in (data-upw-allow-code / allowCode): a scene file can travel, and
+    // code in it is real JavaScript. A clip that throws is logged and skipped; the scene plays on.
+    if (!ctx.allowCode) return;
+    const src = typeof ctx.params.code === 'string' ? ctx.params.code : '';
+    if (!src.trim()) return;
+    try {
+      // eslint-disable-next-line no-new-func
+      const run = new Function('el', 'tl', 'gsap', 'at', 'duration', 'ease', 'layer', src);
+      run(ctx.el, ctx.tl, ctx.gsap, ctx.at, ctx.duration, ctx.ease, ctx.layer);
+    } catch (e) {
+      console.warn('[Unyson+ scene] custom code clip "' + ctx.clip.id + '" failed:', e);
+    }
   },
 
   recolor(ctx) {
