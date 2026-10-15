@@ -324,7 +324,9 @@ h1, h2, p { margin: 0; }
 .preset:active { cursor: grabbing; }
 .preset.unfit { opacity: 0.45; }
 .preset-label { font-size: 11px; font-weight: 600; padding: 0 3px; }
-.thumb { position: relative; aspect-ratio: 16 / 10; border-radius: 5px; overflow: hidden; background: oklch(0.13 0.01 245); display: grid; place-items: center; }
+/* The thumbnail swaps to a live preview on hover; it must never be the click target, or a click that
+   starts just as it swaps is lost. */
+.thumb { pointer-events: none; position: relative; aspect-ratio: 16 / 10; border-radius: 5px; overflow: hidden; background: oklch(0.13 0.01 245); display: grid; place-items: center; }
 .thumb-live { position: absolute; inset: 0; }
 .thumb-aa { font-weight: 800; font-size: 17px; color: var(--faint); }
 .thumb-sq { width: 26%; aspect-ratio: 1; border-radius: 3px; background: var(--surface-3); }
@@ -399,6 +401,19 @@ h1, h2, p { margin: 0; }
   padding: 9px 14px; border-radius: var(--radius); background: var(--surface-3); color: var(--ink); font-size: 12px;
   box-shadow: 0 10px 30px -10px oklch(0 0 0 / 0.7);
 }
+
+/* ---------- groups ---------- */
+.tl-crumbs { display: flex; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); }
+.tl-crumbs strong { color: var(--ink); font-weight: 650; }
+.tl-groupbar {
+  position: absolute; top: 4px; bottom: 4px; display: flex; align-items: center; padding: 0 7px; overflow: hidden;
+  border-radius: 5px; border: 1px dashed oklch(0.62 0.05 245); color: var(--muted); font-size: 11px; font-weight: 600;
+  background: repeating-linear-gradient(135deg, oklch(0.26 0.02 245) 0 6px, oklch(0.24 0.015 245) 6px 12px);
+  cursor: grab; touch-action: none; text-align: left;
+}
+.tl-groupbar:hover { color: var(--ink); border-color: oklch(0.72 0.05 245); }
+.tl-groupbar:active { cursor: grabbing; }
+.tl-groupend { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed oklch(0.7 0.1 78); z-index: 3; pointer-events: none; }
 
 /* ---------- align and distribute ---------- */
 .align-panel { display: flex; flex-direction: column; gap: 10px; }

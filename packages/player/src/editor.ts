@@ -3,10 +3,14 @@
  * only through the public window.UnysonPlusScene API) and talks to the Studio with postMessage:
  *
  *   Studio → preview  play · pause · seek {time} · safe {show} · scene {scene} · select {ids}
- *                     ui {scale} · align {mode, to}
- *   preview → Studio  upw:ready · upw:state · upw:error · upw:select {ids}
- *                     upw:layout {items: [{id, box}]} · upw:text {id, text}
+ *                     ui {scale} · align {mode, to} · scope {id}
+ *   preview → Studio  upw:ready · upw:state · upw:error · upw:select {ids} · upw:enter {id}
+ *                     upw:layout {items: [{id, box} | {id, move: {dx, dy}}]} · upw:text {id, text}
  *                     upw:key {key, code, mod, shift, alt}
+ *
+ * Scope: the group being edited (null = the whole scene). Clicks pick layers at that level only, so
+ * at the top a click on a group's contents selects the group; double-clicking a group steps in.
+ * A group moves as a whole ({move} items: the Studio shifts everything inside it).
  *
  * It draws the selection, hover and box-select outlines; selects with click, Shift/Ctrl+click and a
  * dragged box; moves one layer or a group (snapping to the centre and the safe area); resizes a single
@@ -15,6 +19,7 @@
  */
 import type { Anchor, Box, Scene } from './types';
 import type { ScenePlayer } from './player';
+import { allLayers } from './groups';
 
 type Api = { mount: (host: HTMLElement, scene: unknown, opts: Record<string, unknown>) => ScenePlayer };
 
@@ -58,6 +63,7 @@ const CSS = `
 .upw-stage{cursor:default}
 .upw-layer{cursor:move}
 .upw-layer[data-locked]{cursor:default}
+.upw-scene[data-ed-scope] .upw-layer:not([data-ed-path]):not([data-ed-host]):not([data-ed-host] .upw-layer){filter:opacity(.22);pointer-events:none}
 #upw-ed-text{position:fixed;z-index:2147483601;margin:0;padding:0;border:0;resize:none;overflow:hidden;
   background:rgba(10,13,17,.55);outline:calc(1.5px*var(--k,1)) solid #2ad38b;box-sizing:content-box;white-space:pre-wrap}
 `;
@@ -116,18 +122,27 @@ function start() {
 
   /** Selected layer ids; the last one is the primary (the one the Studio's inspector shows). */
   let selection: string[] = [];
+  /** The group being edited, or null for the whole scene. */
+  let scope: string | null = null;
   let hovered: string | null = null;
   let k = 1;
   let editing: { id: string; ta: HTMLTextAreaElement; layer: HTMLElement } | null = null;
 
   const scene = () => player.scene as Scene;
-  const layerOf = (id: string) => scene().layers.find((l) => l.id === id);
+  const layerOf = (id: string) => allLayers(scene().layers).find((l) => l.id === id);
+  const isGroup = (id: string) => layerOf(id)?.type === 'group';
+  /** The id of the group a layer sits in (null at the top of the scene), read from the page. */
+  const parentOf = (id: string): string | null => {
+    const node = player.layerElement(id);
+    const up = node?.parentElement?.closest('.upw-layer') as HTMLElement | null;
+    return up && player.root.contains(up) ? up.dataset.layer ?? null : null;
+  };
   const isLocked = (id: string) => !!(layerOf(id) as { locked?: boolean } | undefined)?.locked;
   const safe = () => (scene().stage.safeArea ?? 0.06) * 100;
 
   /** Marks locked layers so the stage shows them as not draggable. */
   function markLocked() {
-    for (const l of scene().layers) {
+    for (const l of allLayers(scene().layers)) {
       const node = player.layerElement(l.id);
       if (!node) continue;
       if ((l as { locked?: boolean }).locked) node.dataset.locked = '';
@@ -173,6 +188,7 @@ function start() {
   function handlesFor(id: string): Handle[] {
     const layer = layerOf(id);
     if (!layer || isLocked(id)) return [];
+    if (layer.type === 'group') return [];
     if (layer.type === 'text') return ['e', 'w'];
     if (typeof player.layout(id)?.box.ratio === 'number') return ['nw', 'ne', 'se', 'sw'];
     // On a thin layer (a line, a bar) the corner handles would sit on top of the side ones, so keep
@@ -272,18 +288,54 @@ function start() {
     redraw();
   }
 
-  /** The topmost unlocked layer under a point. */
+  /**
+   * The topmost unlocked layer under a point, at the current scope: for a hit deep inside groups,
+   * the ancestor that sits directly in the scope (so at the top, a group's contents pick the group).
+   */
   function layerAt(x: number, y: number): string | null {
     for (const node of document.elementsFromPoint(x, y)) {
-      const layer = (node as HTMLElement).closest?.('.upw-layer') as HTMLElement | null;
-      if (layer && player.root.contains(layer)) {
-        const id = layer.dataset.layer ?? null;
-        if (id && !isLocked(id)) return id;
+      const el = node as HTMLElement;
+      const first = el.closest?.('.upw-layer') as HTMLElement | null;
+      if (first && player.root.contains(first)) {
+        // Walk out from the innermost layer to the one whose parent is the scope.
+        let cur: HTMLElement | null = first;
+        while (cur) {
+          const id = cur.dataset.layer ?? null;
+          const up = cur.parentElement?.closest('.upw-layer') as HTMLElement | null;
+          const parentId = up && player.root.contains(up) ? up.dataset.layer ?? null : null;
+          if (parentId === scope) {
+            if (id && !isLocked(id)) return id;
+            break;
+          }
+          cur = up && player.root.contains(up) ? up : null;
+        }
         continue;
       }
-      if ((node as HTMLElement).classList?.contains('upw-stage')) return null;
+      if (el.classList?.contains('upw-stage')) return null;
     }
     return null;
+  }
+
+  /** Marks the open group and its ancestors, so everything outside it is dimmed and inert. */
+  function applyScope() {
+    player.root.querySelectorAll('[data-ed-path],[data-ed-host]').forEach((n) => {
+      delete (n as HTMLElement).dataset.edPath;
+      delete (n as HTMLElement).dataset.edHost;
+    });
+    if (!scope || !layerOf(scope)) {
+      scope = null;
+      delete player.root.dataset.edScope;
+      return;
+    }
+    player.root.dataset.edScope = scope;
+    const host = player.layerElement(scope);
+    if (host) host.dataset.edHost = '';
+    let cur: string | null = scope;
+    while (cur) {
+      const node = player.layerElement(cur);
+      if (node) node.dataset.edPath = '';
+      cur = parentOf(cur);
+    }
   }
 
   // ---- move, resize and box select ----
@@ -416,7 +468,12 @@ function start() {
     removeEventListener('pointermove', onMove);
     gx.style.display = 'none';
     gy.style.display = 'none';
-    const items = [...d.patches].filter(([, p]) => Object.keys(p).length).map(([id, box]) => ({ id, box }));
+    const items = [...d.patches].filter(([, p]) => Object.keys(p).length).map(([id, box]) => {
+      if (!isGroup(id)) return { id, box };
+      // A group's frame is measured, not stored: send how far it moved.
+      const f0 = d.f0.get(id)!;
+      return { id, move: { dx: round((box.x ?? f0.l) - f0.l), dy: round((box.y ?? f0.t) - f0.t) } };
+    });
     if (d.moved && items.length) {
       // The Studio writes the change into the scene and sends the new scene back.
       send({ type: 'upw:layout', items });
@@ -435,8 +492,8 @@ function start() {
     const l = toL(Math.min(x0, x1)), r = toL(Math.max(x0, x1));
     const t = toT(Math.min(y0, y1)), b = toT(Math.max(y0, y1));
     const hits: string[] = [];
-    for (const layer of scene().layers) {
-      if (isLocked(layer.id)) continue;
+    for (const layer of allLayers(scene().layers)) {
+      if (isLocked(layer.id) || parentOf(layer.id) !== scope) continue;
       const node = player.layerElement(layer.id);
       if (!node || getComputedStyle(node).visibility === 'hidden') continue;
       const f = frame(layer.id);
@@ -582,7 +639,7 @@ function start() {
       }
     }
 
-    const out: Array<{ id: string; box: Partial<Box> }> = [];
+    const out: Array<{ id: string; box: Partial<Box> } | { id: string; move: { dx: number; dy: number } }> = [];
     for (const { id, f } of items) {
       const n = next.get(id)!;
       const box: Partial<Box> = {};
@@ -590,7 +647,9 @@ function start() {
       const y = round(n.t + f.h * f.ay);
       if (horizontal && x !== round(f.box.x)) box.x = x;
       if (!horizontal && y !== round(f.box.y)) box.y = y;
-      if (Object.keys(box).length) out.push({ id, box });
+      if (!Object.keys(box).length) continue;
+      if (isGroup(id)) out.push({ id, move: { dx: horizontal ? round(n.l - f.l) : 0, dy: horizontal ? 0 : round(n.t - f.t) } });
+      else out.push({ id, box });
     }
     if (out.length) send({ type: 'upw:layout', items: out });
   }
@@ -609,6 +668,11 @@ function start() {
   addEventListener('dblclick', (e) => {
     const id = layerAt(e.clientX, e.clientY);
     const layer = id ? layerOf(id) : null;
+    if (id && layer?.type === 'group') {
+      // Step into the group (the Studio switches its timeline and sends the scope back).
+      send({ type: 'upw:enter', id });
+      return;
+    }
     if (!id || !layer || layer.type !== 'text') return;
     const node = player.layerElement(id)!;
     const inner = node.querySelector('.upw-li') as HTMLElement;
@@ -661,7 +725,7 @@ function start() {
     if (editing) return;
     const mod = e.ctrlKey || e.metaKey;
     const forwarded = e.code === 'Space' || e.key === 'Home' || e.key === 'Delete' || e.key === 'Backspace' || e.key === 'Escape'
-      || e.key.startsWith('Arrow') || e.key === ',' || e.key === '.' || (mod && ['z', 'y', 'd', 's', 'a'].includes(e.key.toLowerCase()));
+      || e.key.startsWith('Arrow') || e.key === ',' || e.key === '.' || (mod && ['z', 'y', 'd', 's', 'a', 'g'].includes(e.key.toLowerCase()));
     if (!forwarded) return;
     e.preventDefault();
     send({ type: 'upw:key', key: e.key, code: e.code, mod, shift: e.shiftKey, alt: e.altKey });
@@ -677,6 +741,12 @@ function start() {
     else if (m.type === 'safe') player.setSafeArea(!!m.show);
     else if (m.type === 'select') setSelection(Array.isArray(m.ids) ? m.ids : m.id ? [m.id] : [], false);
     else if (m.type === 'align') align(m.mode as AlignMode, m.to as AlignTo);
+    else if (m.type === 'scope') {
+      scope = typeof m.id === 'string' ? m.id : null;
+      selection = [];
+      applyScope();
+      redraw();
+    }
     else if (m.type === 'ui') {
       k = Math.max(0.5, Math.min(8, 1 / (Number(m.scale) || 1)));
       ov.style.setProperty('--k', String(k));
@@ -686,6 +756,7 @@ function start() {
       try {
         player.update(m.scene);
         markLocked();
+        applyScope();
         const kept = selection.filter((id) => layerOf(id));
         if (kept.length !== selection.length) setSelection(kept, true);
         send({ type: 'upw:error', message: null });

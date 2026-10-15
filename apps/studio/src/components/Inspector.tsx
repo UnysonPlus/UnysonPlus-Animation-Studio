@@ -1,12 +1,14 @@
 import type { Anchor, Breakpoint, Layer, Scene } from '@unysonplus/scene-player/types';
 import { PRESET_CATALOG, presetMeta, type PresetField } from '@unysonplus/scene-player/catalog';
 import {
-  clearOverride, duplicateLayer, editsOverride, findClip, findLayer, moveLayer, primaryBreakpoint,
+  clearOverride, containerOf, duplicateLayer, layersIn, editsOverride, findClip, findLayer, moveLayer, primaryBreakpoint,
   removeClip, removeLayer, setClip, setClipParam, setLayerProps, writeLayout, type LayoutPatch,
 } from '../lib/sceneOps';
 import { validateScene } from '@unysonplus/scene-player/validate';
 import demo from '../scenes/demo.json';
 import { CheckField, ColorField, Field, NumberField, Section, SelectField, TextField } from './fields';
+import { groupDuration } from '@unysonplus/scene-player/groups';
+import type { GroupLayer } from '@unysonplus/scene-player/types';
 import { AlignPanel, type AlignMode, type AlignTo } from './AlignPanel';
 
 /** A starting point with nothing on it, sharing the demo's stage set-up. */
@@ -41,6 +43,9 @@ interface Props {
   alignTo: AlignTo;
   onAlignTo: (to: AlignTo) => void;
   onAlign: (mode: AlignMode) => void;
+  onEnter: (groupId: string) => void;
+  onGroup: () => void;
+  onUngroup: () => void;
 }
 
 const EASES = [
@@ -63,6 +68,7 @@ export function Inspector(props: Props) {
   const ids = selectedIds(selection);
   if (ids.length > 1) return <MultiInspector {...props} ids={ids} />;
   if (layer && clip) return <ClipInspector {...props} layer={layer} clipId={clip.id} />;
+  if (layer && layer.type === 'group') return <GroupInspector {...props} group={layer} />;
   if (layer) return <LayerInspector {...props} layer={layer} />;
   return <SceneInspector {...props} />;
 }
@@ -169,11 +175,68 @@ function SceneInspector({ scene, onCommit }: Props) {
   );
 }
 
+/* ------------------------------------------------------------------ group */
+
+function GroupInspector({ scene, group, onCommit, onSelect, alignTo, onAlignTo, onAlign, onEnter, onUngroup }: Props & { group: GroupLayer }) {
+  const props = (p: Record<string, unknown>) => onCommit(setLayerProps(scene, group.id, p));
+  // What the length would be with nothing set: the end of the last clip inside.
+  const auto = groupDuration({ ...group, duration: undefined });
+  const siblings = layersIn(scene, containerOf(scene, group.id));
+  const idx = siblings.findIndex((l) => l.id === group.id);
+  return (
+    <div className="insp">
+      <div className="insp-head">
+        <p className="insp-kicker">Group</p>
+        <input className="insp-title" aria-label="Group name" defaultValue={group.name ?? group.id} key={group.id + (group.name ?? '')}
+          onBlur={(e) => { if (e.target.value !== (group.name ?? group.id)) props({ name: e.target.value || undefined }); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+        <p className="insp-help">
+          {group.layers.length} {group.layers.length === 1 ? 'layer' : 'layers'} with a timeline of their own. Presets added here
+          animate the group as a whole.
+        </p>
+        <div className="insp-start">
+          <button type="button" className="btn small" onClick={() => onEnter(group.id)}>Open group</button>
+          <button type="button" className="btn small" onClick={onUngroup} title="Ungroup (Ctrl+Shift+G)">Ungroup</button>
+        </div>
+        <ul className="multi-list">
+          {group.layers.map((l) => (
+            <li key={l.id}><button type="button" className="crumb" onClick={() => { onEnter(group.id); onSelect({ layerId: l.id, clipId: null }); }}>{l.name || l.id}</button></li>
+          ))}
+        </ul>
+      </div>
+
+      <Section title="Timing">
+        <NumberField label="Starts at" value={group.start ?? 0} step={0.1} min={0} max={scene.duration} unit="s"
+          onCommit={(v) => props({ start: v || undefined })} />
+        <NumberField label="Own length" value={group.duration} placeholder={String(Math.round(auto * 100) / 100)} step={0.1} min={0.1} unit="s" optional
+          onCommit={(v) => props({ duration: v })} />
+        <NumberField label="Disappears" value={group.end} placeholder={String(scene.duration)} step={0.1} min={0} max={scene.duration} unit="s" optional
+          onCommit={(v) => props({ end: v === undefined || v >= scene.duration ? undefined : v })} />
+        <NumberField label="Opacity" value={group.opacity ?? 1} step={0.05} min={0} max={1}
+          onCommit={(v) => props({ opacity: v === undefined || v >= 1 ? undefined : v })} />
+        <p className="field-hint wide">Moving the start moves everything inside. The own length is where the group's clock stops; left blank, it ends with its last clip.</p>
+      </Section>
+
+      <section className="insp-section">
+        <header><h3>Align</h3></header>
+        <AlignPanel count={1} to={alignTo} onTo={onAlignTo} onAlign={onAlign} />
+      </section>
+
+      <div className="insp-actions">
+        <button type="button" className="btn small" disabled={idx >= siblings.length - 1} onClick={() => onCommit(moveLayer(scene, group.id, 1))}>Bring forward</button>
+        <button type="button" className="btn small" disabled={idx === 0} onClick={() => onCommit(moveLayer(scene, group.id, -1))}>Send backward</button>
+        <button type="button" className="btn small danger" onClick={() => { onCommit(removeLayer(scene, group.id)); onSelect({ layerId: null, clipId: null }); }}>Delete group</button>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ layer */
 
 /* ------------------------------------------------------------------ several layers */
 
-function MultiInspector({ scene, ids, bp, onCommit, onSelect, alignTo, onAlignTo, onAlign }: Props & { ids: string[] }) {
+function MultiInspector(props: Props & { ids: string[] }) {
+  const { scene, ids, bp, onCommit, onSelect, alignTo, onAlignTo, onAlign } = props;
   const layers = ids.map((id) => findLayer(scene, id)).filter((l): l is Layer => !!l);
   const anyOverride = layers.some((l) => editsOverride(scene, l, bp));
   return (
@@ -203,6 +266,7 @@ function MultiInspector({ scene, ids, bp, onCommit, onSelect, alignTo, onAlignTo
       <p className="field-hint">Drag any of them on the stage to move them together. Click a preset to add it to each layer it suits.</p>
 
       <div className="insp-actions">
+        <button type="button" className="btn small" onClick={props.onGroup} title="Group (Ctrl+G)">Group {layers.length} layers</button>
         <button type="button" className="btn small danger" onClick={() => {
           let next = scene;
           for (const l of layers) next = removeLayer(next, l.id);

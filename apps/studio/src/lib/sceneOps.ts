@@ -1,16 +1,20 @@
-import type { Box, Clip, Layer, LayerOverride, Scene, TextStyle } from '@unysonplus/scene-player/types';
+import type { Box, Clip, GroupLayer, Layer, LayerOverride, Scene, TextStyle } from '@unysonplus/scene-player/types';
 import { presetMeta } from '@unysonplus/scene-player/catalog';
+import { allLayers } from '@unysonplus/scene-player/groups';
 
 /**
  * Pure, immutable edits to a scene. Every editor action goes through one of these, so undo is just
  * keeping the previous scene object.
+ *
+ * Layers form a tree (groups hold layers), so lookups and edits search the whole tree. A "scope" is
+ * the group being edited, or null for the top of the scene.
  */
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 function allIds(scene: Scene): Set<string> {
   const ids = new Set<string>();
-  for (const l of scene.layers) {
+  for (const l of allLayers(scene.layers)) {
     ids.add(l.id);
     for (const c of l.clips) ids.add(c.id);
   }
@@ -25,8 +29,18 @@ export function uniqueId(scene: Scene, base: string): string {
   for (let i = 2; ; i++) if (!ids.has(`${stem}-${i}`)) return `${stem}-${i}`;
 }
 
+/** Applies fn to every list of layers in the tree (the top list and each group's). */
+function mapLists(list: Layer[], fn: (list: Layer[]) => Layer[]): Layer[] {
+  return fn(list).map((l) => (l.type === 'group' ? { ...l, layers: mapLists(l.layers, fn) } : l));
+}
+
 export function mapLayer(scene: Scene, id: string, fn: (l: Layer) => Layer): Scene {
-  return { ...scene, layers: scene.layers.map((l) => (l.id === id ? fn(l) : l)) };
+  const walk = (list: Layer[]): Layer[] =>
+    list.map((l) => {
+      if (l.id === id) return fn(l);
+      return l.type === 'group' ? { ...l, layers: walk(l.layers) } : l;
+    });
+  return { ...scene, layers: walk(scene.layers) };
 }
 
 export function mapClip(scene: Scene, layerId: string, clipId: string, fn: (c: Clip) => Clip): Scene {
@@ -34,11 +48,45 @@ export function mapClip(scene: Scene, layerId: string, clipId: string, fn: (c: C
 }
 
 export function findLayer(scene: Scene, id: string | null): Layer | undefined {
-  return id ? scene.layers.find((l) => l.id === id) : undefined;
+  return id ? allLayers(scene.layers).find((l) => l.id === id) : undefined;
 }
 
 export function findClip(scene: Scene, layerId: string | null, clipId: string | null): Clip | undefined {
   return findLayer(scene, layerId)?.clips.find((c) => c.id === clipId);
+}
+
+/** The id of the group that holds a layer, or null when it sits at the top of the scene. */
+export function containerOf(scene: Scene, id: string): string | null {
+  for (const l of allLayers(scene.layers)) {
+    if (l.type === 'group' && l.layers.some((c) => c.id === id)) return l.id;
+  }
+  return null;
+}
+
+/** The layers directly inside a scope (null = the top of the scene). */
+export function layersIn(scene: Scene, scope: string | null): Layer[] {
+  if (!scope) return scene.layers;
+  const g = findLayer(scene, scope);
+  return g && g.type === 'group' ? g.layers : [];
+}
+
+/** Replaces the layers directly inside a scope. */
+function setLayersIn(scene: Scene, scope: string | null, layers: Layer[]): Scene {
+  if (!scope) return { ...scene, layers };
+  return mapLayer(scene, scope, (g) => ({ ...(g as GroupLayer), layers }));
+}
+
+/** The groups from the top of the scene down to a scope, outermost first. */
+export function scopePath(scene: Scene, scope: string | null): GroupLayer[] {
+  const out: GroupLayer[] = [];
+  let cur = scope;
+  while (cur) {
+    const g = findLayer(scene, cur);
+    if (!g || g.type !== 'group') break;
+    out.unshift(g);
+    cur = containerOf(scene, cur);
+  }
+  return out;
 }
 
 /** The widest breakpoint: editing while it is showing changes the base layout. */
@@ -58,10 +106,12 @@ export interface LayoutPatch {
 
 /**
  * Writes position, size, type or text for the breakpoint being edited: into the base layout at the
- * widest breakpoint, into that breakpoint's override everywhere else.
+ * widest breakpoint, into that breakpoint's override everywhere else. Groups have no layout of their
+ * own (their frame is measured), so they are left alone; use moveBy to move one.
  */
 export function writeLayout(scene: Scene, layerId: string, bp: string | null, patch: LayoutPatch): Scene {
   return mapLayer(scene, layerId, (layer) => {
+    if (layer.type === 'group') return layer;
     if (!editsOverride(scene, layer, bp)) {
       const next = { ...layer, box: { ...layer.box, ...(patch.box ?? {}) } } as Layer;
       if (next.type === 'text') {
@@ -77,6 +127,24 @@ export function writeLayout(scene: Scene, layerId: string, bp: string | null, pa
     if (patch.text !== undefined && layer.type === 'text') o.text = patch.text;
     return { ...layer, overrides: { ...(layer.overrides ?? {}), [bp!]: o } };
   });
+}
+
+/** The layer's box at a breakpoint, overrides included. */
+export function boxAt(layer: Layer, bp: string | null): Box {
+  return { ...(layer.box ?? { x: 0, y: 0 }), ...((bp && layer.overrides?.[bp]?.box) || {}) };
+}
+
+/** Moves a layer, or everything inside a group, by an offset in stage percentages. */
+export function moveBy(scene: Scene, id: string, dx: number, dy: number, bp: string | null): Scene {
+  const layer = findLayer(scene, id);
+  if (!layer || (!dx && !dy)) return scene;
+  if (layer.type !== 'group') {
+    const b = boxAt(layer, bp);
+    return writeLayout(scene, id, bp, { box: { x: r2(b.x + dx), y: r2(b.y + dy) } });
+  }
+  let next = scene;
+  for (const child of layer.layers) next = moveBy(next, child.id, dx, dy, bp);
+  return next;
 }
 
 export function clearOverride(scene: Scene, layerId: string, bp: string): Scene {
@@ -96,8 +164,9 @@ export function setLayerProps(scene: Scene, layerId: string, props: Record<strin
   });
 }
 
-export function addLayer(scene: Scene, type: Layer['type'], extra: Partial<Layer> = {}): { scene: Scene; id: string } {
-  const id = uniqueId(scene, type === 'text' ? 'text' : type === 'shape' ? 'shape' : 'image');
+/** Adds a new layer on top of the given scope (null = the top of the scene). */
+export function addLayer(scene: Scene, type: Exclude<Layer['type'], 'group'>, extra: Partial<Layer> = {}, scope: string | null = null): { scene: Scene; id: string } {
+  const id = uniqueId(scene, type);
   let layer: Layer;
   if (type === 'text') {
     layer = {
@@ -111,18 +180,15 @@ export function addLayer(scene: Scene, type: Layer['type'], extra: Partial<Layer
     layer = { id, type: 'image', name: 'Image', src: '', alt: '', fit: 'cover', radius: 1, box: { x: 50, y: 50, w: 30, ratio: 1.5 }, clips: [] };
   }
   layer = { ...layer, ...extra, id } as Layer;
-  return { scene: { ...scene, layers: [...scene.layers, layer] }, id };
+  return { scene: setLayersIn(scene, scope, [...layersIn(scene, scope), layer]), id };
 }
 
 export function removeLayer(scene: Scene, id: string): Scene {
-  return { ...scene, layers: scene.layers.filter((l) => l.id !== id) };
+  return { ...scene, layers: mapLists(scene.layers, (list) => list.filter((l) => l.id !== id)) };
 }
 
-export function duplicateLayer(scene: Scene, id: string): { scene: Scene; id: string } {
-  const idx = scene.layers.findIndex((l) => l.id === id);
-  if (idx < 0) return { scene, id };
-  const src = scene.layers[idx];
-  const taken = allIds(scene);
+/** A deep copy with fresh ids for the layer, everything inside it and all their clips. */
+function cloneFresh(src: Layer, taken: Set<string>): Layer {
   const fresh = (base: string) => {
     let n = 2;
     while (taken.has(`${base}-${n}`)) n++;
@@ -131,32 +197,98 @@ export function duplicateLayer(scene: Scene, id: string): { scene: Scene; id: st
     return out;
   };
   const copy: Layer = JSON.parse(JSON.stringify(src));
-  copy.id = fresh(src.id);
-  copy.name = `${src.name || src.id} copy`;
-  copy.box = { ...copy.box, x: r2(copy.box.x + 2), y: r2(copy.box.y + 2) };
-  // Clip ids are unique across the whole scene, so the copies get fresh ones.
-  copy.clips = copy.clips.map((c) => ({ ...c, id: fresh(c.id) }));
-  const layers = [...scene.layers];
-  layers.splice(idx + 1, 0, copy);
-  return { scene: { ...scene, layers }, id: copy.id };
+  const walk = (l: Layer) => {
+    l.id = fresh(l.id);
+    l.clips = l.clips.map((c) => ({ ...c, id: fresh(c.id) }));
+    if (l.type === 'group') l.layers.forEach(walk);
+  };
+  walk(copy);
+  return copy;
 }
 
-/** Moves a layer one step up (drawn later, on top) or down the stack. */
+export function duplicateLayer(scene: Scene, id: string, bp: string | null = null): { scene: Scene; id: string } {
+  const scope = containerOf(scene, id);
+  const list = layersIn(scene, scope);
+  const idx = list.findIndex((l) => l.id === id);
+  if (idx < 0) return { scene, id };
+  const src = list[idx];
+  const copy = cloneFresh(src, allIds(scene));
+  copy.name = `${src.name || src.id} copy`;
+  const layers = [...list];
+  layers.splice(idx + 1, 0, copy);
+  // Offset the copy a little so it doesn't sit exactly on top of the original.
+  return { scene: moveBy(setLayersIn(scene, scope, layers), copy.id, 2, 2, bp), id: copy.id };
+}
+
+/** Moves a layer one step up (drawn later, on top) or down within its own group. */
 export function moveLayer(scene: Scene, id: string, dir: 1 | -1): Scene {
-  const layers = [...scene.layers];
+  const scope = containerOf(scene, id);
+  const layers = [...layersIn(scene, scope)];
   const i = layers.findIndex((l) => l.id === id);
   const j = i + dir;
   if (i < 0 || j < 0 || j >= layers.length) return scene;
   [layers[i], layers[j]] = [layers[j], layers[i]];
-  return { ...scene, layers };
+  return setLayersIn(scene, scope, layers);
 }
 
-export function addClip(scene: Scene, layerId: string, presetId: string, at: number): { scene: Scene; id: string } | null {
+/**
+ * Puts layers into a new group, in their current stacking order, where the topmost of them was.
+ * Only layers in the same group as the first one are taken. Nothing moves on the stage, and since the
+ * new group starts at 0 nothing moves in time either.
+ */
+export function groupLayers(scene: Scene, ids: string[]): { scene: Scene; id: string } | null {
+  if (!ids.length) return null;
+  const scope = containerOf(scene, ids[0]);
+  const list = layersIn(scene, scope);
+  const picked = list.filter((l) => ids.includes(l.id));
+  if (!picked.length) return null;
+  const top = Math.max(...picked.map((l) => list.indexOf(l)));
+  const id = uniqueId(scene, 'group');
+  const group: GroupLayer = { id, type: 'group', name: 'Group', layers: picked, clips: [] };
+  const rest: Layer[] = [];
+  list.forEach((l, i) => {
+    if (i === top) rest.push(group);
+    if (!ids.includes(l.id)) rest.push(l);
+  });
+  return { scene: setLayersIn(scene, scope, rest), id };
+}
+
+/** Shifts a layer (and, for a group, nothing inside it: its contents run on its clock) in time. */
+function shiftTime(layer: Layer, by: number): Layer {
+  if (!by) return layer;
+  return {
+    ...layer,
+    start: r2((layer.start ?? 0) + by) || undefined,
+    end: typeof layer.end === 'number' ? r2(layer.end + by) : undefined,
+    clips: layer.clips.map((c) => ({ ...c, start: r2(c.start + by) })),
+  } as Layer;
+}
+
+/**
+ * Takes a group's layers back out into its parent, where the group was. Their timing is converted
+ * from the group's clock to the parent's, so nothing moves in time. Clips on the group itself (it no
+ * longer exists) are dropped; the count is returned so the editor can say so.
+ */
+export function ungroupLayer(scene: Scene, id: string): { scene: Scene; dropped: number } | null {
+  const g = findLayer(scene, id);
+  if (!g || g.type !== 'group') return null;
+  const scope = containerOf(scene, id);
+  const list = layersIn(scene, scope);
+  const out: Layer[] = [];
+  for (const l of list) {
+    if (l.id === id) out.push(...g.layers.map((c) => shiftTime(c, g.start ?? 0)));
+    else out.push(l);
+  }
+  return { scene: setLayersIn(scene, scope, out), dropped: g.clips.length };
+}
+
+/** Adds a preset clip at a time on the layer's own clock; `limit` is that clock's length. */
+export function addClip(scene: Scene, layerId: string, presetId: string, at: number, limit = scene.duration): { scene: Scene; id: string } | null {
   const meta = presetMeta[presetId];
   const layer = findLayer(scene, layerId);
   if (!meta || !layer || !meta.appliesTo.includes(layer.type)) return null;
-  const duration = Math.min(meta.defaultDuration, scene.duration);
-  const start = r2(Math.max(0, Math.min(at, scene.duration - duration)));
+  const duration = Math.min(meta.defaultDuration, limit);
+  const start = r2(Math.max(0, Math.min(at, limit - duration)));
   const id = uniqueId(scene, presetId.replace(/^text-/, ''));
   const clip: Clip = { id, preset: presetId, start, duration: r2(duration) };
   if (presetId === 'keyframes') clip.params = { frames: [{ t: 0, scale: 1 }, { t: r2(duration), scale: 1.1 }] };

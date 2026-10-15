@@ -35,6 +35,10 @@ placed in time with its own settings. Positions are percentages of the stage and
 (1 = 1% of the stage width), so a scene draws the same at any size. Each breakpoint can override a layer's
 position, size and type; the clips are shared.
 
+Groups: a `group` layer holds `layers` of its own. Its children keep stage coordinates (grouping never moves
+anything) and their clips run on the group's clock, starting at the group's `start`, so moving a group in time
+moves its whole animation. Presets on the group itself animate its measured frame as a whole.
+
 Height modes:
 
 - `ratio` keeps the shape; the page scrolls if the stage is taller than the window.
@@ -58,6 +62,8 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 | Delete | Delete the selected clip or layer |
 | Ctrl+Z, Ctrl+Shift+Z | Undo, redo |
 | Ctrl+D | Duplicate the selected layer |
+| Ctrl+G, Ctrl+Shift+G | Group the selected layers, ungroup the selected group |
+| Double-click a group | Open it: its layers on its own clock, everything else dimmed (Escape steps back out) |
 | Ctrl+S | Save the project file |
 | Shift or Ctrl + click | Add a layer to (or remove it from) the selection, on the stage or the timeline |
 | Drag on empty stage | Box-select the layers it touches (Shift or Ctrl adds to the selection) |
@@ -78,7 +84,7 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 <div data-upw-scene>
   <script type="application/json">{ ...scene file... }</script>
 </div>
-<script src="https://animation-studio.unysonplus.com/player/0.0.3/scene-player.js" defer></script>
+<script src="https://animation-studio.unysonplus.com/player/0.0.4/scene-player.js" defer></script>
 ```
 
 ### Player versions are permanent

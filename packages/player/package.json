@@ -1,6 +1,6 @@
 {
   "name": "@unysonplus/scene-player",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "description": "Plays Unyson+ Animation Studio scene files in any web page.",
   "type": "module",
@@ -11,7 +11,8 @@
     "./validate": "./src/validate.ts",
     "./types": "./src/types.ts",
     "./catalog": "./src/presets/catalog.ts",
-    "./dist/*": "./dist/*"
+    "./dist/*": "./dist/*",
+    "./groups": "./src/groups.ts"
   },
   "scripts": {
     "build": "vite build && vite build --config vite.editor.config.ts",

@@ -154,7 +154,23 @@ export interface ImageLayer extends LayerBase {
   radius?: number;
 }
 
-export type Layer = TextLayer | ShapeLayer | ImageLayer;
+/**
+ * A group: layers kept together, with a timeline of their own.
+ *
+ * Children keep stage coordinates (grouping never moves anything); the group's frame is worked out
+ * from them, so presets on the group itself (fade, slide, pop…) act on that frame. Children's clips
+ * and in/out points are in the group's own time: 0 is the group's `start` in the parent's time, so
+ * moving the group's start moves its whole animation. Its `box` is ignored (the frame is measured).
+ */
+export interface GroupLayer extends Omit<LayerBase, 'box'> {
+  type: 'group';
+  box?: Box;
+  layers: Layer[];
+  /** Length of the group's own timeline, in seconds. Defaults to the end of its last clip. */
+  duration?: number;
+}
+
+export type Layer = TextLayer | ShapeLayer | ImageLayer | GroupLayer;
 
 export interface Clip {
   id: string;

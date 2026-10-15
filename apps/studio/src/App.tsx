@@ -8,8 +8,10 @@ import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
 import {
-  addClip, addLayer, duplicateLayer, findClip, findLayer, removeClip, removeLayer, roundTime, setClip, writeLayout,
+  addClip, addLayer, containerOf, duplicateLayer, findClip, findLayer, groupLayers, layersIn, moveBy, removeClip,
+  removeLayer, roundTime, setClip, ungroupLayer, writeLayout,
 } from './lib/sceneOps';
+import { groupDuration, groupOffset } from '@unysonplus/scene-player/groups';
 import { DEVICES, Preview, type Device } from './components/Preview';
 import { Transport } from './components/Transport';
 import { ScenePanel } from './components/ScenePanel';
@@ -101,6 +103,8 @@ export function App() {
   const [scale, setScale] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [alignTo, setAlignTo] = useState<AlignTo>('selection');
+  /** The group being edited (double-click to enter, Escape to leave); null = the whole scene. */
+  const [scope, setScope] = useState<string | null>(null);
   // Opened from a Unyson+ page editor ("Open in Animation Studio"): load its scene, offer "Save to page".
   const conn = useEditorConnection((incoming) => {
     commit(incoming);
@@ -118,8 +122,8 @@ export function App() {
   const firstReady = useRef(true);
 
   // Latest values for handlers that outlive a render (message and key listeners).
-  const latest = useRef({ scene, selection, state });
-  latest.current = { scene, selection, state };
+  const latest = useRef({ scene, selection, state, scope });
+  latest.current = { scene, selection, state, scope };
 
   const device = DEVICES.find((d) => d.id === deviceId)!;
   const post = useCallback((msg: Record<string, unknown>) => iframeRef.current?.contentWindow?.postMessage(msg, '*'), []);
@@ -135,6 +139,11 @@ export function App() {
   useEffect(() => { if (ready) post({ type: 'select', ids: selKey ? selKey.split('|') : [] }); }, [selKey, ready, post]);
   useEffect(() => { if (ready) post({ type: 'safe', show: safe }); }, [safe, ready, post]);
   useEffect(() => { if (ready) post({ type: 'ui', scale }); }, [scale, ready, post]);
+
+  useEffect(() => { if (ready) post({ type: 'scope', id: scope }); }, [scope, ready, post]);
+  useEffect(() => {
+    if (scope && findLayer(scene, scope)?.type !== 'group') setScope(null);
+  }, [scene, scope]);
 
   // Drop a selection that no longer exists (after undo, delete or a file edit).
   useEffect(() => {
@@ -169,16 +178,52 @@ export function App() {
   const seek = useCallback((t: number) => post({ type: 'seek', time: t }), [post]);
 
   // ---- actions ----
-  const addLayerOfType = useCallback((type: Layer['type'], extra: Partial<Layer> = {}) => {
-    const r = addLayer(latest.current.scene, type, extra);
+  type LeafType = Exclude<Layer['type'], 'group'>;
+  const addLayerOfType = useCallback((type: LeafType, extra: Partial<Layer> = {}) => {
+    const r = addLayer(latest.current.scene, type, extra, latest.current.scope);
     commit(r.scene);
     setSelection({ layerId: r.id, clipId: null });
   }, [commit]);
 
-  const onAddLayer = (type: Layer['type']) => {
+  const onAddLayer = (type: LeafType) => {
     if (type === 'image') imageRef.current?.click();
     else addLayerOfType(type);
   };
+
+  /** Steps into a group: the timeline shows its layers on its own clock, the stage dims the rest. */
+  const enterGroup = useCallback((id: string) => {
+    if (findLayer(latest.current.scene, id)?.type !== 'group') return;
+    setScope(id);
+    setSelection({ layerId: null, clipId: null });
+  }, []);
+
+  /** Leaves the current group (or jumps to an outer one), selecting the group just left. */
+  const leaveTo = useCallback((target: string | null) => {
+    const from = latest.current.scope;
+    setScope(target);
+    setSelection(from ? { layerId: from, clipId: null } : { layerId: null, clipId: null });
+  }, []);
+
+  const groupSelection = useCallback(() => {
+    const { scene: s, selection: sel } = latest.current;
+    const r = groupLayers(s, selectedIds(sel));
+    if (!r) return;
+    commit(r.scene);
+    setSelection({ layerId: r.id, clipId: null });
+    setNotice('Grouped. Double-click the group to edit what is inside.');
+  }, [commit]);
+
+  const ungroupSelection = useCallback(() => {
+    const { scene: s, selection: sel } = latest.current;
+    const g = findLayer(s, sel.layerId);
+    if (!g || g.type !== 'group') return;
+    const kids = g.layers.map((l) => l.id);
+    const r = ungroupLayer(s, g.id);
+    if (!r) return;
+    commit(r.scene);
+    setSelection(selectLayers(kids));
+    if (r.dropped) setNotice(`Ungrouped. The group's own ${r.dropped === 1 ? 'clip was' : `${r.dropped} clips were`} removed with it (undo to bring ${r.dropped === 1 ? 'it' : 'them'} back).`);
+  }, [commit]);
 
   /** Adds a preset at the playhead to every selected layer it suits (one undo step). */
   const applyPreset = (presetId: string) => {
@@ -186,7 +231,11 @@ export function App() {
     let next = scene;
     let lastClip: string | null = null;
     for (const id of ids) {
-      const r = addClip(next, id, presetId, state.time);
+      const parent = containerOf(next, id);
+      const parentGroup = parent ? findLayer(next, parent) : null;
+      const local = parent ? state.time - groupOffset(next, parent) : state.time;
+      const limit = parentGroup && parentGroup.type === 'group' ? Math.max(groupDuration(parentGroup), scene.duration) : scene.duration;
+      const r = addClip(next, id, presetId, Math.max(0, local), limit);
       if (r) {
         next = r.scene;
         lastClip = r.id;
@@ -229,18 +278,19 @@ export function App() {
 
   // ---- keyboard (from the Studio, or forwarded by the preview while it has focus) ----
   const handleKey = useCallback((k: KeyInfo): boolean => {
-    const { scene: s, selection: sel, state: st } = latest.current;
+    const { scene: s, selection: sel, state: st, scope: sc } = latest.current;
     const key = k.key.length === 1 ? k.key.toLowerCase() : k.key;
+    if (k.mod && key === 'g') { if (k.shift) ungroupSelection(); else groupSelection(); return true; }
     if (k.mod && key === 'z') { if (k.shift) history.redo(); else history.undo(); return true; }
     if (k.mod && key === 'y') { history.redo(); return true; }
     if (k.mod && key === 's') { saveProject(); return true; }
     if (k.mod && key === 'a') {
-      setSelection(selectLayers(s.layers.filter((l) => !l.locked).map((l) => l.id)));
+      setSelection(selectLayers(layersIn(s, sc).filter((l) => !l.locked).map((l) => l.id)));
       return true;
     }
     if (k.mod && key === 'd') {
       if (sel.layerId) {
-        const r = duplicateLayer(s, sel.layerId);
+        const r = duplicateLayer(s, sel.layerId, st.breakpoint);
         commit(r.scene);
         setSelection({ layerId: r.id, clipId: null });
       }
@@ -254,7 +304,12 @@ export function App() {
       seek(Math.max(0, Math.min(s.duration, st.time + stepT)));
       return true;
     }
-    if (key === 'Escape') { setSelection({ layerId: null, clipId: null }); return true; }
+    if (key === 'Escape') {
+      // First clear the selection; with nothing selected, step out of the group being edited.
+      if (selectedIds(sel).length) setSelection({ layerId: null, clipId: null });
+      else if (sc) leaveTo(containerOf(s, sc));
+      return true;
+    }
     if (key === 'Delete' || key === 'Backspace') {
       const ids = selectedIds(sel);
       if (sel.layerId && sel.clipId && ids.length === 1) { commit(removeClip(s, sel.layerId, sel.clipId)); setSelection({ layerId: sel.layerId, clipId: null }); }
@@ -281,8 +336,7 @@ export function App() {
         for (const id of selectedIds(sel)) {
           const layer = findLayer(next, id);
           if (!layer || layer.locked) continue;
-          const bpBox = { ...layer.box, ...((st.breakpoint && layer.overrides?.[st.breakpoint]?.box) || {}) };
-          next = writeLayout(next, id, st.breakpoint, { box: { x: roundTime(bpBox.x + dx * step), y: roundTime(bpBox.y + dy * step) } });
+          next = moveBy(next, id, dx * step, dy * step, st.breakpoint);
         }
         commit(next);
       } else if (dx) {
@@ -291,7 +345,7 @@ export function App() {
       return true;
     }
     return false;
-  }, [commit, history, pause, play, saveProject, seek]);
+  }, [commit, history, pause, play, saveProject, seek, groupSelection, ungroupSelection, leaveTo]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -331,12 +385,20 @@ export function App() {
           break;
         case 'upw:layout': {
           // One or more layers moved, resized or aligned: one undo step for all of them.
-          const items: Array<{ id: string; box: Record<string, number> }> = Array.isArray(m.items) ? m.items : m.id ? [{ id: m.id, box: m.box }] : [];
+          const items: Array<{ id: string; box?: Record<string, number>; move?: { dx: number; dy: number } }> =
+            Array.isArray(m.items) ? m.items : m.id ? [{ id: m.id, box: m.box }] : [];
           let next = s;
-          for (const it of items) if (findLayer(next, it.id)) next = writeLayout(next, it.id, st.breakpoint, { box: it.box });
+          for (const it of items) {
+            if (!findLayer(next, it.id)) continue;
+            if (it.move) next = moveBy(next, it.id, it.move.dx, it.move.dy, st.breakpoint);
+            else if (it.box) next = writeLayout(next, it.id, st.breakpoint, { box: it.box });
+          }
           commit(next);
           break;
         }
+        case 'upw:enter':
+          enterGroup(String(m.id));
+          break;
         case 'upw:text':
           if (findLayer(s, m.id)) commit(writeLayout(s, m.id, st.breakpoint, { text: String(m.text) }));
           break;
@@ -347,7 +409,7 @@ export function App() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [post, commit, handleKey]);
+  }, [post, commit, handleKey, enterGroup]);
 
   // Once the preview is ready, make sure it has the current scene (edits may have happened while it loaded).
   useEffect(() => {
@@ -484,6 +546,9 @@ export function App() {
             onLive={history.live}
             onEnd={history.end}
             onAddLayer={onAddLayer}
+            scope={scope}
+            onEnter={enterGroup}
+            onLeaveTo={leaveTo}
           />
         </section>
 
@@ -494,7 +559,7 @@ export function App() {
           </div>
           <div className="panel-body" role="tabpanel">
             {tab === 'inspect'
-              ? <Inspector scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} />
+              ? <Inspector scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
               : <ScenePanel scene={scene} onCommit={commit} />}
           </div>
         </aside>

@@ -51,7 +51,8 @@ const SIDE: PresetField = {
     { value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' },
   ],
 };
-const ALL: PresetMeta['appliesTo'] = ['text', 'shape', 'image'];
+// Presets that animate the layer as a whole also work on a group (its frame).
+const ALL: PresetMeta['appliesTo'] = ['text', 'shape', 'image', 'group'];
 
 export const PRESET_CATALOG: PresetMeta[] = [
   // ---- Text ----

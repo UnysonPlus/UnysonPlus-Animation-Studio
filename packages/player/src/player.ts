@@ -1,7 +1,8 @@
 import { gsap } from 'gsap';
 import type { Box, Breakpoint, Scene, TextStyle } from './types';
 import { validateScene } from './validate';
-import { applyLayout, buildText, createLayer, createStage, resolveLayer, type LayerRefs } from './dom';
+import { applyLayout, buildText, createLayer, createStage, flatRefs, layoutTree, measureGroup, resolveLayer, type LayerRefs } from './dom';
+import { groupDuration } from './groups';
 import { injectFonts, injectStyles } from './styles';
 import { presets, presetRand, type Timeline } from './presets';
 import { seedFrom } from './random';
@@ -132,15 +133,25 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     // Make the timeline exactly as long as the scene, even if the last clip ends early.
     t.set({}, {}, scene.duration);
 
-    for (const refs of layers) {
+    addLayers(t, layers, scene.duration);
+    if (scene.playback.loop) t.repeat(-1).repeatDelay(scene.playback.repeatDelay ?? 0);
+    return t;
+  }
+
+  /**
+   * Adds a list of layers to a timeline whose length is `length`. A group gets its own nested
+   * timeline at its start time, so its contents run on the group's clock.
+   */
+  function addLayers(t: Timeline, list: LayerRefs[], length: number) {
+    for (const refs of list) {
       const { layer, outer } = refs;
       const start = layer.start ?? 0;
-      const end = layer.end ?? scene.duration;
+      const end = layer.end ?? length;
       // Layer in/out points. The starting state is set outside the timeline: a zero-length step at
       // time 0 would be undone when scrubbing back to the very start.
       gsap.set(outer, { visibility: start > 0 ? 'hidden' : 'inherit' });
       if (start > 0) t.set(outer, { visibility: 'inherit' }, start);
-      if (end < scene.duration) t.set(outer, { visibility: 'hidden' }, end);
+      if (end < length) t.set(outer, { visibility: 'hidden' }, end);
 
       const clips = [...layer.clips].sort((a, b) => a.start - b.start);
       clips.forEach((clip, idx) => {
@@ -161,9 +172,15 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
           rand: presetRand(seedFrom(`${layer.id}/${clip.id}`)),
         });
       });
+
+      if (layer.type === 'group' && refs.children) {
+        const dur = groupDuration(layer);
+        const inner = gsap.timeline();
+        inner.set({}, {}, dur);
+        addLayers(inner, refs.children, dur);
+        t.add(inner, start);
+      }
     }
-    if (scene.playback.loop) t.repeat(-1).repeatDelay(scene.playback.repeatDelay ?? 0);
-    return t;
   }
 
   /** (Re)builds text and the timeline, then puts the playhead back where it was. */
@@ -172,18 +189,18 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       tl.kill();
       tl = null;
       // Clear what the old timeline wrote so the new one starts from clean elements.
-      for (const r of layers) {
+      for (const r of flatRefs(layers)) {
         const holders = r.words.map((w) => w.parentElement).filter(Boolean);
         gsap.set([r.inner, ...r.words, ...r.chars, ...holders], { clearProps: 'all' });
       }
     }
-    for (const r of layers) {
+    for (const r of flatRefs(layers)) {
       if (r.layer.type === 'text') {
         const { text } = resolveLayer(r.layer, current?.id ?? null);
         buildText(doc, r, text ?? '');
       }
-      applyLayout(r, current?.id ?? null);
     }
+    layoutTree(layers, current?.id ?? null);
     tl = buildTimeline();
     tl.time(Math.min(time, scene.duration), false);
     if (play) tl.play();
@@ -207,9 +224,9 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     applyBreakpoint(next);
     // A breakpoint that changes a layer's words needs new character elements, so the timeline is
     // rebuilt. Anything else is layout only and the running timeline carries on untouched.
-    const textChanged = layers.some((r) => r.layer.type === 'text' && resolveLayer(r.layer, next.id).text !== r.builtText);
+    const textChanged = flatRefs(layers).some((r) => r.layer.type === 'text' && resolveLayer(r.layer, next.id).text !== r.builtText);
     if (!tl || textChanged) rebuild(tl ? tl.time() : 0, tl ? !tl.paused() : false);
-    else for (const r of layers) applyLayout(r, next.id);
+    else layoutTree(layers, next.id);
     emit('breakpoint');
   }
 
@@ -233,7 +250,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   }, { threshold: 0.2 });
   io.observe(root);
 
-  const refsOf = (id: string) => layers.find((r) => r.layer.id === id) ?? null;
+  const refsOf = (id: string) => flatRefs(layers).find((r) => r.layer.id === id) ?? null;
 
   const player: ScenePlayer = {
     get scene() { return scene; },
@@ -291,12 +308,25 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     layerElement: (id) => refsOf(id)?.outer ?? null,
     layout(id) {
       const r = refsOf(id);
-      return r ? resolveLayer(r.layer, current?.id ?? null) : null;
+      if (!r) return null;
+      const resolved = resolveLayer(r.layer, current?.id ?? null);
+      // A group's box is its measured frame.
+      if (r.frame) return { ...resolved, box: { x: r.frame.l, y: r.frame.t, w: r.frame.w, h: r.frame.h, anchor: 'top-left' } };
+      return resolved;
     },
     previewLayer(id, box) {
       const r = refsOf(id);
       if (!r) return;
       const bp = current?.id ?? null;
+      if (r.children) {
+        // A group moves as a whole: shift its frame (its contents ride along), or re-fit it.
+        if (!box) measureGroup(r, bp);
+        else {
+          if (typeof box.x === 'number') r.outer.style.left = `${box.x}%`;
+          if (typeof box.y === 'number') r.outer.style.top = `${box.y}%`;
+        }
+        return;
+      }
       if (!box) {
         applyLayout(r, bp);
         return;
@@ -324,7 +354,11 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   };
 
   // Start
-  const ready = waitForFonts(doc, scene).then(() => { armed = true; });
+  const ready = waitForFonts(doc, scene).then(() => {
+    armed = true;
+    // Text may have changed size now that its fonts are in, so groups re-fit their frames.
+    if (flatRefs(layers).some((r) => r.children)) layoutTree(layers, current?.id ?? null);
+  });
   if (reduced) {
     ready.then(() => tl?.time(scene.playback.posterTime ?? scene.duration, false));
   } else if (options.autoplay !== false) {

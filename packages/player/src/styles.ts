@@ -23,6 +23,8 @@ export const PLAYER_CSS = `
 .upw-layer[data-hidden]{display:none}
 .upw-li{display:block;width:100%;height:100%;box-sizing:border-box}
 .upw-text .upw-li{height:auto}
+.upw-group>.upw-li{position:relative;overflow:visible}
+.upw-gproxy{position:absolute;left:0;top:0;width:100%;height:100%}
 .upw-text .upw-txt{display:block}
 .upw-w{display:inline-block;white-space:nowrap;vertical-align:top}
 .upw-wi,.upw-c{display:inline-block}

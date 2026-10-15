@@ -98,15 +98,15 @@ export function validateScene(input: unknown): ValidationResult {
     }
   }
 
-  // Layers
+  // Layers (groups hold layers of their own; ids are unique across the whole scene)
   const bpIds = new Set((scene.stage?.breakpoints ?? []).map((b) => b?.id));
-  if (!Array.isArray(scene.layers)) {
-    fail('layers', 'must be a list');
-  } else {
-    const layerIds = new Set<string>();
-    const clipIds = new Set<string>();
-    scene.layers.forEach((layer: Layer, i: number) => {
-      const p = `layers[${i}]`;
+  const layerIds = new Set<string>();
+  const clipIds = new Set<string>();
+  const checkLayers = (list: unknown, base: string, depth: number) => {
+    if (!Array.isArray(list)) return fail(base, 'must be a list');
+    if (depth > 8) return fail(base, 'groups are nested too deeply (8 levels at most)');
+    (list as Layer[]).forEach((layer: Layer, i: number) => {
+      const p = `${base}[${i}]`;
       if (!isObj(layer)) return fail(p, 'must be an object');
       if (typeof layer.id !== 'string' || !ID_RE.test(layer.id)) fail(`${p}.id`, 'must be a short id (letters, digits, - or _)');
       else if (layerIds.has(layer.id)) fail(`${p}.id`, `"${layer.id}" is used twice`);
@@ -121,16 +121,21 @@ export function validateScene(input: unknown): ValidationResult {
       } else if (layer.type === 'image') {
         if (typeof layer.src !== 'string' || !layer.src) fail(`${lp}.src`, 'is required');
         if (!layer.alt) warnings.push(`${lp}.alt: add a description so screen readers can announce the image (or "" if it is decorative).`);
+      } else if (layer.type === 'group') {
+        if (layer.duration !== undefined && (!isNum(layer.duration) || layer.duration <= 0)) fail(`${lp}.duration`, 'must be more than 0 seconds');
+        checkLayers(layer.layers, `${lp}.layers`, depth + 1);
       } else {
-        fail(`${lp}.type`, 'must be text, shape or image');
+        fail(`${lp}.type`, 'must be text, shape, image or group');
       }
 
-      if (!isObj(layer.box)) fail(`${lp}.box`, 'is required');
-      else {
-        if (!isNum(layer.box.x) || !isNum(layer.box.y)) fail(`${lp}.box`, 'needs x and y');
-        if (layer.box.anchor !== undefined && !ANCHORS.includes(layer.box.anchor)) fail(`${lp}.box.anchor`, `must be one of ${ANCHORS.join(', ')}`);
-        if (layer.type !== 'text' && !isNum(layer.box.w)) fail(`${lp}.box.w`, 'is required for shapes and images');
-        if (layer.type !== 'text' && !isNum(layer.box.h) && !isNum(layer.box.ratio)) fail(`${lp}.box`, 'needs h or ratio for shapes and images');
+      if (layer.type !== 'group') {
+        if (!isObj(layer.box)) fail(`${lp}.box`, 'is required');
+        else {
+          if (!isNum(layer.box.x) || !isNum(layer.box.y)) fail(`${lp}.box`, 'needs x and y');
+          if (layer.box.anchor !== undefined && !ANCHORS.includes(layer.box.anchor)) fail(`${lp}.box.anchor`, `must be one of ${ANCHORS.join(', ')}`);
+          if (layer.type !== 'text' && !isNum(layer.box.w)) fail(`${lp}.box.w`, 'is required for shapes and images');
+          if (layer.type !== 'text' && !isNum(layer.box.h) && !isNum(layer.box.ratio)) fail(`${lp}.box`, 'needs h or ratio for shapes and images');
+        }
       }
       if (layer.start !== undefined && (!isNum(layer.start) || layer.start < 0)) fail(`${lp}.start`, 'must be 0 or more seconds');
       if (layer.end !== undefined && (!isNum(layer.end) || layer.end <= (layer.start ?? 0))) fail(`${lp}.end`, 'must come after start');
@@ -152,14 +157,15 @@ export function validateScene(input: unknown): ValidationResult {
         if (!PRESET_IDS.includes(clip.preset)) fail(`${cp}.preset`, `"${String(clip.preset)}" is not a known preset (${PRESET_IDS.join(', ')})`);
         if (!isNum(clip.start) || clip.start < 0) fail(`${cp}.start`, 'must be 0 or more seconds');
         if (!isNum(clip.duration) || clip.duration <= 0) fail(`${cp}.duration`, 'must be more than 0 seconds');
-        if (isNum(clip.start) && isNum(clip.duration) && isNum(scene.duration) && clip.start + clip.duration > scene.duration + 1e-6) {
+        if (depth === 0 && isNum(clip.start) && isNum(clip.duration) && isNum(scene.duration) && clip.start + clip.duration > scene.duration + 1e-6) {
           warnings.push(`${cp}: ends at ${(clip.start + clip.duration).toFixed(2)}s, after the scene ends (${scene.duration}s).`);
         }
         if (clip.ease !== undefined && (typeof clip.ease !== 'string' || !EASE_RE.test(clip.ease))) fail(`${cp}.ease`, 'is not a valid easing name');
         if (clip.params !== undefined && !isObj(clip.params)) fail(`${cp}.params`, 'must be an object');
       });
     });
-  }
+  };
+  checkLayers(scene.layers, 'layers', 0);
 
   return { ok: errors.length === 0, errors, warnings, scene };
 }

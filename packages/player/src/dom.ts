@@ -9,6 +9,19 @@ export interface LayerRefs {
   chars: HTMLElement[];
   /** The text the words and chars were built from, so a breakpoint text change can be detected. */
   builtText?: string;
+  /** Groups: the layers inside, and the stage-sized element they are positioned in. */
+  children?: LayerRefs[];
+  proxy?: HTMLElement;
+  /** Groups: the measured frame, in % of the stage (left, top, width, height). */
+  frame?: { l: number; t: number; w: number; h: number };
+}
+
+/** Every LayerRefs in a tree, groups and their contents included. */
+export function flatRefs(list: LayerRefs[]): LayerRefs[] {
+  const out: LayerRefs[] = [];
+  const walk = (l: LayerRefs[]) => l.forEach((r) => { out.push(r); if (r.children) walk(r.children); });
+  walk(list);
+  return out;
 }
 
 const ANCHOR_SHIFT: Record<Anchor, [number, number]> = {
@@ -48,6 +61,21 @@ export function createLayer(doc: Document, layer: Layer, z: number): LayerRefs {
   outer.appendChild(inner);
 
   const refs: LayerRefs = { layer, outer, inner, words: [], chars: [] };
+
+  if (layer.type === 'group') {
+    // The group's frame wraps its contents; inside it, a stage-sized "proxy" keeps the children's
+    // stage coordinates valid. measureGroup() fits the frame once the children are laid out.
+    const proxy = doc.createElement('div');
+    proxy.className = 'upw-gproxy';
+    inner.appendChild(proxy);
+    refs.proxy = proxy;
+    refs.children = layer.layers.map((child, i) => {
+      const c = createLayer(doc, child, i + 1);
+      proxy.appendChild(c.outer);
+      return c;
+    });
+    return refs;
+  }
 
   if (layer.type === 'shape') {
     if (layer.fill) inner.style.background = layer.fill;
@@ -115,7 +143,7 @@ export function buildText(doc: Document, refs: LayerRefs, text: string) {
 /** The layer's box, style and text with a breakpoint's overrides merged in. */
 export function resolveLayer(layer: Layer, bpId: string | null) {
   const o: LayerOverride = (bpId && layer.overrides?.[bpId]) || {};
-  const box: Box = { ...layer.box, ...(o.box ?? {}) };
+  const box: Box = { ...(layer.box ?? { x: 0, y: 0 }), ...(o.box ?? {}) };
   const style: TextStyle | undefined = layer.type === 'text' ? { ...layer.style, ...(o.style ?? {}) } : undefined;
   const text = layer.type === 'text' ? (o.text ?? layer.text) : undefined;
   return { box, style, text, hidden: !!o.hidden };
@@ -129,6 +157,11 @@ export function applyLayout(refs: LayerRefs, bpId: string | null) {
 
   if (hidden) outer.dataset.hidden = '';
   else delete outer.dataset.hidden;
+
+  if (refs.layer.type === 'group') {
+    if (typeof refs.layer.opacity === 'number') os.opacity = String(refs.layer.opacity);
+    return;
+  }
 
   os.left = `${box.x}%`;
   os.top = `${box.y}%`;
@@ -156,4 +189,62 @@ export function applyLayout(refs: LayerRefs, bpId: string | null) {
     is.textTransform = style.uppercase ? 'uppercase' : '';
     is.fontStyle = style.italic ? 'italic' : '';
   }
+}
+
+/** Lays out a tree of layers: children before their group, so each group can measure its contents. */
+export function layoutTree(list: LayerRefs[], bpId: string | null) {
+  for (const r of list) {
+    if (r.children) layoutTree(r.children, bpId);
+    applyLayout(r, bpId);
+    if (r.children) measureGroup(r, bpId);
+  }
+}
+
+/**
+ * Fits a group's frame around its visible contents. The proxy is first set to the whole stage so the
+ * children's positions read as stage percentages, then the frame is set to their bounds and the proxy
+ * moved and scaled so the children stay exactly where they were.
+ */
+export function measureGroup(refs: LayerRefs, bpId: string | null) {
+  const { outer, proxy, children } = refs;
+  if (!proxy || !children) return;
+  const os = outer.style;
+  const ps = proxy.style;
+  Object.assign(os, { left: '0%', top: '0%', width: '100%', height: '100%', transform: 'none' });
+  Object.assign(ps, { left: '0%', top: '0%', width: '100%', height: '100%' });
+  const W = proxy.clientWidth;
+  const H = proxy.clientHeight;
+  let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+  if (W && H) {
+    for (const c of children) {
+      const el = c.outer;
+      if (el.dataset.hidden !== undefined || !el.offsetWidth) continue;
+      let x: number;
+      let y: number;
+      if (c.children) {
+        x = el.offsetLeft;
+        y = el.offsetTop;
+      } else {
+        const { box } = resolveLayer(c.layer, bpId);
+        const [sx, sy] = ANCHOR_SHIFT[box.anchor ?? 'center'];
+        x = el.offsetLeft + (sx / 100) * el.offsetWidth;
+        y = el.offsetTop + (sy / 100) * el.offsetHeight;
+      }
+      l = Math.min(l, x);
+      t = Math.min(t, y);
+      r = Math.max(r, x + el.offsetWidth);
+      b = Math.max(b, y + el.offsetHeight);
+    }
+  }
+  if (!Number.isFinite(l) || r - l < 1 || b - t < 1) {
+    refs.frame = { l: 0, t: 0, w: 100, h: 100 };
+    return;
+  }
+  const f = { l: (l / W) * 100, t: (t / H) * 100, w: ((r - l) / W) * 100, h: ((b - t) / H) * 100 };
+  refs.frame = f;
+  Object.assign(os, { left: `${f.l}%`, top: `${f.t}%`, width: `${f.w}%`, height: `${f.h}%` });
+  Object.assign(ps, {
+    left: `${(-f.l / f.w) * 100}%`, top: `${(-f.t / f.h) * 100}%`,
+    width: `${(100 / f.w) * 100}%`, height: `${(100 / f.h) * 100}%`,
+  });
 }
