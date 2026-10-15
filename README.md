@@ -101,6 +101,14 @@ The ease parameters and several timing rules come from frame-by-frame measuremen
 pieces published in the motionmaxxing project (Apache-2.0); the review checklist ideas also draw on the
 favstash AI video editing skills (Apache-2.0). Both are re-expressed here in our own code.
 
+### Video export
+
+**Export → Video** renders the scene to MP4 (H.264) or WebM (VP9) at Full HD, HD, 4K, vertical 1080 × 1920 or square,
+24, 30 or 60 fps. The AI Dev Kit on the user's computer does the work (capture service `/studio/render`): headless
+Chrome shows the scene at that size, jumps to every frame in turn and pipes the screenshots into ffmpeg, so every frame
+is exact (3D and custom code included) however slow the machine. The size picks the breakpoint layout, so a vertical
+video uses the mobile layout. Needs ffmpeg (the Studio says how to install it).
+
 ### Full screen and transitions
 
 The **full screen** icon at the right of the stage toolbar (or **F**) plays the scene at your screen's real size,

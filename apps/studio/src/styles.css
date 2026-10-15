@@ -645,3 +645,11 @@ h1, h2, p { margin: 0; }
 .ctx-menu kbd { font: 11px var(--mono); color: var(--faint); }
 .ctx-menu hr { border: 0; border-top: 1px solid var(--border-soft); margin: 4px 2px; }
 .tl-rename { flex: 1; min-width: 0; height: 24px; margin: 0 4px; padding: 0 6px; border-radius: 5px; border: 1px solid var(--accent); background: var(--bg); color: var(--ink); font: 12px var(--sans); }
+
+/* ---------- export: video ---------- */
+.video-opts { display: grid; grid-template-columns: 1.4fr 0.8fr 1.2fr; gap: 10px; }
+.video-opts .field span { font-size: 11px; color: var(--faint); font-weight: 600; }
+.video-opts select { height: 30px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border-soft); background: var(--surface); color: var(--ink); font: 12px var(--sans); }
+.video-bar { flex: 1; height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.video-bar span { display: block; height: 100%; background: var(--accent); transition: width .3s var(--ease); }
+@media (max-width: 640px) { .video-opts { grid-template-columns: 1fr; } }

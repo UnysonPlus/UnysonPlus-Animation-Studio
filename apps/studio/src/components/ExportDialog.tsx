@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Scene } from '@unysonplus/scene-player/types';
 import { embedCode, exportHtml, hasModel, threeRuntime, hasCodeClips } from '../lib/documents';
 import { embedFonts } from '../lib/fonts';
+import { VideoSection } from './VideoSection';
 import { DownloadIcon } from './icons';
 
 const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
@@ -138,6 +139,8 @@ export function ExportDialog(props: {
             </p>
           )}
         </section>
+
+        <VideoSection scene={props.scene} open={props.open} onDone={props.onDone} />
 
         {error && <p className="export-error" role="alert">{error}</p>}
       </div>

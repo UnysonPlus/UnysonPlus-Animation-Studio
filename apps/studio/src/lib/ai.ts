@@ -44,6 +44,12 @@ export async function kitStatus(): Promise<KitStatus> {
   return (await localNetworkPermission()) === 'denied' ? { state: 'blocked' } : { state: 'missing' };
 }
 
+/** The kit's address on this computer (found by kitStatus), or null when it is not running. */
+export async function kitBase(): Promise<string | null> {
+  if (!base) await kitStatus();
+  return base;
+}
+
 /** The browser's "apps and services on this device" permission for this site, where it exists. */
 async function localNetworkPermission(): Promise<PermissionState | 'unknown'> {
   try {
