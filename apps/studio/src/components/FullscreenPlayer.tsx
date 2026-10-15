@@ -22,7 +22,8 @@ export function FullscreenPlayer(props: { scene: Scene; startAt: number; onClose
     const scene: Scene = { ...props.scene, playback: { ...props.scene.playback, trigger: 'manual' } };
     let player: ScenePlayer | null = null;
     try {
-      player = mount(hostRef.current!, scene, { autoplay: false, editor: true });
+      // present: in a click-to-advance scene, clicks and the keys move through the slides.
+      player = mount(hostRef.current!, scene, { autoplay: false, editor: true, present: true });
       playerRef.current = player;
       player.seek(props.startAt);
       player.play();
@@ -62,7 +63,8 @@ export function FullscreenPlayer(props: { scene: Scene; startAt: number; onClose
     <div ref={wrapRef} className={`fs-player${idle && playing ? ' is-idle' : ''}`} role="dialog" aria-label="Full screen preview"
       onKeyDown={(e) => {
         if (e.key === 'Escape') { e.stopPropagation(); props.onClose(); }
-        if (e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggle(); }
+        // In a presentation, Space moves to the next slide (the player handles it); otherwise it plays and pauses.
+        if (e.key === ' ' && props.scene.playback.advance !== 'click') { e.preventDefault(); e.stopPropagation(); toggle(); }
       }}
       tabIndex={-1}>
       <div className="fs-stage"><div ref={hostRef} className="fs-host" /></div>

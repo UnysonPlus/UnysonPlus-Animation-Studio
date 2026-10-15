@@ -20,6 +20,18 @@ export interface Scene {
   stage: Stage;
   playback: Playback;
   layers: Layer[];
+  /**
+   * Points on the timeline, in seconds. With playback.advance "click" the scene stops at each one and
+   * waits for a click, a tap or the arrow keys: a presentation.
+   */
+  markers?: Marker[];
+}
+
+export interface Marker {
+  id: string;
+  /** Seconds from the start of the scene. */
+  t: number;
+  label?: string;
 }
 
 export interface Stage {
@@ -71,6 +83,11 @@ export interface Playback {
   repeatDelay?: number;
   /** The frame shown to visitors who ask for reduced motion, in seconds. Defaults to the end. */
   posterTime?: number;
+  /**
+   * auto: plays straight through (the default). click: a presentation; the scene stops at each marker
+   * (and at the end) until the visitor clicks, taps or presses an arrow key. Ignored with the scroll trigger.
+   */
+  advance?: 'auto' | 'click';
 }
 
 export interface ScrollSettings {

@@ -10,6 +10,7 @@ import { FullscreenPlayer } from './components/FullscreenPlayer';
 import { kitStatus, type KitStatus } from './lib/ai';
 import { lintScene, type LintIssue } from '@unysonplus/scene-player/lint';
 import { clipEase, framesOf, isKeyframes, setKey, valueAt, writeFrames } from './lib/keyframes';
+import { addMarker } from './lib/markers';
 import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
@@ -318,6 +319,7 @@ export function App() {
     if (k.code === 'Space') { if (st.playing) pause(); else play(); return true; }
     if (key === 'Home') { seek(0); return true; }
     if (key === 'F2' && latest.current.selection.layerId) { setRenaming(latest.current.selection.layerId); return true; }
+    if (!k.mod && (key === 'm' || key === 'M') && !latest.current.scope) { commit(addMarker(latest.current.scene, latest.current.state.time)); setNotice('Marker added at the playhead.'); return true; }
     if (!k.mod && (key === 'f' || key === 'F')) { pause(); setFullscreen(true); return true; }
     if (key === ',' || key === '.') {
       const stepT = (k.shift ? 1 : 1 / 30) * (key === ',' ? -1 : 1);

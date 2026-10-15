@@ -99,6 +99,7 @@ export function validateScene(input: unknown): ValidationResult {
     if (pb.posterTime !== undefined && (!isNum(pb.posterTime) || pb.posterTime < 0 || pb.posterTime > scene.duration)) {
       fail('playback.posterTime', 'must be within the scene');
     }
+    if (pb.advance !== undefined && pb.advance !== 'auto' && pb.advance !== 'click') fail('playback.advance', 'must be auto or click');
     if (pb.scroll !== undefined) {
       const sc = pb.scroll;
       if (!isObj(sc)) fail('playback.scroll', 'must be an object');
@@ -107,6 +108,23 @@ export function validateScene(input: unknown): ValidationResult {
         if (sc.length !== undefined && (!isNum(sc.length) || sc.length < 0.2 || sc.length > 10)) fail('playback.scroll.length', 'must be 0.2 to 10 window heights');
         if (sc.smooth !== undefined && (!isNum(sc.smooth) || sc.smooth < 0 || sc.smooth > 3)) fail('playback.scroll.smooth', 'must be 0 to 3 seconds');
       }
+    }
+  }
+
+  // Markers (pause points for click-to-advance)
+  if (scene.markers !== undefined) {
+    if (!Array.isArray(scene.markers) || scene.markers.length > 200) fail('markers', 'must be a list of at most 200 markers');
+    else {
+      const seen = new Set<string>();
+      scene.markers.forEach((m: unknown, i: number) => {
+        const mp = `markers[${i}]`;
+        if (!isObj(m)) return fail(mp, 'must be an object');
+        if (typeof m.id !== 'string' || !ID_RE.test(m.id)) fail(`${mp}.id`, 'must be a short id');
+        else if (seen.has(m.id)) fail(`${mp}.id`, `"${m.id}" is used twice`);
+        else seen.add(m.id);
+        if (!isNum(m.t) || m.t < 0 || (isNum(scene.duration) && m.t > scene.duration)) fail(`${mp}.t`, 'must be within the scene');
+        if (m.label !== undefined && typeof m.label !== 'string') fail(`${mp}.label`, 'must be text');
+      });
     }
   }
 

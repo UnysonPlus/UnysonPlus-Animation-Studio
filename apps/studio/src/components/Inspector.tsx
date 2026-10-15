@@ -118,6 +118,20 @@ function SceneInspector({ scene, onCommit }: Props) {
           ]}
           onChange={(v) => setPlayback({ trigger: v })}
         />
+        {scene.playback.trigger !== 'scroll' && (
+          <>
+            <SelectField label="Advance" value={scene.playback.advance ?? 'auto'}
+              options={[{ value: 'auto', label: 'Play straight through' }, { value: 'click', label: 'On click (a presentation)' }]}
+              onChange={(v) => setPlayback({ advance: v === 'click' ? 'click' : undefined })} />
+            {scene.playback.advance === 'click' && (
+              <p className="field-hint wide">
+                The scene stops at each of its {(scene.markers ?? []).length} marker{(scene.markers ?? []).length === 1 ? '' : 's'} and at the end, and
+                waits for a click, a tap or the arrow keys. Add markers with <strong>+ Marker</strong> on the timeline (or M) at the
+                playhead. Try it full screen (F).
+              </p>
+            )}
+          </>
+        )}
         {scene.playback.trigger === 'scroll' ? (
           <>
             <CheckField label="Pin while playing" checked={scene.playback.scroll?.pin ?? SCROLL_DEFAULTS.pin} onChange={(v) => setScroll({ pin: v })} />

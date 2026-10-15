@@ -25,6 +25,12 @@ export interface MountOptions {
   breakpoint?: string | null;
   /** Let custom code clips run. Off by default: only pages that trust the scene's author turn it on. */
   allowCode?: boolean;
+  /**
+   * Presenting: in a click-to-advance scene, clicks and keys move through the slides even in editor
+   * mode, and the keys work page-wide (the Studio's full screen). Without it, the keys work while the
+   * scene has focus, so they never take over the page's own scrolling.
+   */
+  present?: boolean;
 }
 
 export type PlayerEvent = 'update' | 'play' | 'pause' | 'complete' | 'breakpoint' | 'rebuild';
@@ -47,6 +53,12 @@ export interface ScenePlayer {
   pause(): void;
   /** Jump to a moment, in seconds. Pauses playback. */
   seek(seconds: number): void;
+  /** Click-to-advance: plays on to the next marker (or the end). */
+  next(): void;
+  /** Click-to-advance: goes back to the previous marker. */
+  prev(): void;
+  /** Click-to-advance: stopped at a marker, waiting for the next click. */
+  readonly waiting: boolean;
   /** Swap in a changed scene, keeping the playhead (and playback) where it was. Throws if invalid. */
   update(scene: unknown): void;
   setSafeArea(show: boolean): void;
@@ -112,6 +124,21 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
 
   const reduced = !options.editor && prefersReducedMotion(win);
 
+  // ---- click-to-advance ----
+  const clickMode = () => scene.playback.advance === 'click' && scene.playback.trigger !== 'scroll';
+  const markerTimes = () => [...new Set((scene.markers ?? []).map((m) => m.t))].sort((a, b) => a - b);
+  let waiting = false;
+  function setWaiting(on: boolean) {
+    waiting = on;
+    if (on) {
+      root.dataset.waiting = '';
+      wantPlaying = false;
+      emit('pause');
+    } else delete root.dataset.waiting;
+  }
+  /** Where the next slide ends: the next marker after now, or the end. */
+  const nextStop = (now: number) => markerTimes().find((m) => m > now + 1e-3) ?? scene.duration;
+
   /** Draws every 3D layer in its current state. */
   function render3d() {
     for (const r of flatRefs(layers)) if (r.model?.runtime) r.model.runtime.render(r.model.state);
@@ -168,6 +195,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
         emit('update');
       },
       onComplete: () => {
+        if (clickMode()) { tl?.pause(); setWaiting(true); }
         wantPlaying = false;
         emit('complete');
         emit('pause');
@@ -178,7 +206,11 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
 
     addLayers(t, layers, scene.duration);
     // A scroll-linked scene follows the page, so it never loops on its own.
-    if (scene.playback.loop && scene.playback.trigger !== 'scroll') t.repeat(-1).repeatDelay(scene.playback.repeatDelay ?? 0);
+    if (clickMode()) {
+      // A presentation: stop at every marker and wait. It never repeats on its own; the click after the
+      // last slide starts it over when the scene loops.
+      for (const m of markerTimes()) if (m > 1e-3 && m < scene.duration - 1e-3) t.addPause(m, () => setWaiting(true));
+    } else if (scene.playback.loop && scene.playback.trigger !== 'scroll') t.repeat(-1).repeatDelay(scene.playback.repeatDelay ?? 0);
     return t;
   }
 
@@ -306,6 +338,37 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     get duration() { return scene.duration; },
     get time() { return tl ? tl.time() : 0; },
     get playing() { return !!tl && !tl.paused(); },
+    get waiting() { return waiting; },
+    next() {
+      if (!tl || !clickMode()) return;
+      const now = tl.time();
+      const atEnd = now >= scene.duration - 1e-3;
+      if (atEnd && !scene.playback.loop) return;
+      setWaiting(false);
+      if (atEnd) tl.time(0, false);
+      if (reduced) {
+        // No motion: jump straight to the next slide's finished state.
+        const stop = atEnd ? (markerTimes().find((m) => m > 1e-3) ?? scene.duration) : nextStop(now);
+        tl.time(stop, false);
+        setWaiting(true);
+        emit('update');
+        return;
+      }
+      wantPlaying = true;
+      tl.play();
+      emit('play');
+    },
+    prev() {
+      if (!tl || !clickMode()) return;
+      const now = tl.time();
+      const before = markerTimes().filter((m) => m < now - 0.05);
+      // Back to the end of the slide before this one (the start, before the first marker).
+      const target = before[before.length - 1] ?? 0;
+      tl.pause();
+      tl.time(target, false);
+      setWaiting(true);
+      emit('update');
+    },
     get breakpoint() { return current?.id ?? null; },
     play() {
       if (!tl) return;
@@ -397,6 +460,9 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       tl?.kill();
       scrollLink?.destroy();
       dispose3d();
+      root.removeEventListener('click', onClick);
+      win.removeEventListener('keydown', onKey as EventListener);
+      root.removeEventListener('keydown', onKey as EventListener);
       resizeObserver.disconnect();
       io.disconnect();
       listeners.clear();
@@ -404,13 +470,49 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     },
   };
 
+  // Click-to-advance input: clicks and taps on the scene, and the keys (on the focused scene, or
+  // page-wide when presenting). The scene element is focusable and says how to move on.
+  const isNext = (k: string) => k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter';
+  const isPrev = (k: string) => k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace';
+  const onKey = (e: KeyboardEvent) => {
+    if (!clickMode() || destroyed) return;
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest?.('input, textarea, select, [contenteditable]')) return;
+    if (isNext(e.key)) { e.preventDefault(); player.next(); } else if (isPrev(e.key)) { e.preventDefault(); player.prev(); }
+  };
+  const onClick = (e: MouseEvent) => {
+    if (!clickMode() || (e.target as HTMLElement).closest?.('a, button')) return;
+    player.next();
+  };
+  const interactive = !options.editor || !!options.present;
+  if (interactive) {
+    root.addEventListener('click', onClick);
+    (options.present ? win : root).addEventListener('keydown', onKey as EventListener);
+    const marks = () => {
+      if (clickMode()) {
+        root.tabIndex = 0;
+        root.setAttribute('aria-roledescription', 'presentation');
+        root.title = 'Click, or press the right arrow, to continue';
+      } else {
+        root.removeAttribute('tabindex');
+        root.removeAttribute('aria-roledescription');
+        root.removeAttribute('title');
+      }
+    };
+    marks();
+    listeners.set('rebuild', new Set([...(listeners.get('rebuild') ?? []), marks]));
+  }
+
   // Start
   const ready = waitForFonts(doc, scene).then(() => {
     armed = true;
     // Text may have changed size now that its fonts are in, so groups re-fit their frames.
     if (flatRefs(layers).some((r) => r.children)) layoutTree(layers, current?.id ?? null);
   });
-  if (reduced) {
+  if (reduced && clickMode()) {
+    // A presentation without motion: show the first slide's finished state; clicks jump slide to slide.
+    ready.then(() => { if (!tl) return; tl.time(markerTimes().find((m) => m > 1e-3) ?? scene.duration, false); setWaiting(true); });
+  } else if (reduced) {
     ready.then(() => tl?.time(scene.playback.posterTime ?? scene.duration, false));
   } else if (options.autoplay !== false) {
     const trigger = scene.playback.trigger;

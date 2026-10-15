@@ -5,6 +5,7 @@ import { addClip, layersIn, roundTime, scopePath, setClip } from '../lib/sceneOp
 import { groupDuration, groupOffset } from '@unysonplus/scene-player/groups';
 import { PRESET_MIME } from './Library';
 import { SAME_MOMENT, framesOf, isKeyframes, moveKey, writeFrames } from '../lib/keyframes';
+import { addMarker, moveMarker, removeMarker } from '../lib/markers';
 import type { Clip } from '@unysonplus/scene-player/types';
 import { selectedIds, selectLayers, type Selection } from './Inspector';
 import { setLayerProps } from '../lib/sceneOps';
@@ -290,6 +291,10 @@ export function Timeline(props: Props) {
           <button type="button" className="btn small" onClick={() => props.onAddLayer('shape')}>+ Shape</button>
           <button type="button" className="btn small" onClick={() => props.onAddLayer('image')}>+ Image</button>
           <button type="button" className="btn small" onClick={() => props.onAddLayer('model')} title="A 3D object: text, a shape, an SVG logo or a glTF model">+ 3D</button>
+          {!scope && (
+            <button type="button" className="btn small" onClick={() => props.onCommit(addMarker(scene, props.time))}
+              title="A marker at the playhead (M). In a click-to-advance scene, the presentation stops there until a click.">+ Marker</button>
+          )}
         </div>
         <label className="tl-zoom">
           <span>Zoom</span>
@@ -307,6 +312,43 @@ export function Timeline(props: Props) {
               {ticks.map((t) => (
                 <span key={t} className="tick" style={{ left: t * pps }}>
                   <span className="mono">{step < 1 ? t.toFixed(step < 0.5 ? 2 : 1) : t}s</span>
+                </span>
+              ))}
+              {!scope && (scene.markers ?? []).map((m, i) => (
+                <span
+                  key={m.id}
+                  role="button"
+                  tabIndex={-1}
+                  className="tl-marker"
+                  style={{ left: m.t * pps }}
+                  title={`Marker ${i + 1} at ${m.t.toFixed(2)} s${scene.playback.advance === 'click' ? ': the presentation waits here for a click' : ''}. Drag to move, double-click to delete.`}
+                  onDoubleClick={(e) => { e.stopPropagation(); props.onCommit(removeMarker(scene, m.id)); }}
+                  onPointerDown={(e) => {
+                    if (e.button !== 0) return;
+                    e.stopPropagation();
+                    props.onSeek(m.t);
+                    const x0 = e.clientX;
+                    let started = false;
+                    const move = (ev: PointerEvent) => {
+                      if (!started) {
+                        if (Math.abs(ev.clientX - x0) < 3) return;
+                        started = true;
+                        live.current.onBegin();
+                      }
+                      const t = Math.round((m.t + (ev.clientX - x0) / pps) * 100) / 100;
+                      live.current.onLive(moveMarker(live.current.scene, m.id, t));
+                      live.current.onSeek(Math.max(0, Math.min(D, t)));
+                    };
+                    const up = () => {
+                      removeEventListener('pointermove', move);
+                      removeEventListener('pointerup', up);
+                      if (started) live.current.onEnd();
+                    };
+                    addEventListener('pointermove', move);
+                    addEventListener('pointerup', up);
+                  }}
+                >
+                  <span className="tl-marker-num">{i + 1}</span>
                 </span>
               ))}
             </div>

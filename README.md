@@ -72,7 +72,8 @@ described in `packages/player/src/presets/catalog.ts`, which the Studio uses to 
 | Ctrl+A | Select every unlocked layer |
 | F2, or double-click a layer's name | Rename it in place (double-clicking a group opens it) |
 | Right-click a timeline row | Rename, open group, duplicate, group or ungroup, lock, delete |
-| F | Play full screen |
+| F | Play full screen (presenter mode for click-to-advance scenes) |
+| M | Add a marker at the playhead |
 | Escape | Clear the selection |
 | Alt while dragging | Turn snapping off |
 
@@ -100,6 +101,14 @@ each is for. Exits default to **Leave**, which speeds up out of frame. Staggered
 The ease parameters and several timing rules come from frame-by-frame measurements of professional motion
 pieces published in the motionmaxxing project (Apache-2.0); the review checklist ideas also draw on the
 favstash AI video editing skills (Apache-2.0). Both are re-expressed here in our own code.
+
+### Click-to-advance presentations
+
+Set **Advance** to **On click (a presentation)** in the scene's Playback settings and add **markers** (+ Marker, or M,
+at the playhead; drag a flag to move it, double-click to delete). The scene then stops at each marker and at the end,
+and waits for a click, a tap, or the arrow keys, Space or Page Down (back: left arrow, Page Up). A small arrow pulses
+while it waits. In a page the keys work when the scene has focus; the Studio's full screen (F) is a presenter mode.
+Visitors who turn off animation jump from slide to slide. Scene file: `markers: [{ id, t }]`, `playback.advance`.
 
 ### Video export
 

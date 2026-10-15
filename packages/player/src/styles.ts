@@ -31,6 +31,12 @@ export const PLAYER_CSS = `
 .upw-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .upw-li img{display:block;width:100%;height:100%;border-radius:inherit}
 .upw-3d{position:relative}
+.upw-scene[aria-roledescription="presentation"]{cursor:pointer}
+.upw-scene[aria-roledescription="presentation"]:focus{outline:none}
+.upw-scene[aria-roledescription="presentation"]:focus-visible{outline:2px solid rgba(255,255,255,.7);outline-offset:-4px}
+.upw-scene[data-waiting]::after{content:"";position:absolute;right:max(14px,2cqw);bottom:max(14px,2cqw);width:12px;height:12px;border-right:2.5px solid rgba(255,255,255,.75);border-bottom:2.5px solid rgba(255,255,255,.75);transform:rotate(-45deg);animation:upw-nudge 1.4s ease-in-out infinite;pointer-events:none;z-index:2147483001}
+@keyframes upw-nudge{0%,100%{opacity:.35;translate:0 0}50%{opacity:1;translate:4px 0}}
+@media (prefers-reduced-motion:reduce){.upw-scene[data-waiting]::after{animation:none;opacity:.8}}
 .upw-safe{position:absolute;pointer-events:none;border:1px dashed rgba(255,255,255,.6);box-shadow:0 0 0 1px rgba(0,0,0,.35);z-index:2147483000;display:none}
 .upw-scene[data-safe] .upw-safe{display:block}
 `;
