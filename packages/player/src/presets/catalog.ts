@@ -7,13 +7,14 @@ import { EXIT_EASE } from '../eases';
  * loading GSAP. presets/index.ts supplies the build function for every id listed here.
  */
 
-export type PresetCategory = 'text' | 'reveal' | 'motion' | 'emphasis';
+export type PresetCategory = 'text' | 'reveal' | 'motion' | 'emphasis' | 'ambient';
 
 export const CATEGORY_LABELS: Record<PresetCategory, string> = {
   text: 'Text',
   reveal: 'Reveal and exit',
   motion: 'Move and scale',
   emphasis: 'Emphasis',
+  ambient: 'Ambient and backgrounds',
 };
 
 export type PresetField =
@@ -220,6 +221,63 @@ export const PRESET_CATALOG: PresetMeta[] = [
     defaultEase: 'power2.inOut', defaultDuration: 0.6,
     defaults: { to: '#ffffff' },
     fields: [{ key: 'to', label: 'Colour', type: 'color' }],
+  },
+  // ---- Second set ----
+  {
+    id: 'text-count', label: 'Count up', category: 'text', appliesTo: ['text'],
+    description: 'The number in the text counts up to its value, keeping any prefix, separators and suffix ("$12,500+").',
+    defaultEase: 'expo.out', defaultDuration: 1.6,
+    defaults: { from: 0 },
+    fields: [{ key: 'from', label: 'Count from', type: 'number', step: 1 }],
+  },
+  {
+    id: 'soft-wipe', label: 'Soft wipe', category: 'reveal', appliesTo: ALL,
+    description: 'A wipe with a feathered edge: the layer fades in (or out) along a moving soft line.',
+    defaultEase: 'softInOut', defaultDuration: 0.7,
+    defaults: { direction: 'in', from: 'left', feather: 25 },
+    fields: [DIRECTION, SIDE, { key: 'feather', label: 'Feather', type: 'number', min: 1, max: 80, step: 1, unit: '%' }],
+  },
+  {
+    id: 'blinds', label: 'Blinds', category: 'reveal', appliesTo: ALL,
+    description: 'Revealed (or hidden) in strips, one after another, like a stair wipe.',
+    defaultEase: 'softLand', defaultDuration: 0.8,
+    defaults: { direction: 'in', from: 'top', count: 6, stagger: 0.5 },
+    fields: [DIRECTION, { key: 'from', label: 'From', type: 'select', options: [{ value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }, { value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }] }, { key: 'count', label: 'Strips', type: 'number', min: 2, max: 24, step: 1 }, { key: 'stagger', label: 'Stagger', type: 'number', min: 0, max: 0.9, step: 0.05 }],
+  },
+  {
+    id: 'turn', label: 'Turn', category: 'motion', appliesTo: ALL,
+    description: 'Turns into place in 3D, around the vertical or horizontal axis, as if on a hinge through its middle.',
+    defaultEase: 'softLand', defaultDuration: 0.7,
+    defaults: { direction: 'in', axis: 'y', angle: 90, perspective: 900 },
+    fields: [DIRECTION, { key: 'axis', label: 'Axis', type: 'select', options: [{ value: 'y', label: 'Vertical' }, { value: 'x', label: 'Horizontal' }] }, { key: 'angle', label: 'Angle', type: 'number', min: -180, max: 180, step: 5, unit: '°' }, { key: 'perspective', label: 'Depth', type: 'number', min: 200, max: 3000, step: 50, unit: 'px' }],
+  },
+  {
+    id: 'sheen', label: 'Sheen', category: 'emphasis', appliesTo: ['shape', 'image'],
+    description: 'A band of light sweeps across once. Best after the layer has settled.',
+    defaultEase: 'softInOut', defaultDuration: 0.9,
+    defaults: { angle: 110, width: 22, strength: 0.45, color: '#ffffff' },
+    fields: [{ key: 'angle', label: 'Angle', type: 'number', min: 0, max: 360, step: 5, unit: '°' }, { key: 'width', label: 'Width', type: 'number', min: 5, max: 60, step: 1, unit: '%' }, { key: 'strength', label: 'Strength', type: 'number', min: 0, max: 1, step: 0.05 }, { key: 'color', label: 'Colour', type: 'color' }],
+  },
+  {
+    id: 'drift', label: 'Drift', category: 'ambient', appliesTo: ALL,
+    description: 'A slow, steady move and scale creep that keeps a held frame alive.',
+    defaultEase: 'cruise', defaultDuration: 3,
+    defaults: { x: 4, y: -3, scale: 1.04, rotate: 0 },
+    fields: [{ key: 'x', label: 'Move X', type: 'number', min: -100, max: 100, step: 1, unit: '%' }, { key: 'y', label: 'Move Y', type: 'number', min: -100, max: 100, step: 1, unit: '%' }, { key: 'scale', label: 'Scale to', type: 'number', min: 0.5, max: 2, step: 0.01 }, { key: 'rotate', label: 'Rotate', type: 'number', min: -45, max: 45, step: 1, unit: '°' }],
+  },
+  {
+    id: 'gradient-flow', label: 'Gradient flow', category: 'ambient', appliesTo: ['shape'],
+    description: 'A shape’s gradient fill flows across it and back. Give the shape a gradient fill.',
+    defaultEase: 'none', defaultDuration: 4,
+    defaults: { axis: 'x', cycles: 1 },
+    fields: [{ key: 'axis', label: 'Direction', type: 'select', options: [{ value: 'x', label: 'Across' }, { value: 'y', label: 'Up and down' }, { value: 'diagonal', label: 'Diagonal' }] }, { key: 'cycles', label: 'Cycles', type: 'number', min: 1, max: 10, step: 1 }],
+  },
+  {
+    id: 'particles', label: 'Particles', category: 'ambient', appliesTo: ['shape'],
+    description: 'A field of small dots rising, falling or drifting inside the shape. Clear the shape’s fill to show the particles on their own.',
+    defaultEase: 'none', defaultDuration: 4,
+    defaults: { count: 28, size: 1.2, speed: 0.12, direction: 'up', color: '#ffffff', twinkle: true },
+    fields: [{ key: 'count', label: 'Count', type: 'number', min: 1, max: 150, step: 1 }, { key: 'size', label: 'Size', type: 'number', min: 0.2, max: 10, step: 0.1, unit: '%' }, { key: 'speed', label: 'Speed', type: 'number', min: 0, max: 2, step: 0.01, unit: '/s' }, { key: 'direction', label: 'Direction', type: 'select', options: [{ value: 'up', label: 'Rise' }, { value: 'down', label: 'Fall' }, { value: 'drift', label: 'Drift' }] }, { key: 'color', label: 'Colour', type: 'color' }, { key: 'twinkle', label: 'Twinkle', type: 'boolean' }],
   },
   {
     id: 'code', label: 'Custom code', category: 'motion', appliesTo: ALL,

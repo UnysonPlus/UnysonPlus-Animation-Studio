@@ -8,9 +8,14 @@ export const PRESET_MIME = 'application/x-upw-preset';
 /** A one-layer scene that shows a preset on its own, for the hover preview. */
 function sampleScene(p: PresetMeta): Scene {
   const textual = p.appliesTo.includes('text');
+  const word = p.id === 'text-scramble' || p.id === 'text-typewriter' ? 'Motion' : p.id === 'text-count' ? '$1,280' : 'Aa';
   const layer: Layer = textual
-    ? { id: 's', type: 'text', text: p.id === 'text-scramble' || p.id === 'text-typewriter' ? 'Motion' : 'Aa', style: { fontSize: p.id === 'text-scramble' || p.id === 'text-typewriter' ? 17 : 30, fontWeight: 800, color: '#f4f6f8' }, box: { x: 50, y: 52 }, clips: [] }
-    : { id: 's', type: 'shape', shape: 'rect', fill: '#2ad38b', radius: 3, box: { x: 50, y: 50, w: 26, ratio: 1 }, clips: [] };
+    ? { id: 's', type: 'text', text: word, style: { fontSize: word === 'Aa' ? 30 : 17, fontWeight: 800, color: '#f4f6f8' }, box: { x: 50, y: 52 }, clips: [] }
+    : p.id === 'particles'
+      ? { id: 's', type: 'shape', shape: 'rect', fill: 'transparent', box: { x: 50, y: 50, w: 100, h: 100 }, clips: [] }
+      : p.id === 'gradient-flow'
+        ? { id: 's', type: 'shape', shape: 'rect', fill: 'linear-gradient(90deg, #2ad38b, #3b82f6, #a855f7, #2ad38b)', radius: 3, box: { x: 50, y: 50, w: 70, h: 60 }, clips: [] }
+        : { id: 's', type: 'shape', shape: 'rect', fill: '#2ad38b', radius: 3, box: { x: 50, y: 50, w: 26, ratio: 1 }, clips: [] };
   const d = Math.min(p.defaultDuration, 2.4);
   layer.clips = [{ id: 'c', preset: p.id, start: 0.15, duration: d, params: p.id === 'keyframes' ? { frames: [{ t: 0, scale: 0.8, rotate: -8 }, { t: d, scale: 1.1, rotate: 8 }] } : undefined }];
   return {
@@ -53,7 +58,7 @@ export function Library(props: {
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = PRESET_CATALOG.filter((p) => !q || p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
-    const order: PresetCategory[] = ['text', 'reveal', 'motion', 'emphasis'];
+    const order: PresetCategory[] = ['text', 'reveal', 'motion', 'emphasis', 'ambient'];
     return order.map((c) => ({ c, items: list.filter((p) => p.category === c) })).filter((g) => g.items.length);
   }, [query]);
 

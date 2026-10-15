@@ -3,6 +3,7 @@ import type { Clip, Layer } from '../types';
 import { hash01 } from '../random';
 import { PRESET_CATALOG, type PresetMeta } from './catalog';
 import { resolveEase } from '../eases';
+import { MORE_BUILDERS } from './more';
 
 /**
  * Preset animation code. Each builder adds its tweens to the scene timeline at the clip's start.
@@ -358,15 +359,17 @@ const BUILDERS: Record<string, (ctx: PresetContext) => void> = {
   },
 };
 
+const ALL_BUILDERS: Record<string, (ctx: PresetContext) => void> = { ...BUILDERS, ...MORE_BUILDERS };
+
 export const presets: Record<string, PresetDefinition> = Object.fromEntries(
   PRESET_CATALOG.map((meta) => {
-    const build = BUILDERS[meta.id];
+    const build = ALL_BUILDERS[meta.id];
     if (!build) throw new Error(`Preset "${meta.id}" has no animation code.`);
     return [meta.id, { ...meta, build }];
   }),
 );
 
-if (Object.keys(BUILDERS).length !== PRESET_CATALOG.length) {
+if (Object.keys(ALL_BUILDERS).length !== PRESET_CATALOG.length) {
   throw new Error('Preset animation code and the preset catalogue are out of sync.');
 }
 

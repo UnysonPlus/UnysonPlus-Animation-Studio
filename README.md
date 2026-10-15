@@ -135,7 +135,7 @@ with Chromium (set `PLAYWRIGHT_DIR` to an existing install). Run it after changi
 <div data-upw-scene>
   <script type="application/json">{ ...scene file... }</script>
 </div>
-<script src="https://animation-studio.unysonplus.com/player/0.0.8/scene-player.js" defer></script>
+<script src="https://animation-studio.unysonplus.com/player/0.0.9/scene-player.js" defer></script>
 ```
 
 ### Player versions are permanent

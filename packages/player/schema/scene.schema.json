@@ -306,6 +306,14 @@
             "shake",
             "float",
             "recolor",
+            "text-count",
+            "soft-wipe",
+            "blinds",
+            "turn",
+            "sheen",
+            "drift",
+            "gradient-flow",
+            "particles",
             "code"
           ]
         },
