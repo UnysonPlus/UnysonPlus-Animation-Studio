@@ -4,6 +4,7 @@ import type { HeightMode, Layer, Scene } from '@unysonplus/scene-player/types';
 import demo from './scenes/demo.json';
 import { previewHtml } from './lib/documents';
 import { ExportDialog } from './components/ExportDialog';
+import { AiPanel } from './components/AiPanel';
 import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
 import { useHistory } from './lib/history';
@@ -95,7 +96,7 @@ export function App() {
   const [selection, setSelection] = useState<Selection>({ layerId: null, clipId: null });
   const [deviceId, setDeviceId] = useState<Device['id']>('desktop');
   const [safe, setSafe] = useState(false);
-  const [tab, setTab] = useState<'inspect' | 'json'>('inspect');
+  const [tab, setTab] = useState<'inspect' | 'ai' | 'json'>('inspect');
   const [state, setState] = useState<PreviewState>({ time: 0, duration: scene.duration, playing: false, breakpoint: null, stageHeight: 0 });
   const [frameError, setFrameError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -555,10 +556,21 @@ export function App() {
         <aside className="panel" aria-label="Properties">
           <div className="tabs" role="tablist" aria-label="Panel">
             <button type="button" role="tab" aria-selected={tab === 'inspect'} className={tab === 'inspect' ? 'on' : undefined} onClick={() => setTab('inspect')}>Inspector</button>
+            <button type="button" role="tab" aria-selected={tab === 'ai'} className={tab === 'ai' ? 'on' : undefined} onClick={() => setTab('ai')}>AI</button>
             <button type="button" role="tab" aria-selected={tab === 'json'} className={tab === 'json' ? 'on' : undefined} onClick={() => setTab('json')}>Scene file</button>
           </div>
           <div className="panel-body" role="tabpanel">
-            {tab === 'inspect'
+            {tab === 'ai' && (
+              <AiPanel scene={scene} selection={selectedIds(selection)} onApply={(next, note) => {
+                commit(next);
+                setScope(null);
+                setSelection({ layerId: null, clipId: null });
+                setNotice(note);
+                post({ type: 'seek', time: 0 });
+                post({ type: 'play' });
+              }} />
+            )}
+            {tab === 'ai' ? null : tab === 'inspect'
               ? <Inspector scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
               : <ScenePanel scene={scene} onCommit={commit} />}
           </div>

@@ -1,0 +1,95 @@
+import type { Scene } from '@unysonplus/scene-player/types';
+import { PRESET_CATALOG } from '@unysonplus/scene-player/catalog';
+import { validateScene } from '@unysonplus/scene-player/validate';
+
+/**
+ * The Studio's link to the AI Dev Kit running on the user's own computer. The kit's local service
+ * (port 8787) turns a request into a scene file with whatever AI the kit is set up with. Nothing goes
+ * through our servers: the request travels from this page straight to the user's machine.
+ */
+
+const BASES = ['http://localhost:8787', 'http://127.0.0.1:8787'];
+let base: string | null = null;
+
+export type KitStatus =
+  | { state: 'checking' }
+  | { state: 'missing' }
+  | { state: 'outdated' }
+  | { state: 'off'; version: string }
+  | { state: 'ready'; version: string; model: string; backend: string };
+
+/** Finds the kit and asks whether its AI is ready. */
+export async function kitStatus(): Promise<KitStatus> {
+  for (const b of base ? [base, ...BASES.filter((x) => x !== base)] : BASES) {
+    try {
+      const r = await fetch(`${b}/studio/status`, { signal: AbortSignal.timeout(3000) });
+      if (r.status === 404) {
+        base = b;
+        return { state: 'outdated' };
+      }
+      if (!r.ok) continue;
+      const j = await r.json();
+      base = b;
+      if (!j.ready) return { state: 'off', version: j.version };
+      return { state: 'ready', version: j.version, model: String(j.model || ''), backend: String(j.backend || '') };
+    } catch {
+      // Not running at this address (or the browser blocked it): try the next.
+    }
+  }
+  return { state: 'missing' };
+}
+
+/** The preset catalogue, trimmed to what the AI needs to use each preset well. */
+function catalogForAi() {
+  return PRESET_CATALOG.map((p) => ({
+    id: p.id,
+    label: p.label,
+    description: p.description,
+    appliesTo: p.appliesTo,
+    defaultDuration: p.defaultDuration,
+    params: Object.fromEntries(p.fields.map((f) => [f.key, f.type === 'select' ? f.options.map((o) => o.value) : f.type])),
+  }));
+}
+
+export interface AiResult {
+  scene: Scene;
+  explanation: string;
+  model: string;
+  /** True when the first answer was invalid and a second, corrected one was used. */
+  repaired: boolean;
+}
+
+async function call(body: Record<string, unknown>, signal: AbortSignal) {
+  if (!base) await kitStatus();
+  if (!base) throw new Error('The AI Dev Kit is not running on this computer.');
+  const r = await fetch(`${base}/studio/ai`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...body, catalog: catalogForAi() }),
+    signal,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `The AI Dev Kit answered ${r.status}.`);
+  return j as { scene: unknown; explanation: string; model: string };
+}
+
+/**
+ * Asks for a new scene ("create") or a change to the current one ("edit"). The answer is validated;
+ * if it is invalid, the AI gets one chance to repair it with the validator's errors.
+ */
+export async function askForScene(opts: {
+  mode: 'create' | 'edit';
+  prompt: string;
+  scene: Scene;
+  selection: string[];
+  signal: AbortSignal;
+}): Promise<AiResult> {
+  const first = await call({ mode: opts.mode, prompt: opts.prompt, scene: opts.scene, selection: opts.selection }, opts.signal);
+  let v = validateScene(first.scene);
+  if (v.ok) return { scene: v.scene, explanation: first.explanation, model: first.model, repaired: false };
+
+  const second = await call({ mode: 'repair', prompt: opts.prompt, scene: first.scene, errors: v.errors }, opts.signal);
+  v = validateScene(second.scene);
+  if (v.ok) return { scene: v.scene, explanation: second.explanation || first.explanation, model: second.model, repaired: true };
+  throw new Error(`The AI's scene still had problems after a second try:\n- ${v.errors.slice(0, 6).join('\n- ')}`);
+}
