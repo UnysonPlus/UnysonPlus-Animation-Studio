@@ -148,6 +148,10 @@ export function useSceneAudio(scene: Scene, state: { time: number; playing: bool
 
   useEffect(() => () => engine.dispose(), [engine]);
 
+  // Whether the browser lets the engine sound yet (it waits for the first click on the page).
+  const [running, setRunning] = useState(false);
+  useEffect(() => { engine.onstate = () => setRunning(engine.running); }, [engine]);
+
   // The first click or key press anywhere lets the page make sound.
   useEffect(() => {
     const unlock = () => { if (soundOn) engine.enable(); };
@@ -212,5 +216,7 @@ export function useSceneAudio(scene: Scene, state: { time: number; playing: bool
 
   useEffect(() => { if (!soundOn) engine.disable(); }, [soundOn, engine]);
 
-  return { engine, info, peaksPerSecond: PEAKS_PER_SECOND };
+  /** Sound is on and the scene has some, but the browser hasn't let it start yet (no click so far). */
+  const waiting = soundOn && !!clips?.length && !running;
+  return { engine, info, peaksPerSecond: PEAKS_PER_SECOND, waiting };
 }

@@ -9,10 +9,17 @@ import { parseSfxSrc, synthSfx } from './sfx';
  *
  * Browsers only let a page make sound after the visitor has interacted with it, so the engine starts
  * muted until enable() is called from a click or tap (the player's sound button, the Studio's controls).
+ * Files are decoded without the playback context (so loading a scene never creates a context the browser
+ * holds paused), and sound asked for while the browser still holds the context paused starts, in step,
+ * the moment it runs.
  * Shared by the player and the Studio (which plays the editor preview's sound itself).
  */
 
 type Ctx = AudioContext;
+
+/** Decoded and synthesised sound is kept at this rate (the playback context resamples as needed). */
+const SAMPLE_RATE = 48000;
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 export class SceneAudio {
   private ctx: Ctx | null = null;
@@ -23,11 +30,19 @@ export class SceneAudio {
   private playingFrom: { time: number; at: number } | null = null;
   private enabled = false;
   private volume = 1;
+  /** A play() made while the context was not yet running: the timeline time and when it was asked. */
+  private pending: { time: number; wall: number } | null = null;
+  private decoder: BaseAudioContext | null = null;
+  /** Called when the context starts or stops running (the Studio shows "click to hear"). */
+  onstate: (() => void) | null = null;
 
   constructor(private win: Window) {}
 
   /** Whether sound is on (enable() has been called from a user gesture). */
   get on() { return this.enabled; }
+
+  /** Whether the browser is actually letting the engine make sound now. */
+  get running() { return this.ctx?.state === 'running'; }
 
   setClips(clips: AudioClip[] | undefined) {
     this.clips = (clips ?? []).filter((c) => c && typeof c.src === 'string' && c.src);
@@ -61,6 +76,12 @@ export class SceneAudio {
     if (!this.enabled) return;
     const ctx = this.context();
     if (!ctx) return;
+    if (ctx.state !== 'running') {
+      // Not allowed to sound yet (no click so far) or still waking up: start in step once it runs.
+      this.pending = { time, wall: now() };
+      ctx.resume().catch(() => { /* waits for a click */ });
+      return;
+    }
     this.playingFrom = { time, at: ctx.currentTime };
     for (const clip of this.clips) {
       this.load(clip.src).then((buf) => {
@@ -74,6 +95,7 @@ export class SceneAudio {
 
   stop() {
     this.playingFrom = null;
+    this.pending = null;
     for (const { src, gain } of this.live) {
       try { src.stop(); } catch { /* not started yet */ }
       src.disconnect();
@@ -113,6 +135,7 @@ export class SceneAudio {
     this.stop();
     this.ctx?.close().catch(() => {});
     this.ctx = null;
+    this.onstate = null;
     this.buffers.clear();
   }
 
@@ -121,23 +144,44 @@ export class SceneAudio {
     const AC = (this.win as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext
       ?? (this.win as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
-    this.ctx = new AC();
+    const ctx = new AC();
+    this.ctx = ctx;
+    ctx.addEventListener('statechange', () => {
+      if (ctx.state === 'running' && this.pending) {
+        const p = this.pending;
+        this.pending = null;
+        this.play(p.time + (now() - p.wall) / 1000);
+      }
+      this.onstate?.();
+    });
     this.master = this.ctx.createGain();
     this.master.gain.value = this.volume;
     this.master.connect(this.ctx.destination);
     return this.ctx;
   }
 
+  /**
+   * A context only for decoding: an offline one never needs the visitor's permission, so loading files
+   * (and drawing waveforms in the Studio) doesn't create the playback context before a click.
+   */
+  private decodeContext(): BaseAudioContext | null {
+    if (this.decoder) return this.decoder;
+    const w = this.win as unknown as { OfflineAudioContext?: typeof OfflineAudioContext; webkitOfflineAudioContext?: typeof OfflineAudioContext };
+    const OAC = w.OfflineAudioContext ?? w.webkitOfflineAudioContext;
+    this.decoder = OAC ? new OAC(1, 1, SAMPLE_RATE) : this.context();
+    return this.decoder;
+  }
+
   private load(src: string): Promise<AudioBuffer | null> {
     const hit = this.buffers.get(src);
     if (hit) return hit;
-    const ctx = this.context();
+    const ctx = this.decodeContext();
     if (!ctx) return Promise.resolve(null);
     const sfx = parseSfxSrc(src);
     if (sfx) {
       // Built-in sounds are synthesised, not downloaded.
-      const pcm = synthSfx(sfx.id, ctx.sampleRate, sfx.pitch);
-      const buf = ctx.createBuffer(1, Math.max(1, pcm.length), ctx.sampleRate);
+      const pcm = synthSfx(sfx.id, SAMPLE_RATE, sfx.pitch);
+      const buf = ctx.createBuffer(1, Math.max(1, pcm.length), SAMPLE_RATE);
       buf.getChannelData(0).set(pcm);
       const done = Promise.resolve(buf);
       this.buffers.set(src, done);

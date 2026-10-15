@@ -133,7 +133,7 @@ export function App() {
   const [state, setState] = useState<PreviewState>({ time: 0, duration: scene.duration, playing: false, breakpoint: null, stageHeight: 0 });
   /** Sound in the Studio (the preview's audio, played here in step with it). */
   const [soundOn, setSoundOn] = useState(true);
-  const { engine: audioEngine, info: audioInfo, peaksPerSecond } = useSceneAudio(scene, state, soundOn);
+  const { engine: audioEngine, info: audioInfo, peaksPerSecond, waiting: soundWaiting } = useSceneAudio(scene, state, soundOn);
   const audioRef = useRef<HTMLInputElement>(null);
   const [frameError, setFrameError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -813,6 +813,7 @@ export function App() {
             onSeek={seek}
             hasAudio={soundTrack(scene).length > 0}
             soundOn={soundOn}
+            soundWaiting={soundWaiting}
             onSound={setSoundOn}
           />
 

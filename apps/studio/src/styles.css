@@ -722,3 +722,7 @@ h1, h2, p { margin: 0; }
 .style-save-row input { flex: 1; min-width: 0; }
 .assist-style { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
 .assist-style select { flex: 1; min-width: 0; }
+
+.sound-btn.waiting { animation: upw-sound-wait 1.6s ease-in-out infinite; }
+@keyframes upw-sound-wait { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .sound-btn.waiting { animation: none; opacity: .6; } }
