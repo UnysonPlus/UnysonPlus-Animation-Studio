@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AudioClip, Scene } from '@unysonplus/scene-player/types';
 import { SceneAudio } from '@unysonplus/scene-player';
+import { SFX_IDS, sfxMeta, soundTrack, suggestedSound } from '@unysonplus/scene-player/sfx';
+import { presetMeta } from '@unysonplus/scene-player/catalog';
+import type { ClipSound, Layer } from '@unysonplus/scene-player/types';
 
 /**
  * The Studio's sound. The editor preview runs in a frame that can't start sound from clicks in the
@@ -38,6 +41,97 @@ export function removeAudio(scene: Scene, id: string): Scene {
   return next;
 }
 
+/** Every clip in the scene, groups included, with its layer. */
+function eachClip(list: Layer[], fn: (l: Layer, i: number) => void) {
+  for (const l of list) {
+    l.clips.forEach((_, i) => fn(l, i));
+    if (l.type === 'group') eachClip(l.layers, fn);
+  }
+}
+
+function mapClips(scene: Scene, fn: (c: Layer['clips'][number]) => Layer['clips'][number]): Scene {
+  const walk = (list: Layer[]): Layer[] => list.map((l) => {
+    const next = { ...l, clips: l.clips.map(fn) } as Layer;
+    if (next.type === 'group') next.layers = walk(next.layers);
+    return next;
+  });
+  return { ...scene, layers: walk(scene.layers) };
+}
+
+/** Sounds that carry a moment; they win a crowded stretch over quieter ones. */
+const BIG = new Set(['impact', 'riser', 'reveal', 'chime', 'sub-hit', 'swell']);
+/** At least this long between suggested sounds: a few well-placed sounds read better than many. */
+const SUGGEST_GAP = 1.5;
+
+/**
+ * Which clips "Add suggested sounds" gives a sound: the scene's key moments, not every clip. Clips are
+ * ranked (whole groups and top-level layers before their children, big moments before small ones,
+ * entrances before exits) and taken in that order while they keep SUGGEST_GAP from every sound already
+ * placed, including ones the author added.
+ */
+export function planSuggestedSounds(scene: Scene): Map<string, string> {
+  const taken: number[] = [];
+  const cands: Array<{ id: string; name: string; at: number; score: number }> = [];
+  const walk = (list: Layer[], offset: number, depth: number) => {
+    for (const l of list) {
+      for (const c of l.clips) {
+        const at = offset + c.start;
+        if (c.sound) { taken.push(at + (c.sound.at === 'end' ? c.duration : 0)); continue; }
+        const meta = presetMeta[c.preset];
+        const name = suggestedSound(c, meta?.defaults);
+        // Not on near-instant cuts, nor where the sound would be cut off by the end of the scene.
+        if (!name || c.duration < 0.15 || at + (sfxMeta(name)?.length ?? 0) * 0.6 > scene.duration) continue;
+        const dir = c.params && 'direction' in c.params ? c.params.direction : meta?.defaults.direction;
+        const score = Math.max(1, 3 - depth) + (BIG.has(name) ? 2 : 0) + (dir === 'out' ? -1 : 1);
+        cands.push({ id: c.id, name, at, score });
+      }
+      if (l.type === 'group') walk(l.layers, offset + (l.start ?? 0), depth + 1);
+    }
+  };
+  walk(scene.layers, 0, 0);
+  for (const a of scene.audio ?? []) if (a.role !== 'voice' && a.role !== 'music') taken.push(a.start);
+  cands.sort((x, y) => y.score - x.score || x.at - y.at);
+  const plan = new Map<string, string>();
+  for (const c of cands) {
+    if (taken.some((t) => Math.abs(t - c.at) < SUGGEST_GAP)) continue;
+    taken.push(c.at);
+    plan.set(c.id, c.name);
+  }
+  return plan;
+}
+
+/** Clips "Add suggested sounds" would give a sound, and clips that have one. */
+export function soundCounts(scene: Scene) {
+  let withSound = 0;
+  eachClip(scene.layers, (l, i) => { if (l.clips[i].sound) withSound++; });
+  return { suggestible: planSuggestedSounds(scene).size, withSound };
+}
+
+/** Gives the scene's key moments the sound that suits each clip's preset. */
+export function addSuggestedSounds(scene: Scene): Scene {
+  const plan = planSuggestedSounds(scene);
+  return mapClips(scene, (c) => (plan.has(c.id) ? { ...c, sound: { name: plan.get(c.id)! } } : c));
+}
+
+export function clearClipSounds(scene: Scene): Scene {
+  return mapClips(scene, (c) => {
+    if (!c.sound) return c;
+    const { sound: _s, ...rest } = c;
+    return rest;
+  });
+}
+
+/** A clip sound with empty / default fields left out. */
+export function cleanSound(s: ClipSound | undefined): ClipSound | undefined {
+  if (!s || !SFX_IDS.includes(s.name)) return undefined;
+  const out: ClipSound = { name: s.name };
+  if (s.at === 'end') out.at = 'end';
+  if (s.delay) out.delay = r2(s.delay);
+  if (s.volume !== undefined && Math.abs(s.volume - 1) > 1e-3) out.volume = r2(s.volume);
+  if (s.pitch !== undefined && Math.abs(s.pitch - 1) > 1e-3) out.pitch = r2(s.pitch);
+  return out;
+}
+
 /** What the timeline needs about each audio file: its length and a waveform (peaks per 1/40 s). */
 export interface AudioInfo { duration: number; peaks: number[] }
 const PEAKS_PER_SECOND = 40;
@@ -46,7 +140,11 @@ export function useSceneAudio(scene: Scene, state: { time: number; playing: bool
   const engine = useMemo(() => new SceneAudio(window), []);
   const [info, setInfo] = useState<Record<string, AudioInfo>>({});
   const anchor = useRef<{ time: number; clock: number } | null>(null);
-  const clips = scene.audio;
+  // Sound tracks plus the sounds attached to clips. Keyed by content, so unrelated edits don't
+  // re-schedule the sound mid-play.
+  const trackKey = JSON.stringify(soundTrack(scene));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const clips = useMemo(() => soundTrack(scene), [trackKey]);
 
   useEffect(() => () => engine.dispose(), [engine]);
 

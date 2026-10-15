@@ -1,6 +1,7 @@
 import type { AudioClip, Scene } from '@unysonplus/scene-player/types';
 import { NumberField, Section, SelectField, TextField } from './fields';
 import { removeAudio, setAudio, type AudioInfo } from '../lib/audio';
+import { SFX_CATALOG, parseSfxSrc, sfxMeta, sfxSrc } from '@unysonplus/scene-player/sfx';
 
 /** The Inspector for a selected audio clip: timing, trim, volume and fades. */
 export function AudioInspector(props: {
@@ -16,6 +17,7 @@ export function AudioInspector(props: {
   const fileLen = info?.duration;
   const len = clip.duration ?? (fileLen !== undefined ? fileLen - trimIn : undefined);
   const uploaded = clip.src.startsWith('data:');
+  const builtIn = parseSfxSrc(clip.src);
   const kb = uploaded ? Math.round((clip.src.length * 3) / 4 / 1024) : 0;
 
   return (
@@ -27,7 +29,7 @@ export function AudioInspector(props: {
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
         <p className="insp-help">
           {fileLen !== undefined ? `${fileLen.toFixed(2)} s file` : 'Reading the file…'}
-          {uploaded ? ` · uploaded (${kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`}, stored in the scene)` : ' · from an address'}
+          {builtIn ? ' · built-in sound' : uploaded ? ` · uploaded (${kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`}, stored in the scene)` : ' · from an address'}
         </p>
       </div>
 
@@ -48,6 +50,14 @@ export function AudioInspector(props: {
         <NumberField label="Fade out" value={clip.fadeOut ?? 0} step={0.05} min={0} unit="s" onCommit={(v) => set({ fadeOut: v || undefined })} />
       </Section>
 
+      {builtIn ? (
+        <Section title="Built-in sound">
+          <SelectField label="Sound" value={builtIn.id} onChange={(v) => set({ src: sfxSrc(v, builtIn.pitch), name: sfxMeta(v)?.label })}
+            options={SFX_CATALOG.map((s) => ({ value: s.id, label: s.label }))} />
+          <NumberField label="Pitch" value={Math.round(builtIn.pitch * 100)} step={5} min={50} max={200} unit="%" onCommit={(v) => set({ src: sfxSrc(builtIn.id, v === undefined ? 1 : v / 100) })} />
+          <p className="field-hint wide">{sfxMeta(builtIn.id)?.description} Synthesised by the player: nothing to download. To have a sound follow an animation, give the clip a sound instead (select the clip, Sound).</p>
+        </Section>
+      ) : (
       <Section title="Source">
         <TextField label="Address" wide mono value={uploaded ? '(uploaded file)' : clip.src}
           onCommit={(v) => { const t = v.trim(); if (t && t !== '(uploaded file)') set({ src: t }); }} />
@@ -57,6 +67,7 @@ export function AudioInspector(props: {
           {uploaded && kb > 1024 ? ' A file this size makes share links and embeds heavy: an address (for example your WordPress media library) keeps them light.' : ''}
         </p>
       </Section>
+      )}
 
       <div className="insp-actions">
         <button type="button" className="btn small danger" onClick={() => { props.onCommit(removeAudio(scene, clip.id)); props.onDeselect(); }}>Delete audio</button>

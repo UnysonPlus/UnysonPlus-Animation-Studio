@@ -223,7 +223,10 @@
                 "axis": "x",
                 "origin": "center"
               },
-              "ease": "expo.inOut"
+              "ease": "expo.inOut",
+              "sound": {
+                "name": "swish"
+              }
             },
             {
               "id": "slit-out",
@@ -275,7 +278,11 @@
               "id": "k-in",
               "preset": "text-scramble",
               "start": 0.8,
-              "duration": 1.1
+              "duration": 1.1,
+              "sound": {
+                "name": "glitch",
+                "volume": 0.7
+              }
             },
             {
               "id": "k-out",
@@ -382,7 +389,12 @@
               "id": "l2-in",
               "preset": "text-slam",
               "start": 1.5,
-              "duration": 0.9
+              "duration": 0.9,
+              "sound": {
+                "name": "impact",
+                "at": "end",
+                "delay": -0.15
+              }
             },
             {
               "id": "l2-out",
@@ -392,6 +404,9 @@
               "params": {
                 "direction": "out",
                 "from": "left"
+              },
+              "sound": {
+                "name": "whoosh-out"
               }
             }
           ]
@@ -567,6 +582,9 @@
             "from": "top",
             "count": 8,
             "stagger": 0.6
+          },
+          "sound": {
+            "name": "swish"
           }
         }
       ],
@@ -608,7 +626,10 @@
               "id": "k2-in",
               "preset": "text-tracking",
               "start": 0,
-              "duration": 0.8
+              "duration": 0.8,
+              "sound": {
+                "name": "whoosh"
+              }
             }
           ]
         },
@@ -1243,6 +1264,9 @@
           "params": {
             "direction": "out",
             "scale": 1.5
+          },
+          "sound": {
+            "name": "whoosh-out"
           }
         }
       ],
@@ -2067,6 +2091,10 @@
               "duration": 1.4,
               "params": {
                 "from": 0
+              },
+              "sound": {
+                "name": "typing",
+                "volume": 0.6
               }
             },
             {
@@ -2077,6 +2105,9 @@
               "params": {
                 "scale": 1.07,
                 "times": 1
+              },
+              "sound": {
+                "name": "soft-pop"
               }
             }
           ]
@@ -2212,6 +2243,10 @@
               "params": {
                 "direction": "in",
                 "turns": 0.25
+              },
+              "sound": {
+                "name": "spin",
+                "volume": 0.8
               }
             }
           ]
@@ -2234,6 +2269,9 @@
             "direction": "out",
             "from": "left",
             "feather": 35
+          },
+          "sound": {
+            "name": "swish"
           }
         }
       ],
@@ -2285,6 +2323,11 @@
                 "turn": 160,
                 "tilt": -70,
                 "scale": 0.3
+              },
+              "sound": {
+                "name": "impact",
+                "at": "end",
+                "delay": -0.2
               }
             },
             {
@@ -2388,7 +2431,12 @@
               "id": "t4a-in",
               "preset": "text-slam",
               "start": 0.9,
-              "duration": 0.8
+              "duration": 0.8,
+              "sound": {
+                "name": "thud",
+                "at": "end",
+                "delay": -0.1
+              }
             }
           ]
         },
@@ -2462,6 +2510,9 @@
             "direction": "out",
             "axis": "x",
             "angle": 80
+          },
+          "sound": {
+            "name": "whoosh-out"
           }
         }
       ],
@@ -2619,13 +2670,20 @@
               "duration": 0.35,
               "params": {
                 "strength": 2
+              },
+              "sound": {
+                "name": "thud"
               }
             },
             {
               "id": "b5-sheen",
               "preset": "sheen",
               "start": 3.1,
-              "duration": 0.9
+              "duration": 0.9,
+              "sound": {
+                "name": "sparkle",
+                "volume": 0.8
+              }
             },
             {
               "id": "b5-float",
@@ -2674,7 +2732,11 @@
               "id": "p5-type",
               "preset": "text-typewriter",
               "start": 1.4,
-              "duration": 1.2
+              "duration": 1.2,
+              "sound": {
+                "name": "typing",
+                "volume": 0.7
+              }
             },
             {
               "id": "p5-float",
@@ -2805,6 +2867,9 @@
               "params": {
                 "direction": "in",
                 "distance": 3.2
+              },
+              "sound": {
+                "name": "riser"
               }
             },
             {
@@ -2899,6 +2964,10 @@
               "params": {
                 "by": "words",
                 "stagger": 0.06
+              },
+              "sound": {
+                "name": "chime",
+                "delay": 0.3
               }
             }
           ]
@@ -2951,6 +3020,10 @@
               "duration": 1,
               "params": {
                 "height": 25
+              },
+              "sound": {
+                "name": "shimmer",
+                "volume": 0.7
               }
             }
           ]

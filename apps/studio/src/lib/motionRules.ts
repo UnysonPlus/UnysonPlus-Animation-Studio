@@ -1,4 +1,5 @@
 import { NAMED_EASES } from '@unysonplus/scene-player/eases';
+import { SFX_CATALOG } from '@unysonplus/scene-player/sfx';
 
 /**
  * The motion rules the AI follows, sent with every request (they ship with the Studio, so the AI Dev
@@ -41,10 +42,20 @@ SCROLL-LINKED SCENES
 - Use "playback": { "trigger": "scroll", "loop": false, "scroll": { "pin": true, "length": 1.5, "smooth": 0.4 } } only when the request asks for the animation to follow the page scroll (scroll-driven, scrubbed, pinned, "as you scroll").
 - Then the visitor's scrolling sets the pace: build one continuous sequence (things enter, transform, and the last state holds), not a loop. "length" is how many window heights of scrolling it takes while pinned (1-3); keep the scene 3-8 s long so each scroll step moves something.
 
+SOUND (built-in sound effects)
+- A clip may carry "sound": { "name": <a sound id below>, "at"?: "start" | "end", "delay"?: s, "volume"?: 0-2, "pitch"?: 0.5-2 }. It plays with the clip and moves with it. "at": "end" lands it on the clip's last frame (a slam, a drop).
+- Add sounds when the request asks for sound, music, a video, an ad or a presentation; otherwise leave them out unless the scene already has some.
+- Sound the moments that matter: the headline's entrance, a key reveal, the logo or call to action, a hard landing. About 3-6 sounds per 10 s; never one on every letter, every staggered item, or an ambient loop (drift, float, particles, gradient-flow).
+- Match the motion: fast arrivals whoosh or swish, pops pop, slams hit (impact, thud), counters tick, typewriters type, a glow chimes or sparkles. A riser leads into the biggest moment.
+- Sounds that land together blur: keep about 0.15 s between them.
+
 AVOID
 - Two moving clips overlapping in time on the same layer (they fight over the same property).
 - Endless motion everywhere: pulse, shake and float are accents, not wallpaper.
 - Numbers, statistics or claims the request did not give.
+
+SOUNDS (id: what it is)
+${SFX_CATALOG.map((s) => `- ${s.id} (${s.length} s): ${s.description}`).join('\n')}
 
 NAMED EASES (use these names in a clip's "ease"; the seconds are typical lengths)
 ${NAMED_EASES.map((e) => `- ${e.id} (${e.seconds} s, ${e.role === 'enter' ? 'entrances' : e.role === 'exit' ? 'exits' : 'either'}): ${e.use}`).join('\n')}`;

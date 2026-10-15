@@ -32,7 +32,10 @@ export interface Scene {
 export interface AudioClip {
   id: string;
   name?: string;
-  /** An audio file: a data: URL (uploaded) or an https address (must allow loading from other sites). */
+  /**
+   * An audio file: a data: URL (uploaded) or an https address (must allow loading from other sites).
+   * Or a built-in sound: "sfx:<name>", optionally with a pitch, "sfx:pop@1.2".
+   */
   src: string;
   /** Seconds from the start of the scene. */
   start: number;
@@ -274,4 +277,19 @@ export interface Clip {
   /** An easing name, e.g. "power3.out". Each preset has its own default. */
   ease?: string;
   params?: Record<string, unknown>;
+  /** A built-in sound effect that plays with this clip and moves with it. */
+  sound?: ClipSound;
+}
+
+export interface ClipSound {
+  /** A built-in sound id, e.g. "whoosh" (see SFX_CATALOG). */
+  name: string;
+  /** Play when the clip starts (default) or when it ends (a landing). */
+  at?: 'start' | 'end';
+  /** Seconds after that moment (negative: before it). */
+  delay?: number;
+  /** 0 to 2 (1 = normal). */
+  volume?: number;
+  /** 0.5 to 2: higher is higher and shorter. */
+  pitch?: number;
 }

@@ -495,10 +495,15 @@ export function Timeline(props: Props) {
                         onPointerDown={(e) => onClipDown(e, layer, c.id)}
                         onClick={(e) => e.stopPropagation()}
                         aria-pressed={sel}
-                        aria-label={`${meta?.label ?? c.preset}${out ? ' out' : ''}, ${c.start.toFixed(2)} to ${(c.start + c.duration).toFixed(2)} seconds`}
+                        aria-label={`${meta?.label ?? c.preset}${out ? ' out' : ''}, ${c.start.toFixed(2)} to ${(c.start + c.duration).toFixed(2)} seconds${c.sound ? `, with the ${c.sound.name} sound` : ''}`}
                         title={`${meta?.label ?? c.preset}${out ? ' (out)' : ''} · ${c.start.toFixed(2)}–${(c.start + c.duration).toFixed(2)}s`}
                       >
                         <span className="clip-label">{meta?.label ?? c.preset}{out ? ' ↗' : ''}</span>
+                        {c.sound && (
+                          <span className={`clip-snd${c.sound.at === 'end' ? ' at-end' : ''}`} aria-hidden="true" title={`Sound: ${c.sound.name}`}>
+                            <svg viewBox="0 0 24 24" width="10" height="10"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" /><path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+                          </span>
+                        )}
                         {isKeyframes(c) && framesOf(c).map((f, i) => (
                           <span
                             key={i}

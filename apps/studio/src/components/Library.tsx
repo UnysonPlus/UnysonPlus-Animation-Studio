@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { mount, type ScenePlayer } from '@unysonplus/scene-player';
 import { CATEGORY_LABELS, PRESET_CATALOG, type PresetCategory, type PresetMeta } from '@unysonplus/scene-player/catalog';
 import type { Layer, Scene } from '@unysonplus/scene-player/types';
@@ -54,7 +54,10 @@ export function Library(props: {
   /** How many layers are selected; with several, a click adds the preset to each one it suits. */
   count: number;
   onApply: (presetId: string) => void;
+  /** The Sounds tab's content. */
+  sounds: ReactNode;
 }) {
+  const [kind, setKind] = useState<'presets' | 'sounds'>('presets');
   const [query, setQuery] = useState('');
   const [hot, setHot] = useState<string | null>(null);
   const groups = useMemo(() => {
@@ -65,9 +68,16 @@ export function Library(props: {
   }, [query]);
 
   return (
-    <aside className="library" aria-labelledby="lib-title">
+    <aside className="library" aria-label="Library">
+      <div className="lib-tabs" role="tablist" aria-label="Library">
+        {(['presets', 'sounds'] as const).map((k) => (
+          <button key={k} type="button" role="tab" aria-selected={kind === k} className={kind === k ? 'on' : ''} onClick={() => setKind(k)}>
+            {k === 'presets' ? 'Presets' : 'Sounds'}
+          </button>
+        ))}
+      </div>
+      {kind === 'sounds' ? props.sounds : <>
       <div className="lib-head">
-        <h2 id="lib-title">Presets</h2>
         <input type="search" className="lib-search" placeholder="Search presets" aria-label="Search presets" value={query} onChange={(e) => setQuery(e.target.value)} />
         <p className="lib-help">
           {props.count > 1
@@ -116,6 +126,7 @@ export function Library(props: {
         ))}
         {!groups.length && <p className="lib-empty">No preset matches “{query}”.</p>}
       </div>
+      </>}
     </aside>
   );
 }

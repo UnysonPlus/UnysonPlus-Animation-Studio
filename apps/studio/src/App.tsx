@@ -12,7 +12,9 @@ import { lintScene, type LintIssue } from '@unysonplus/scene-player/lint';
 import { clipEase, framesOf, isKeyframes, setKey, valueAt, writeFrames } from './lib/keyframes';
 import { addMarker } from './lib/markers';
 import { clearShareHash, hasSharedScene, readSharedScene } from './lib/share';
-import { addAudio, removeAudio, useSceneAudio } from './lib/audio';
+import { addAudio, addSuggestedSounds, clearClipSounds, cleanSound, removeAudio, soundCounts, useSceneAudio } from './lib/audio';
+import { SoundLibrary } from './components/SoundLibrary';
+import { sfxMeta, sfxSrc, soundTrack } from '@unysonplus/scene-player/sfx';
 import { AudioInspector } from './components/AudioInspector';
 import { useEditorConnection } from './lib/connection';
 import { formatScene } from './lib/format';
@@ -661,7 +663,42 @@ export function App() {
       </div>
 
       <main className="workspace">
-        <Library layerType={selectedLayer?.type ?? null} count={selectedIds(selection).length} onApply={applyPreset} />
+        <Library layerType={selectedLayer?.type ?? null} count={selectedIds(selection).length} onApply={applyPreset}
+          sounds={(() => {
+            const selClip = findClip(scene, selection.layerId, selection.clipId);
+            const counts = soundCounts(scene);
+            return (
+              <SoundLibrary
+                clipSelected={!!selClip}
+                current={selClip?.sound?.name}
+                suggestible={counts.suggestible}
+                withSound={counts.withSound}
+                onPreview={(src) => { audioEngine.preview(src); }}
+                onAdd={(id) => {
+                  const s = latest.current.scene;
+                  const sel = latest.current.selection;
+                  const c = findClip(s, sel.layerId, sel.clipId);
+                  if (c && sel.layerId) {
+                    commit(setClip(s, sel.layerId, c.id, { sound: cleanSound({ ...(c.sound ?? {}), name: id }) }));
+                    setNotice(`${sfxMeta(id)?.label} now plays with this clip.`);
+                    return;
+                  }
+                  const start = Math.max(0, Math.min(s.duration - 0.05, Math.round(latest.current.state.time * 100) / 100));
+                  const r = addAudio(s, { name: sfxMeta(id)?.label ?? id, src: sfxSrc(id), start, role: 'sfx' });
+                  commit(r.scene);
+                  setSelection({ layerId: null, clipId: null, audio: r.id });
+                }}
+                onSuggest={() => {
+                  const s = latest.current.scene;
+                  const n = soundCounts(s).suggestible;
+                  commit(addSuggestedSounds(s));
+                  setNotice(`Added sounds to ${n} clip${n === 1 ? '' : 's'}. Each one moves with its clip; change or remove it in the clip's Sound section.`);
+                }}
+                onClearAll={() => commit(clearClipSounds(latest.current.scene))}
+              />
+            );
+          })()}
+        />
 
         <section className="stagecol" aria-label="Stage">
           <div className="toolbar">
@@ -725,7 +762,7 @@ export function App() {
             onPlay={play}
             onPause={pause}
             onSeek={seek}
-            hasAudio={!!scene.audio?.length}
+            hasAudio={soundTrack(scene).length > 0}
             soundOn={soundOn}
             onSound={setSoundOn}
           />
@@ -774,7 +811,7 @@ export function App() {
               <AudioInspector scene={scene} clip={scene.audio!.find((a) => a.id === selection.audio)!} info={audioInfo[scene.audio!.find((a) => a.id === selection.audio)!.src]}
                 onCommit={commit} onDeselect={() => setSelection({ layerId: null, clipId: null })} />
             ) : tab === 'check' ? null : tab === 'inspect'
-              ? <Inspector time={state.time} onSeek={seek} scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
+              ? <Inspector onPreviewSound={(src, v) => { audioEngine.preview(src, v); }} time={state.time} onSeek={seek} scene={scene} selection={selection} bp={state.breakpoint} onCommit={commit} onSelect={setSelection} alignTo={alignTo} onAlignTo={setAlignTo} onAlign={align} onEnter={enterGroup} onGroup={groupSelection} onUngroup={ungroupSelection} />
               : <ScenePanel scene={scene} onCommit={commit} />}
           </div>
         </aside>

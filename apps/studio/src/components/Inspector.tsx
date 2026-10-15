@@ -17,6 +17,9 @@ import { ModelSection } from './ModelSection';
 import { TransitionSection } from './TransitionSection';
 import type { GroupLayer } from '@unysonplus/scene-player/types';
 import { AlignPanel, type AlignMode, type AlignTo } from './AlignPanel';
+import { SFX_CATALOG, SFX_CATEGORY_LABELS, sfxMeta, sfxSrc, suggestedSound, type SfxCategory } from '@unysonplus/scene-player/sfx';
+import { cleanSound } from '../lib/audio';
+import type { ClipSound } from '@unysonplus/scene-player/types';
 
 
 export interface Selection {
@@ -56,6 +59,8 @@ interface Props {
   /** The playhead, in scene time. */
   time: number;
   onSeek: (sceneTime: number) => void;
+  /** Plays a sound right away (to hear it before choosing it). */
+  onPreviewSound?: (src: string, volume?: number) => void;
 }
 
 const EASES = [
@@ -496,7 +501,7 @@ function ImageSource({ scene, layer, onCommit }: { scene: Scene; layer: Extract<
 
 /* ------------------------------------------------------------------ clip */
 
-function ClipInspector({ scene, layer, clipId, onCommit, onSelect, selection, time, onSeek }: Props & { layer: Layer; clipId: string }) {
+function ClipInspector({ scene, layer, clipId, onCommit, onSelect, selection, time, onSeek, onPreviewSound }: Props & { layer: Layer; clipId: string }) {
   // Clip times are in the layer's container's time (a group's own clock inside a group).
   const parents = groupPath(scene, layer.id);
   const containerStart = parents.length ? groupOffset(scene, parents[parents.length - 1].id) : 0;
@@ -565,10 +570,66 @@ function ClipInspector({ scene, layer, clipId, onCommit, onSelect, selection, ti
         </section>
       )}
 
+      <SoundSection
+        sound={clip.sound}
+        suggested={suggestedSound(clip, meta?.defaults)}
+        onChange={(s) => set({ sound: cleanSound(s) })}
+        onPreview={onPreviewSound}
+      />
+
       <div className="insp-actions">
         <button type="button" className="btn small danger" onClick={() => { onCommit(removeClip(scene, layer.id, clip.id)); onSelect({ layerId: layer.id, clipId: null }); }}>Delete clip</button>
       </div>
     </div>
+  );
+}
+
+/** A built-in sound that plays with the clip (and moves with it). */
+function SoundSection({ sound, suggested, onChange, onPreview }: {
+  sound: ClipSound | undefined;
+  suggested: string | null;
+  onChange: (s: ClipSound | undefined) => void;
+  onPreview?: (src: string, volume?: number) => void;
+}) {
+  const hear = (s: ClipSound | undefined) => s && onPreview?.(sfxSrc(s.name, s.pitch ?? 1), s.volume ?? 1);
+  const cats = Object.keys(SFX_CATEGORY_LABELS) as SfxCategory[];
+  return (
+    <Section title="Sound">
+      <Field label="Sound" wide>
+        {(id) => (
+          <div className="snd-pick">
+            <select id={id} value={sound?.name ?? ''} onChange={(e) => {
+              const next = e.target.value ? { ...(sound ?? {}), name: e.target.value } : undefined;
+              onChange(next);
+              hear(next);
+            }}>
+              <option value="">None</option>
+              {suggested && <option value={suggested}>{sfxMeta(suggested)?.label} (suggested)</option>}
+              {cats.map((c) => (
+                <optgroup key={c} label={SFX_CATEGORY_LABELS[c]}>
+                  {SFX_CATALOG.filter((s) => s.category === c).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <button type="button" className="icon-btn" disabled={!sound} onClick={() => hear(sound)} aria-label="Play the sound" title="Play the sound">
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor" /></svg>
+            </button>
+          </div>
+        )}
+      </Field>
+      {sound ? (
+        <>
+          <SelectField label="Plays at" value={sound.at ?? 'start'} onChange={(v) => onChange({ ...sound, at: v as ClipSound['at'] })}
+            options={[{ value: 'start', label: 'Clip start' }, { value: 'end', label: 'Clip end (landing)' }]} />
+          <NumberField label="Offset" value={sound.delay ?? 0} step={0.02} min={-5} max={5} unit="s" onCommit={(v) => onChange({ ...sound, delay: v ?? 0 })} />
+          <NumberField label="Volume" value={Math.round((sound.volume ?? 1) * 100)} step={5} min={0} max={200} unit="%" onCommit={(v) => onChange({ ...sound, volume: v === undefined ? 1 : v / 100 })} />
+          <NumberField label="Pitch" value={Math.round((sound.pitch ?? 1) * 100)} step={5} min={50} max={200} unit="%" onCommit={(v) => { const n = { ...sound, pitch: v === undefined ? 1 : v / 100 }; onChange(n); hear(n); }} />
+          <p className="field-hint wide">{sfxMeta(sound.name)?.description} The sound moves with the clip. Higher pitch is also shorter.</p>
+        </>
+      ) : (
+        <p className="field-hint wide">{suggested ? `Suits this preset: ${sfxMeta(suggested)?.label}. ` : ''}Built-in sounds cost nothing to load. On websites, sound starts muted until the visitor taps the sound button.</p>
+      )}
+    </Section>
   );
 }
 

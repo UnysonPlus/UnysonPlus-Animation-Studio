@@ -673,3 +673,24 @@ h1, h2, p { margin: 0; }
 .clip.clip-audio .clip-label { position: relative; text-shadow: 0 1px 2px oklch(0 0 0 / .6); }
 .sound-btn { color: var(--faint); }
 .sound-btn.on { color: var(--accent); }
+
+/* ---------- sounds ---------- */
+.lib-tabs { display: flex; gap: 2px; padding: 10px 12px 0; border-bottom: 1px solid var(--border-soft); }
+.lib-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--faint); font: inherit; font-size: 13px; font-weight: 650; padding: 6px 10px 8px; cursor: pointer; }
+.lib-tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
+.lib-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.snd-bulk { display: flex; flex-wrap: wrap; gap: 6px; }
+.lib-group .snd-list { grid-template-columns: none; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.snd { display: flex; align-items: stretch; gap: 4px; }
+.snd-play { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; background: var(--surface-2, transparent); border: 1px solid var(--border-soft); border-radius: 7px; color: var(--ink); font: inherit; font-size: 12.5px; padding: 6px 8px; cursor: pointer; text-align: left; }
+.snd-play:hover { border-color: var(--accent); }
+.snd-play svg { color: var(--accent); flex: none; }
+.snd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snd-len { color: var(--faint); font-size: 11px; }
+.snd-add { flex: none; min-width: 44px; background: none; border: 1px solid var(--border-soft); border-radius: 7px; color: var(--muted, var(--ink)); font: inherit; font-size: 12px; cursor: pointer; }
+.snd-add:hover { border-color: var(--accent); color: var(--ink); }
+.snd.on .snd-add { color: var(--accent); border-color: var(--accent); }
+.snd-pick { display: flex; gap: 6px; align-items: center; }
+.snd-pick select { flex: 1; min-width: 0; }
+.clip .clip-snd { position: absolute; left: 3px; bottom: 2px; color: oklch(0.95 0.02 170 / .85); line-height: 0; pointer-events: none; }
+.clip .clip-snd.at-end { left: auto; right: 3px; }

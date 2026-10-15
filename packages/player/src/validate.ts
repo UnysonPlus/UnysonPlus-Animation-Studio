@@ -1,6 +1,7 @@
 import { SCENE_FORMAT, SCENE_VERSION } from './types';
 import type { Anchor, Breakpoint, Clip, HeightMode, Layer, Scene } from './types';
 import { PRESET_IDS } from './presets/catalog';
+import { SFX_IDS, parseSfxSrc } from './sfx';
 
 /**
  * Checks a parsed scene file and fills in defaults. Errors stop the scene from playing; warnings are
@@ -122,7 +123,7 @@ export function validateScene(input: unknown): ValidationResult {
         if (typeof a.id !== 'string' || !ID_RE.test(a.id)) fail(`${ap}.id`, 'must be a short id');
         else if (seen.has(a.id)) fail(`${ap}.id`, `"${a.id}" is used twice`);
         else seen.add(a.id);
-        if (typeof a.src !== 'string' || !/^(data:audio\/|https?:\/\/)/.test(a.src)) fail(`${ap}.src`, 'must be an audio data: URL or an http(s) address');
+        if (typeof a.src !== 'string' || !(/^(data:audio\/|https?:\/\/)/.test(a.src) || parseSfxSrc(a.src))) fail(`${ap}.src`, `must be an audio data: URL, an http(s) address or a built-in sound "sfx:<name>" (${SFX_IDS.join(', ')})`);
         if (!isNum(a.start) || a.start < 0) fail(`${ap}.start`, 'must be 0 or more seconds');
         for (const k of ['offset', 'duration', 'fadeIn', 'fadeOut'] as const) if (a[k] !== undefined && (!isNum(a[k]) || (a[k] as number) < 0)) fail(`${ap}.${k}`, 'must be 0 or more seconds');
         if (a.volume !== undefined && (!isNum(a.volume) || a.volume < 0 || a.volume > 2)) fail(`${ap}.volume`, 'must be 0 to 2');
@@ -225,6 +226,18 @@ export function validateScene(input: unknown): ValidationResult {
         }
         if (clip.ease !== undefined && (typeof clip.ease !== 'string' || !EASE_RE.test(clip.ease))) fail(`${cp}.ease`, 'is not a valid easing name');
         if (clip.params !== undefined && !isObj(clip.params)) fail(`${cp}.params`, 'must be an object');
+        if (clip.sound !== undefined) {
+          const sd = clip.sound as unknown;
+          const sp = `${cp}.sound`;
+          if (!isObj(sd)) fail(sp, 'must be an object');
+          else {
+            if (typeof sd.name !== 'string' || !SFX_IDS.includes(sd.name)) fail(`${sp}.name`, `must be a built-in sound (${SFX_IDS.join(', ')})`);
+            if (sd.at !== undefined && sd.at !== 'start' && sd.at !== 'end') fail(`${sp}.at`, 'must be start or end');
+            if (sd.delay !== undefined && (!isNum(sd.delay) || Math.abs(sd.delay) > 5)) fail(`${sp}.delay`, 'must be -5 to 5 seconds');
+            if (sd.volume !== undefined && (!isNum(sd.volume) || sd.volume < 0 || sd.volume > 2)) fail(`${sp}.volume`, 'must be 0 to 2');
+            if (sd.pitch !== undefined && (!isNum(sd.pitch) || sd.pitch < 0.5 || sd.pitch > 2)) fail(`${sp}.pitch`, 'must be 0.5 to 2');
+          }
+        }
         if (clip.preset === 'keyframes' && isObj(clip.params) && clip.params.frames !== undefined) {
           const frames = clip.params.frames;
           if (!Array.isArray(frames) || frames.length > 200) fail(`${cp}.params.frames`, 'must be a list of at most 200 keyframes');

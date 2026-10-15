@@ -1,4 +1,5 @@
 import type { AudioClip } from './types';
+import { parseSfxSrc, synthSfx } from './sfx';
 
 /**
  * A scene's sound: voice-overs, music and effects, scheduled with the Web Audio API against the
@@ -81,6 +82,22 @@ export class SceneAudio {
     this.live = [];
   }
 
+  /** Plays one source right away, outside the timeline (previewing a sound in the Studio). */
+  async preview(src: string, volume = 1) {
+    const was = this.enabled;
+    await this.enable();
+    if (!was) this.enabled = was;
+    const buf = await this.load(src);
+    if (!buf || !this.ctx) return;
+    const node = this.ctx.createBufferSource();
+    node.buffer = buf;
+    const gain = this.ctx.createGain();
+    gain.gain.value = Math.max(0, Math.min(2, volume));
+    node.connect(gain).connect(this.master!);
+    node.start();
+    node.onended = () => { node.disconnect(); gain.disconnect(); };
+  }
+
   /** Decoded length of a source file, in seconds (null if it can't be read). */
   async durationOf(src: string): Promise<number | null> {
     const b = await this.load(src);
@@ -116,6 +133,16 @@ export class SceneAudio {
     if (hit) return hit;
     const ctx = this.context();
     if (!ctx) return Promise.resolve(null);
+    const sfx = parseSfxSrc(src);
+    if (sfx) {
+      // Built-in sounds are synthesised, not downloaded.
+      const pcm = synthSfx(sfx.id, ctx.sampleRate, sfx.pitch);
+      const buf = ctx.createBuffer(1, Math.max(1, pcm.length), ctx.sampleRate);
+      buf.getChannelData(0).set(pcm);
+      const done = Promise.resolve(buf);
+      this.buffers.set(src, done);
+      return done;
+    }
     const p = fetch(src)
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
       .then((data) => ctx.decodeAudioData(data))

@@ -10,6 +10,7 @@ import { NAMED_EASES, resolveEase } from './eases';
 import { linkToScroll, type ScrollLink } from './scroll';
 import { load3d } from './model3d';
 import { SceneAudio } from './audio';
+import { soundTrack } from './sfx';
 import { defaultEaseFor } from './presets/catalog';
 
 // The measured eases, usable by name in any clip (and in custom code clips).
@@ -130,7 +131,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   const reduced = !options.editor && prefersReducedMotion(win);
 
   // ---- sound ----
-  const hasAudio = () => options.audio !== false && !!scene.audio?.length && scene.playback.trigger !== 'scroll';
+  const hasAudio = () => options.audio !== false && soundTrack(scene).length > 0 && scene.playback.trigger !== 'scroll';
   let sound: SceneAudio | null = null;
   let soundBtn: HTMLButtonElement | null = null;
   /** Keeps the sound in step with the timeline: playing from its time, or stopped. */
@@ -148,7 +149,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       return;
     }
     if (!sound) sound = new SceneAudio(win);
-    sound.setClips(scene.audio);
+    sound.setClips(soundTrack(scene));
     if (!soundBtn) {
       soundBtn = doc.createElement('button');
       soundBtn.type = 'button';

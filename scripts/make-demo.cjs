@@ -176,8 +176,36 @@ const scene = {
   playback: { trigger: 'view', loop: true, repeatDelay: 0.4, posterTime: 4 },
   layers: [backdrop, act1, act2, act3, act4, act5, act6],
 };
+// Built-in sounds on the moments that matter (not every clip): each moves with its clip.
+const SOUNDS = {
+  'slit-in': { name: 'swish' },
+  'k-in': { name: 'glitch', volume: 0.7 },
+  'l2-in': { name: 'impact', at: 'end', delay: -0.15 },
+  'l2-out': { name: 'whoosh-out' },
+  'k2-in': { name: 'whoosh' },
+  'act2-out': { name: 'swish' },
+  'ring-in': { name: 'spin', volume: 0.8 },
+  'n3-count': { name: 'typing', volume: 0.6 },
+  'n3-pulse': { name: 'soft-pop' },
+  'act3-out': { name: 'whoosh-out' },
+  'kn-in': { name: 'impact', at: 'end', delay: -0.2 },
+  't4a-in': { name: 'thud', at: 'end', delay: -0.1 },
+  'act4-out': { name: 'swish' },
+  'p5-type': { name: 'typing', volume: 0.7 },
+  'b5-shake': { name: 'thud' },
+  'b5-sheen': { name: 'sparkle', volume: 0.8 },
+  'act5-out': { name: 'whoosh-out' },
+  'b3d-push': { name: 'riser' },
+  't6-in': { name: 'chime', delay: 0.3 },
+  'u6-wave': { name: 'shimmer', volume: 0.7 },
+};
 const used = new Set();
-const walk = (ls) => ls.forEach((l) => { l.clips.forEach((c) => used.add(c.preset)); if (l.layers) walk(l.layers); });
+let sounds = 0;
+const walk = (ls) => ls.forEach((l) => {
+  l.clips.forEach((c) => { used.add(c.preset); if (SOUNDS[c.id]) { c.sound = SOUNDS[c.id]; sounds++; } });
+  if (l.layers) walk(l.layers);
+});
 walk(scene.layers);
+if (sounds !== Object.keys(SOUNDS).length) throw new Error(`sounds: ${sounds} of ${Object.keys(SOUNDS).length} clips found`);
 fs.writeFileSync(out, JSON.stringify(scene, null, 2) + '\n');
-console.log('written ·', used.size, 'presets used');
+console.log('written ·', used.size, 'presets used ·', sounds, 'sounds');
