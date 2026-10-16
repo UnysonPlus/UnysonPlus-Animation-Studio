@@ -65,7 +65,7 @@ export function Library(props: {
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = PRESET_CATALOG.filter((p) => !q || p.label.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
-    const order: PresetCategory[] = ['text', 'reveal', 'motion', 'emphasis', 'ambient', '3d'];
+    const order: PresetCategory[] = ['text', 'reveal', 'motion', 'emphasis', 'transition', 'ambient', '3d'];
     return order.map((c) => ({ c, items: list.filter((p) => p.category === c) })).filter((g) => g.items.length);
   }, [query]);
 

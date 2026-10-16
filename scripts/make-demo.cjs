@@ -144,7 +144,7 @@ const act5 = G('act5', 'Act 5 · Ask', 25.5, 6, [
   T('p5', 'Prompt', 'A calm hero for a yoga studio', { x: 50, y: 57 }, [2.2, 3.0, 4.6], { fontWeight: 500, color: INK },
     { mobile: { y: 55 }, clips: [C('p5-type', 'text-typewriter', 1.4, 1.2), C('p5-float', 'float', 3.3, 2.0, { height: 4, cycles: 1 })] }),
   T('s5', 'Line', 'Your own AI, through the free AI Dev Kit.', { x: 50, y: 76, w: 56 }, [1.9, 2.6, 4.4], { fontWeight: 500, lineHeight: 1.3, color: MUTED },
-    { tablet: { w: 74 }, mobile: { y: 76, w: 86 }, clips: [C('s5-in', 'fade', 1.85, 0.7, { y: 25 })] }),
+    { tablet: { w: 74 }, mobile: { y: 76, w: 86 }, clips: [C('s5-in', 'wipe', 1.85, 0.7, { from: 'left' })] }),
 ], [C('act5-out', 'turn', 5.35, 0.65, { direction: 'out', axis: 'x', angle: 80 })]);
 
 // ---------------------------------------------------------------- act 6 (31.5-38 s): the brand
@@ -159,6 +159,34 @@ const act6 = G('act6', 'Act 6 · Unyson+', 31.5, 6.5, [
   T('url6', 'Address', 'unysonplus.com', { x: 50, y: 80 }, [1.4, 2.0, 3.6], { fontWeight: 600, letterSpacing: 0.2, color: GREEN },
     { mobile: { y: 80 }, clips: [C('u6-in', 'fade', 2.0, 0.6, { y: 30 }), C('u6-wave', 'text-wave', 3.2, 1.0, { height: 25 })] }),
 ], [C('act6-out', 'fade', 5.8, 0.7, { direction: 'out', y: 0 })]);
+
+// Scene transitions between acts (the Studio's "Transition to the next group", done here by hand): an
+// "out" on the leaving act and an "in" on the next, same start and length. The leaving act's layers lose
+// their own exits in the last second (the transition carries them away); the next act starts as the
+// transition begins and runs that much longer, so every act still ends where it did.
+const isOutClip = (c) => c.params && c.params.direction === 'out';
+function transition(A, B, preset, d, params = {}, sounds = {}) {
+  const T = Math.round((A.start + A.duration - d) * 100) / 100;
+  A.clips = A.clips.filter((c) => !isOutClip(c));
+  A.clips.push({ id: `${A.id}-out`, preset, start: T, duration: d, params: { ...params, direction: 'out' }, ...(sounds.out ? { sound: { name: sounds.out } } : {}) });
+  const strip = (list, offset) => list.forEach((l) => {
+    l.clips = l.clips.filter((c) => !(isOutClip(c) && offset + c.start >= T - 1));
+    if (l.layers) strip(l.layers, offset + (l.start || 0));
+  });
+  strip(A.layers, A.start);
+  const shift = T - B.start;
+  B.clips = B.clips.filter((c) => !(!isOutClip(c) && c.start <= B.start + 0.05)).map((c) => ({ ...c, start: Math.round((c.start + shift) * 100) / 100 }));
+  B.clips.unshift({ id: `${B.id}-in`, preset, start: T, duration: d, params: { ...params, direction: 'in' }, ...(sounds.in ? { sound: { name: sounds.in } } : {}) });
+  B.start = T;
+  B.duration = Math.round((B.duration - shift) * 100) / 100;
+}
+transition(act1, act2, 'tr-slash', 0.6, { angle: 25, color: GREEN, glow: true }, { in: 'swish' });
+transition(act2, act3, 'tr-zoom', 0.6, { scale: 4, blur: 0.8 }, { in: 'whoosh' });
+transition(act3, act4, 'tr-glitch', 0.45, { intensity: 70 }, { in: 'glitch' });
+transition(act4, act5, 'tr-whip', 0.45, { from: 'right', distance: 100, blur: 1.2 }, { out: 'whoosh-out', in: 'whoosh' });
+transition(act5, act6, 'tr-flash', 0.5, { color: '#ffffff', strength: 90 }, { in: 'impact' });
+// The end dips to black before the loop starts again.
+act6.clips = act6.clips.map((c) => (c.id === 'act6-out' ? { ...c, preset: 'tr-dip', start: 37.3, duration: 0.7, params: { direction: 'out', color: '#000000' } } : c));
 
 const scene = {
   format: 'unysonplus-scene', version: 1, title: 'Make it move', duration: 38,
@@ -192,20 +220,15 @@ const SOUNDS = {
   'slit-in': { name: 'swish' },
   'k-in': { name: 'glitch', volume: 0.7 },
   'l2-in': { name: 'impact', at: 'end', delay: -0.15 },
-  'l2-out': { name: 'whoosh-out' },
   'k2-in': { name: 'whoosh' },
-  'act2-out': { name: 'swish' },
   'ring-in': { name: 'spin', volume: 0.8 },
   'n3-count': { name: 'typing', volume: 0.6 },
   'n3-pulse': { name: 'soft-pop' },
-  'act3-out': { name: 'whoosh-out' },
   'kn-in': { name: 'sub-hit', at: 'end', delay: -0.2 },
   't4a-in': { name: 'thud', at: 'end', delay: -0.1 },
-  'act4-out': { name: 'swish' },
   'p5-type': { name: 'typing', volume: 0.7 },
   'b5-shake': { name: 'thud' },
   'b5-sheen': { name: 'sparkle', delay: 0.3, volume: 0.6 },
-  'act5-out': { name: 'whoosh-out' },
   'b3d-push': { name: 'riser' },
   't6-in': { name: 'chime', delay: 0.3 },
   'u6-wave': { name: 'shimmer', volume: 0.7 },

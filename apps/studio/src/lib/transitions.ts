@@ -1,6 +1,7 @@
 import type { Clip, GroupLayer, Layer, Scene } from '@unysonplus/scene-player/types';
 import { groupDuration } from '@unysonplus/scene-player/groups';
 import { presetMeta } from '@unysonplus/scene-player/catalog';
+import { suggestedSound } from '@unysonplus/scene-player/sfx';
 import { containerOf, layersIn, mapLayer } from './sceneOps';
 
 /**
@@ -9,13 +10,18 @@ import { containerOf, layersIn, mapLayer } from './sceneOps';
  * clock, as does its start, so everything here is in that time.
  */
 
-export type TransitionStyle = 'crossfade' | 'push' | 'zoom' | 'wipe' | 'blinds' | 'iris' | 'turn';
+export type TransitionStyle = 'crossfade' | 'push' | 'zoom' | 'wipe' | 'blinds' | 'iris' | 'turn' | 'slash' | 'flash' | 'dip' | 'whip' | 'glitch';
 export type PushTo = 'left' | 'right' | 'up' | 'down';
 
 export const TRANSITIONS: Array<{ id: TransitionStyle; label: string; hint: string }> = [
+  { id: 'slash', label: 'Slash', hint: 'A glowing diagonal line sweeps across the stage, cutting from this group to the next.' },
+  { id: 'flash', label: 'Flash', hint: 'A burst of light: the cut happens at its brightest moment.' },
+  { id: 'whip', label: 'Whip pan', hint: 'A fast slide with blur, as if the camera swung to the next group.' },
+  { id: 'glitch', label: 'Glitch', hint: 'Slices jump and colours split for a few frames, then the cut.' },
+  { id: 'dip', label: 'Dip to colour', hint: 'The screen fills with a colour, holds a beat and opens on the next group.' },
   { id: 'crossfade', label: 'Crossfade', hint: 'One fades out as the next fades in, with a slight scale.' },
   { id: 'push', label: 'Push', hint: 'Both move together: the next pushes this one off the stage.' },
-  { id: 'zoom', label: 'Zoom through', hint: 'This one rushes past the camera as the next arrives from small.' },
+  { id: 'zoom', label: 'Zoom through', hint: 'This one rushes past the camera with a blur as the next approaches from the distance.' },
   { id: 'wipe', label: 'Soft wipe', hint: 'A feathered seam sweeps across, swapping one for the other.' },
   { id: 'blinds', label: 'Blinds', hint: 'This one leaves in strips as the next arrives in strips.' },
   { id: 'iris', label: 'Iris', hint: 'The next opens in a circle over this one.' },
@@ -37,6 +43,12 @@ export function nextGroup(scene: Scene, groupId: string): GroupLayer | null {
 
 /** When a group's own clock ends, in its container's time. */
 export const groupEndTime = (g: GroupLayer) => (g.start ?? 0) + groupDuration(g);
+
+/** How long before the transition starts the leaving group's layers' own exits are taken out. */
+const EXIT_WINDOW = 1;
+
+/** Transitions made as one matched pair of presets (same start and length on both groups). */
+const PAIRED: Partial<Record<TransitionStyle, string>> = { slash: 'tr-slash', flash: 'tr-flash', dip: 'tr-dip', whip: 'tr-whip', glitch: 'tr-glitch', zoom: 'tr-zoom' };
 
 const isDir = (c: Clip, dir: 'in' | 'out') => {
   const meta = presetMeta[c.preset];
@@ -65,7 +77,17 @@ export function applyTransition(scene: Scene, aId: string, bId: string, style: T
   const toward: Record<PushTo, string> = { left: 'left', right: 'right', up: 'top', down: 'bottom' };
   let exit: Clip;
   let entry: Clip;
-  switch (style) {
+  const paired = PAIRED[style];
+  if (paired) {
+    const defaults = { ...(presetMeta[paired]?.defaults ?? {}) };
+    delete defaults.direction;
+    const side = style === 'whip' ? { from: opposite[pushTo] } : {};
+    exit = out(paired, T, d, { ...defaults, ...side });
+    entry = inn(paired, T, d, { ...defaults, ...side });
+    // The cut's sound, once, on the arriving group.
+    const sound = suggestedSound({ preset: paired, params: { direction: 'in' } });
+    if (sound) entry.sound = { name: sound };
+  } else switch (style) {
     case 'push':
       exit = out('slide', T, d, { from: toward[pushTo], distance: 140 }, 'power3.inOut');
       entry = inn('slide', T, d, { from: opposite[pushTo], distance: 140 }, 'power3.inOut');
@@ -97,10 +119,17 @@ export function applyTransition(scene: Scene, aId: string, bId: string, style: T
 
   // B's start moves to where the transition begins; its own clips (container time) move with it.
   const shift = T - (b.start ?? 0);
+  // The transition is how A leaves now: its layers' own exits in the last moments before it go too
+  // (otherwise the transition would carry away an already empty group).
+  const stripExits = (list: Layer[], offset: number): Layer[] => list.map((l) => {
+    const clips = l.clips.filter((c) => !(isDir(c, 'out') && offset + c.start >= T - EXIT_WINDOW));
+    return l.type === 'group' ? { ...l, clips, layers: stripExits(l.layers, offset + (l.start ?? 0)) } : { ...l, clips };
+  });
   let next = mapLayer(scene, a.id, (l: Layer) => ({
     ...l,
     clips: [...l.clips.filter((c) => !c.id.startsWith('tr-out-') && !isDir(c, 'out')), exit],
-  }));
+    ...(l.type === 'group' ? { layers: stripExits(l.layers, l.start ?? 0) } : {}),
+  }) as Layer);
   next = mapLayer(next, b.id, (l: Layer) => {
     const kept = l.clips
       .filter((c) => !c.id.startsWith('tr-in-') && !(isDir(c, 'in') && c.start <= (b.start ?? 0) + 0.05))

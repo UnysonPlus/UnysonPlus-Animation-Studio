@@ -5,6 +5,7 @@ import { PRESET_CATALOG, type PresetMeta } from './catalog';
 import { resolveEase } from '../eases';
 import type { State3D } from '../model3d';
 import { MORE_BUILDERS } from './more';
+import { TRANSITION_BUILDERS } from './transitions';
 
 /**
  * Preset animation code. Each builder adds its tweens to the scene timeline at the clip's start.
@@ -362,7 +363,7 @@ const BUILDERS: Record<string, (ctx: PresetContext) => void> = {
   },
 };
 
-const ALL_BUILDERS: Record<string, (ctx: PresetContext) => void> = { ...BUILDERS, ...MORE_BUILDERS };
+const ALL_BUILDERS: Record<string, (ctx: PresetContext) => void> = { ...BUILDERS, ...MORE_BUILDERS, ...TRANSITION_BUILDERS };
 
 export const presets: Record<string, PresetDefinition> = Object.fromEntries(
   PRESET_CATALOG.map((meta) => {

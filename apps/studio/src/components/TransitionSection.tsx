@@ -7,8 +7,8 @@ import { TRANSITIONS, applyTransition, groupEndTime, nextGroup, type PushTo, typ
 export function TransitionSection(props: { scene: Scene; group: GroupLayer; onCommit: (scene: Scene) => void }) {
   const { scene, group } = props;
   const next = nextGroup(scene, group.id);
-  const [style, setStyle] = useState<TransitionStyle>('push');
-  const [duration, setDuration] = useState(0.8);
+  const [style, setStyle] = useState<TransitionStyle>('slash');
+  const [duration, setDuration] = useState(0.6);
   const [pushTo, setPushTo] = useState<PushTo>('left');
   const hint = TRANSITIONS.find((t) => t.id === style)?.hint;
 
@@ -22,8 +22,8 @@ export function TransitionSection(props: { scene: Scene; group: GroupLayer; onCo
           </p>
           <SelectField label="Style" value={style} options={TRANSITIONS.map((t) => ({ value: t.id, label: t.label }))} onChange={(v) => setStyle(v as TransitionStyle)} />
           <NumberField label="Length" value={duration} step={0.1} min={0.2} max={3} unit="s" onCommit={(v) => v && setDuration(v)} />
-          {style === 'push' && (
-            <SelectField label="Push toward" value={pushTo} onChange={(v) => setPushTo(v as PushTo)}
+          {(style === 'push' || style === 'whip') && (
+            <SelectField label={style === 'whip' ? 'Swing toward' : 'Push toward'} value={pushTo} onChange={(v) => setPushTo(v as PushTo)}
               options={[{ value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }, { value: 'up', label: 'Up' }, { value: 'down', label: 'Down' }]} />
           )}
           <p className="field-hint wide">{hint} It replaces this group's exit and the next group's entrance, as ordinary clips you can edit.</p>

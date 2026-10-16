@@ -7,7 +7,7 @@ import { EXIT_EASE } from '../eases';
  * loading GSAP. presets/index.ts supplies the build function for every id listed here.
  */
 
-export type PresetCategory = 'text' | 'reveal' | 'motion' | 'emphasis' | 'ambient' | '3d';
+export type PresetCategory = 'text' | 'reveal' | 'motion' | 'emphasis' | 'ambient' | '3d' | 'transition';
 
 export const CATEGORY_LABELS: Record<PresetCategory, string> = {
   text: 'Text',
@@ -16,6 +16,7 @@ export const CATEGORY_LABELS: Record<PresetCategory, string> = {
   emphasis: 'Emphasis',
   ambient: 'Ambient and backgrounds',
   '3d': '3D',
+  transition: 'Scene transitions',
 };
 
 export type PresetField =
@@ -231,6 +232,49 @@ export const PRESET_CATALOG: PresetMeta[] = [
     defaults: { from: 0 },
     fields: [{ key: 'from', label: 'Count from', type: 'number', step: 1 }],
   },
+  // ---- Scene transitions (for groups: an "out" on the scene leaving, an "in" on the next) ----
+  {
+    id: 'tr-slash', label: 'Slash', category: 'transition', appliesTo: ALL,
+    description: 'A glowing diagonal line sweeps across the stage; the scene appears (or disappears) behind it.',
+    defaultEase: 'softInOut', defaultDuration: 0.6,
+    defaults: { direction: 'in', angle: 25, color: '#e9ff3b', glow: true },
+    fields: [DIRECTION, { key: 'angle', label: 'Slant', type: 'number', min: -60, max: 60, step: 1, unit: '°' }, { key: 'color', label: 'Line colour', type: 'color' }, { key: 'glow', label: 'Glowing line', type: 'boolean' }],
+  },
+  {
+    id: 'tr-flash', label: 'Flash', category: 'transition', appliesTo: ALL,
+    description: 'A burst of light: the scene cuts at its brightest moment.',
+    defaultEase: 'none', defaultDuration: 0.5,
+    defaults: { direction: 'in', color: '#ffffff', strength: 100 },
+    fields: [DIRECTION, { key: 'color', label: 'Colour', type: 'color' }, { key: 'strength', label: 'Strength', type: 'number', min: 10, max: 100, step: 5, unit: '%' }],
+  },
+  {
+    id: 'tr-dip', label: 'Dip to colour', category: 'transition', appliesTo: ALL,
+    description: 'The screen fills with a colour, holds a beat, and opens on the next scene.',
+    defaultEase: 'none', defaultDuration: 0.8,
+    defaults: { direction: 'in', color: '#000000' },
+    fields: [DIRECTION, { key: 'color', label: 'Colour', type: 'color' }],
+  },
+  {
+    id: 'tr-whip', label: 'Whip pan', category: 'transition', appliesTo: ALL,
+    description: 'A fast slide with blur, as if the camera swung to the next scene.',
+    defaultEase: 'softInOut', defaultDuration: 0.45,
+    defaults: { direction: 'in', from: 'right', distance: 100, blur: 1.2 },
+    fields: [DIRECTION, SIDE, { key: 'distance', label: 'Distance', type: 'number', min: 10, max: 150, step: 5, unit: '%' }, { key: 'blur', label: 'Blur', type: 'number', min: 0, max: 4, step: 0.1 }],
+  },
+  {
+    id: 'tr-zoom', label: 'Zoom through', category: 'transition', appliesTo: ALL,
+    description: 'The scene rushes past the camera, or approaches from the distance.',
+    defaultEase: 'softInOut', defaultDuration: 0.6,
+    defaults: { direction: 'in', scale: 4, blur: 0.8 },
+    fields: [DIRECTION, { key: 'scale', label: 'Zoom', type: 'number', min: 1.2, max: 10, step: 0.1, unit: '×' }, { key: 'blur', label: 'Blur', type: 'number', min: 0, max: 4, step: 0.1 }],
+  },
+  {
+    id: 'tr-glitch', label: 'Glitch', category: 'transition', appliesTo: ALL,
+    description: 'Slices jump and colours split for a few frames, then the cut, like a broken signal.',
+    defaultEase: 'none', defaultDuration: 0.45,
+    defaults: { direction: 'in', intensity: 60 },
+    fields: [DIRECTION, { key: 'intensity', label: 'Intensity', type: 'number', min: 10, max: 100, step: 5, unit: '%' }],
+  },
   {
     id: 'soft-wipe', label: 'Soft wipe', category: 'reveal', appliesTo: ALL,
     description: 'A wipe with a feathered edge: the layer fades in (or out) along a moving soft line.',
@@ -326,6 +370,8 @@ export const PRESET_IDS = PRESET_CATALOG.map((p) => p.id);
  * out of frame: an exit is new motion, not the entrance played backwards.
  */
 export function defaultEaseFor(meta: PresetMeta, params?: Record<string, unknown>): string {
+  // A transition's two halves share one curve, so an "out" and an "in" placed together stay in step.
+  if (meta.category === 'transition') return meta.defaultEase;
   const dir = params && 'direction' in params ? params.direction : meta.defaults.direction;
   return dir === 'out' && meta.fields.some((f) => f.key === 'direction') ? EXIT_EASE : meta.defaultEase;
 }

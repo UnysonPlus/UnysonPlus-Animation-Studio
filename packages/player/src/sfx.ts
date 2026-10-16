@@ -247,6 +247,12 @@ const SUGGESTED: Record<string, { in: string; out?: string }> = {
   'spin-3d': { in: 'spin' },
   'tumble-in': { in: 'impact' },
   'camera-push': { in: 'riser' },
+  'tr-slash': { in: 'swish', out: 'swish' },
+  'tr-flash': { in: 'impact', out: 'impact' },
+  'tr-dip': { in: 'swell', out: 'swell' },
+  'tr-whip': { in: 'whoosh', out: 'whoosh-out' },
+  'tr-zoom': { in: 'whoosh', out: 'riser' },
+  'tr-glitch': { in: 'glitch', out: 'glitch' },
 };
 
 /** The suggested sound for a clip (null for presets that run quietly, such as ambient loops). */

@@ -196,7 +196,20 @@
       "type": "group",
       "start": 0,
       "duration": 6.5,
-      "clips": [],
+      "clips": [
+        {
+          "id": "act1-out",
+          "preset": "tr-slash",
+          "start": 5.9,
+          "duration": 0.6,
+          "params": {
+            "angle": 25,
+            "color": "#2ad38b",
+            "glow": true,
+            "direction": "out"
+          }
+        }
+      ],
       "layers": [
         {
           "id": "slit",
@@ -287,16 +300,6 @@
                 "name": "glitch",
                 "volume": 0.7
               }
-            },
-            {
-              "id": "k-out",
-              "preset": "fade",
-              "start": 5.85,
-              "duration": 0.5,
-              "params": {
-                "direction": "out",
-                "y": -60
-              }
             }
           ]
         },
@@ -340,16 +343,6 @@
               "preset": "text-stretch",
               "start": 1,
               "duration": 0.9
-            },
-            {
-              "id": "l1-out",
-              "preset": "text-rise",
-              "start": 5.7,
-              "duration": 0.6,
-              "params": {
-                "direction": "out",
-                "stagger": 0.03
-              }
             }
           ]
         },
@@ -399,19 +392,6 @@
                 "at": "end",
                 "delay": -0.15
               }
-            },
-            {
-              "id": "l2-out",
-              "preset": "wipe",
-              "start": 5.65,
-              "duration": 0.7,
-              "params": {
-                "direction": "out",
-                "from": "left"
-              },
-              "sound": {
-                "name": "whoosh-out"
-              }
             }
           ]
         },
@@ -448,16 +428,6 @@
               "preset": "grow",
               "start": 2.1,
               "duration": 0.9
-            },
-            {
-              "id": "r-out",
-              "preset": "grow",
-              "start": 5.6,
-              "duration": 0.5,
-              "params": {
-                "direction": "out",
-                "origin": "end"
-              }
             }
           ]
         },
@@ -497,15 +467,6 @@
               "duration": 0.5,
               "sound": {
                 "name": "pop"
-              }
-            },
-            {
-              "id": "d-out",
-              "preset": "pop",
-              "start": 5.55,
-              "duration": 0.35,
-              "params": {
-                "direction": "out"
               }
             }
           ]
@@ -557,16 +518,6 @@
                 "by": "words",
                 "stagger": 0.05
               }
-            },
-            {
-              "id": "s-out",
-              "preset": "fade",
-              "start": 5.85,
-              "duration": 0.5,
-              "params": {
-                "direction": "out",
-                "y": 30
-              }
             }
           ]
         }
@@ -576,22 +527,33 @@
       "id": "act2",
       "name": "Act 2 · Build",
       "type": "group",
-      "start": 6.5,
-      "duration": 6.5,
+      "start": 5.9,
+      "duration": 7.1,
       "clips": [
         {
-          "id": "act2-out",
-          "preset": "blinds",
-          "start": 12.35,
-          "duration": 0.65,
+          "id": "act2-in",
+          "preset": "tr-slash",
+          "start": 5.9,
+          "duration": 0.6,
           "params": {
-            "direction": "out",
-            "from": "top",
-            "count": 8,
-            "stagger": 0.6
+            "angle": 25,
+            "color": "#2ad38b",
+            "glow": true,
+            "direction": "in"
           },
           "sound": {
             "name": "swish"
+          }
+        },
+        {
+          "id": "act2-out",
+          "preset": "tr-zoom",
+          "start": 12.4,
+          "duration": 0.6,
+          "params": {
+            "scale": 4,
+            "blur": 0.8,
+            "direction": "out"
           }
         }
       ],
@@ -1278,20 +1240,31 @@
       "id": "act3",
       "name": "Act 3 · Animate",
       "type": "group",
-      "start": 13,
-      "duration": 6.5,
+      "start": 12.4,
+      "duration": 7.1,
       "clips": [
         {
-          "id": "act3-out",
-          "preset": "zoom",
-          "start": 18.9,
+          "id": "act3-in",
+          "preset": "tr-zoom",
+          "start": 12.4,
           "duration": 0.6,
           "params": {
-            "direction": "out",
-            "scale": 1.5
+            "scale": 4,
+            "blur": 0.8,
+            "direction": "in"
           },
           "sound": {
-            "name": "whoosh-out"
+            "name": "whoosh"
+          }
+        },
+        {
+          "id": "act3-out",
+          "preset": "tr-glitch",
+          "start": 19.05,
+          "duration": 0.45,
+          "params": {
+            "intensity": 70,
+            "direction": "out"
           }
         }
       ],
@@ -2288,21 +2261,35 @@
       "id": "act4",
       "name": "Act 4 · 3D",
       "type": "group",
-      "start": 19.5,
-      "duration": 6,
+      "start": 19.05,
+      "duration": 6.45,
       "clips": [
         {
-          "id": "act4-out",
-          "preset": "soft-wipe",
-          "start": 24.8,
-          "duration": 0.7,
+          "id": "act4-in",
+          "preset": "tr-glitch",
+          "start": 19.05,
+          "duration": 0.45,
           "params": {
-            "direction": "out",
-            "from": "left",
-            "feather": 35
+            "intensity": 70,
+            "direction": "in"
           },
           "sound": {
-            "name": "swish"
+            "name": "glitch"
+          }
+        },
+        {
+          "id": "act4-out",
+          "preset": "tr-whip",
+          "start": 25.05,
+          "duration": 0.45,
+          "params": {
+            "from": "right",
+            "distance": 100,
+            "blur": 1.2,
+            "direction": "out"
+          },
+          "sound": {
+            "name": "whoosh-out"
           }
         }
       ],
@@ -2529,21 +2516,33 @@
       "id": "act5",
       "name": "Act 5 · Ask",
       "type": "group",
-      "start": 25.5,
-      "duration": 6,
+      "start": 25.05,
+      "duration": 6.45,
       "clips": [
         {
-          "id": "act5-out",
-          "preset": "turn",
-          "start": 30.85,
-          "duration": 0.65,
+          "id": "act5-in",
+          "preset": "tr-whip",
+          "start": 25.05,
+          "duration": 0.45,
           "params": {
-            "direction": "out",
-            "axis": "x",
-            "angle": 80
+            "from": "right",
+            "distance": 100,
+            "blur": 1.2,
+            "direction": "in"
           },
           "sound": {
-            "name": "whoosh-out"
+            "name": "whoosh"
+          }
+        },
+        {
+          "id": "act5-out",
+          "preset": "tr-flash",
+          "start": 31,
+          "duration": 0.5,
+          "params": {
+            "color": "#ffffff",
+            "strength": 90,
+            "direction": "out"
           }
         }
       ],
@@ -2831,11 +2830,11 @@
           "clips": [
             {
               "id": "s5-in",
-              "preset": "fade",
+              "preset": "wipe",
               "start": 1.85,
               "duration": 0.7,
               "params": {
-                "y": 25
+                "from": "left"
               }
             }
           ]
@@ -2846,17 +2845,31 @@
       "id": "act6",
       "name": "Act 6 · Unyson+",
       "type": "group",
-      "start": 31.5,
-      "duration": 6.5,
+      "start": 31,
+      "duration": 7,
       "clips": [
         {
+          "id": "act6-in",
+          "preset": "tr-flash",
+          "start": 31,
+          "duration": 0.5,
+          "params": {
+            "color": "#ffffff",
+            "strength": 90,
+            "direction": "in"
+          },
+          "sound": {
+            "name": "impact"
+          }
+        },
+        {
           "id": "act6-out",
-          "preset": "fade",
+          "preset": "tr-dip",
           "start": 37.3,
           "duration": 0.7,
           "params": {
             "direction": "out",
-            "y": 0
+            "color": "#000000"
           },
           "sound": {
             "name": "drop",
