@@ -50,7 +50,7 @@
     camera: { keys: [{ id: 'k1', t: 0.5, zoom: 1, x: 0, tiltX: 0 }, { id: 'k2', t: 2, zoom: 1.3, x: 10, ease: 'softInOut' }, { id: 'k3', t: 4, zoom: 1, x: 0, tiltX: 15, roll: 4 }] } };
 
   const player = S.mount(document.getElementById('host'), scene, { autoplay: false, editor: true, allowCode: true });
-  const els = () => Array.from(document.querySelectorAll('.upw-canvas *'));
+  const els = () => Array.from(document.querySelectorAll('.upw-stage *'));
   const snap = () => els().map((el) => {
     const c = getComputedStyle(el);
     // "none" and the identity matrix draw the same; GSAP leaves the second behind once it has touched an element.

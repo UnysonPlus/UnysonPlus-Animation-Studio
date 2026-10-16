@@ -51,11 +51,14 @@ const canvasOf = (el: HTMLElement) => el.closest<HTMLElement>('.upw-canvas');
 
 /**
  * An overlay above every layer, owned by this clip (reused when the timeline is rebuilt). A screen overlay
- * (a flash, a dip) is fixed to the screen; a scene overlay (the slash's line) sits inside the camera, so it
- * moves with the picture it cuts.
+ * (a flash, a dip) covers the whole stage, so it also fills the sides when the scene is shown whole in a
+ * wider stage (fit "contain"); a scene overlay (the slash's line) sits inside the camera, so it moves with
+ * the picture it cuts.
  */
 function overlay(ctx: PresetContext, cls: string, inScene = false): HTMLElement | null {
-  const canvas = inScene ? ctx.el.closest<HTMLElement>('.upw-cam') ?? canvasOf(ctx.el) : canvasOf(ctx.el);
+  const canvas = inScene
+    ? ctx.el.closest<HTMLElement>('.upw-cam') ?? canvasOf(ctx.el)
+    : canvasOf(ctx.el)?.closest<HTMLElement>('.upw-stage') ?? canvasOf(ctx.el);
   if (!canvas) return null;
   const key = `${cls}-${ctx.clip.id}`;
   let node = canvas.querySelector<HTMLElement>(`:scope > [data-upw-own="${key}"]`);
