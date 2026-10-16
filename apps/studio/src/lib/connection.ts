@@ -3,7 +3,7 @@ import { validateScene } from '@unysonplus/scene-player/validate';
 import type { Scene } from '@unysonplus/scene-player/types';
 
 /**
- * The link to a Unyson+ page editor that opened the Studio ("Open in Animation Studio").
+ * The link to a Unyson+ page editor that opened the Studio ("Open in Kinetic Scenes").
  *
  *   Studio → editor  { type: 'upw-studio:hello' }          once loaded (no data)
  *   editor → Studio  { type: 'upw-studio:scene', scene }    the element's scene, or null for a new one

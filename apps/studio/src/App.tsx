@@ -149,7 +149,7 @@ export function App() {
   const [alignTo, setAlignTo] = useState<AlignTo>('selection');
   /** The group being edited (double-click to enter, Escape to leave); null = the whole scene. */
   const [scope, setScope] = useState<string | null>(null);
-  // Opened from a Unyson+ page editor ("Open in Animation Studio"): load its scene, offer "Save to page".
+  // Opened from a Unyson+ page editor ("Open in Kinetic Scenes"): load its scene, offer "Save to page".
   const conn = useEditorConnection((incoming) => {
     commit(incoming);
     setSelection({ layerId: null, clipId: null });
@@ -606,7 +606,7 @@ export function App() {
           <Logo />
           <div>
             <h1>
-              Animation Studio
+              Kinetic Scenes
               <button type="button" className="stage-tag" {...{ popovertarget: 'stage-info' }} aria-describedby="stage-info">Alpha</button>
             </h1>
             <p className="brand-sub">Unyson+ · {__STUDIO_VERSION__}</p>

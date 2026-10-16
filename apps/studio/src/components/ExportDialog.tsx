@@ -120,7 +120,7 @@ export function ExportDialog(props: {
           <h3>Embed code</h3>
           <p>
             Paste into any page that accepts HTML, such as a Custom HTML block in WordPress. The player loads from
-            animation-studio.unysonplus.com at version {__PLAYER_VERSION__}, which never changes, so the scene keeps
+            kinetic-scenes.unysonplus.com at version {__PLAYER_VERSION__}, which never changes, so the scene keeps
             playing exactly as it does now.
           </p>
           <label htmlFor="embed-code" className="sr-only">Embed code</label>

@@ -1,4 +1,4 @@
-# Builds the Studio and publishes it to GitHub Pages (animation-studio.unysonplus.com) on every push
+# Builds the Studio and publishes it to GitHub Pages (kinetic-scenes.unysonplus.com) on every push
 # to main. One-time setup: Settings → Pages → Source: "GitHub Actions", custom domain as in
 # apps/studio/public/CNAME, and a DNS CNAME record pointing the subdomain at unysonplus.github.io.
 name: Deploy

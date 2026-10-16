@@ -1,10 +1,10 @@
-# Unyson+ Animation Studio
+# Unyson+ Kinetic Scenes
 
 A browser studio for timeline motion graphics: kinetic type, shapes, images and (later) 3D, laid out on a
 timeline and exported as **plain HTML** for website heroes and sections, not video.
 
-Live at **https://animation-studio.unysonplus.com/**. The plan and roadmap are on the docs site:
-https://docs.unysonplus.com/animation-studio
+Live at **https://kinetic-scenes.unysonplus.com/**. The plan and roadmap are on the docs site:
+https://docs.unysonplus.com/kinetic-scenes
 
 ## What's here
 
@@ -192,7 +192,7 @@ with Chromium (set `PLAYWRIGHT_DIR` to an existing install). Run it after changi
 <div data-upw-scene>
   <script type="application/json">{ ...scene file... }</script>
 </div>
-<script src="https://animation-studio.unysonplus.com/player/0.0.10/scene-player.js" defer></script>
+<script src="https://kinetic-scenes.unysonplus.com/player/0.0.10/scene-player.js" defer></script>
 ```
 
 ### Player versions are permanent

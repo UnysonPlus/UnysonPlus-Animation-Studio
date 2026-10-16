@@ -45,7 +45,7 @@ const assetBaseScript = () =>
   `<script>window.UPW_SCENE_ASSET_BASE=${JSON.stringify(new URL(`/player/${__PLAYER_VERSION__}/`, location.href).href)}</script>`;
 
 /** Where every published player version lives. A version, once published, never changes. */
-export const PLAYER_BASE = 'https://animation-studio.unysonplus.com/player/';
+export const PLAYER_BASE = 'https://kinetic-scenes.unysonplus.com/player/';
 export const playerUrl = () => `${PLAYER_BASE}${__PLAYER_VERSION__}/scene-player.js`;
 
 /**
@@ -60,7 +60,7 @@ export function exportHtml(scene: Scene, opts: { fontCss?: string; three?: strin
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Unyson+ Animation Studio ${__STUDIO_VERSION__}">
+<meta name="generator" content="Unyson+ Kinetic Scenes ${__STUDIO_VERSION__}">
 <title>${title}</title>
 <style>html,body{margin:0;background:#0a0d11}</style>
 ${fontStyle}</head>
@@ -116,7 +116,7 @@ ${inlinePlayer(true)}
  */
 export function embedCode(scene: Scene): string {
   const label = (scene.title || 'Animation').replace(/--/g, '-');
-  return `<!-- Unyson+ Animation Studio: ${label} -->
+  return `<!-- Unyson+ Kinetic Scenes: ${label} -->
 ${hostTag(scene)}
 <script type="application/json">${safeJson(scene)}</script>
 ${transcriptHtml(scene)}

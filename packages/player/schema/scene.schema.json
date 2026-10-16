@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://animation-studio.unysonplus.com/schema/scene-v1.json",
-  "title": "Unyson+ Animation Studio scene, version 1",
+  "$id": "https://kinetic-scenes.unysonplus.com/schema/scene-v1.json",
+  "title": "Unyson+ Kinetic Scenes scene, version 1",
   "description": "A stage, layers drawn bottom to top, and on each layer the clips (presets placed in time) that animate it. Box x/w are % of stage width, y/h % of stage height; font sizes, stroke widths and radii are stage units (1 = 1% of stage width).",
   "type": "object",
   "required": [
