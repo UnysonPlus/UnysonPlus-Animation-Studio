@@ -213,7 +213,10 @@ export const MORE_BUILDERS: Record<string, (ctx: PresetContext) => void> = {
         last = t;
         // One picture's length at the frame's size (known once the image has loaded).
         const ratio = img.naturalWidth && img.naturalHeight ? (across ? img.naturalWidth / img.naturalHeight : img.naturalHeight / img.naturalWidth) : 0;
-        const length = (across ? strip.clientHeight : strip.clientWidth) * ratio;
+        // The exact (fractional) laid-out size: a rounded one drifts by a few pixels over a long picture,
+        // and the loop would no longer join up. (Computed style, not the on-screen rect, so transforms don't count.)
+        const cs = getComputedStyle(strip);
+        const length = parseFloat(across ? cs.height : cs.width) * ratio;
         const off = -(((from + (to - from) * t) / 100) * length);
         const px = length ? `${(off % length).toFixed(2)}px` : '0px';
         strip.style.backgroundPosition = across ? `${px} 50%` : `50% ${px}`;
