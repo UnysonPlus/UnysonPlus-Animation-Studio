@@ -1,4 +1,4 @@
-import { SCENE_FORMAT, SCENE_VERSION } from './types';
+import { SAFE_HREF, SCENE_FORMAT, SCENE_VERSION } from './types';
 import type { Anchor, Breakpoint, Clip, HeightMode, Layer, Scene } from './types';
 import { PRESET_IDS } from './presets/catalog';
 import { SFX_IDS, parseSfxSrc } from './sfx';
@@ -102,6 +102,7 @@ export function validateScene(input: unknown): ValidationResult {
       fail('playback.posterTime', 'must be within the scene');
     }
     if (pb.advance !== undefined && pb.advance !== 'auto' && pb.advance !== 'click') fail('playback.advance', 'must be auto or click');
+    if (pb.loopFrom !== undefined && (!isNum(pb.loopFrom) || pb.loopFrom < 0 || pb.loopFrom >= scene.duration)) fail('playback.loopFrom', 'must be a moment before the end of the scene');
     if (pb.scroll !== undefined) {
       const sc = pb.scroll;
       if (!isObj(sc)) fail('playback.scroll', 'must be an object');
@@ -246,6 +247,18 @@ export function validateScene(input: unknown): ValidationResult {
       }
       if (layer.start !== undefined && (!isNum(layer.start) || layer.start < 0)) fail(`${lp}.start`, 'must be 0 or more seconds');
       if (layer.end !== undefined && (!isNum(layer.end) || layer.end <= (layer.start ?? 0))) fail(`${lp}.end`, 'must come after start');
+      if (layer.link !== undefined) {
+        const ln = layer.link;
+        // A bad link is dropped (with a warning) rather than stopping the whole scene from playing.
+        if (!isObj(ln) || typeof ln.href !== 'string' || !SAFE_HREF.test(ln.href.trim())) {
+          warnings.push(`${lp}.link: only web, email, phone and same-site addresses work, so this link was left out.`);
+          delete layer.link;
+        } else {
+          ln.href = ln.href.trim();
+          if (ln.newTab !== undefined && typeof ln.newTab !== 'boolean') fail(`${lp}.link.newTab`, 'must be true or false');
+          if (ln.label !== undefined && typeof ln.label !== 'string') fail(`${lp}.link.label`, 'must be text');
+        }
+      }
 
       if (layer.overrides !== undefined) {
         if (!isObj(layer.overrides)) fail(`${lp}.overrides`, 'must be an object keyed by breakpoint id');

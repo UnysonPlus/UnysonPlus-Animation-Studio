@@ -171,6 +171,12 @@ export interface Playback {
   /** The frame shown to visitors who ask for reduced motion, in seconds. Defaults to the end. */
   posterTime?: number;
   /**
+   * Loop the last part: with loop on, the scene plays once from the start, then repeats only from this
+   * moment (in seconds) to the end, so a closing call to action keeps moving while the rest holds.
+   * Ignored with the scroll trigger and in click-to-advance scenes.
+   */
+  loopFrom?: number;
+  /**
    * auto: plays straight through (the default). click: a presentation; the scene stops at each marker
    * (and at the end) until the visitor clicks, taps or presses an arrow key. Ignored with the scroll trigger.
    */
@@ -229,6 +235,21 @@ export interface LayerOverride {
   hidden?: boolean;
 }
 
+export interface LayerLink {
+  /** A web address (https://…), a path on the same site (/download), an anchor (#pricing), mailto: or tel:. */
+  href: string;
+  /** Open in a new tab. */
+  newTab?: boolean;
+  /**
+   * What the link says, for screen readers and search engines. Defaults to the layer's text (a group:
+   * the text inside it, an image: its alt text). Give one for a shape, which has no words of its own.
+   */
+  label?: string;
+}
+
+/** Only these kinds of address are followed: never script or data addresses. */
+export const SAFE_HREF = /^(https?:\/\/|mailto:|tel:|\/|#|\?|\.\.?\/)/i;
+
 interface LayerBase {
   id: string;
   name?: string;
@@ -240,6 +261,8 @@ interface LayerBase {
   opacity?: number;
   /** Editor only: a locked layer can't be selected or moved on the stage. Playback ignores it. */
   locked?: boolean;
+  /** Makes the layer a link (a group: its whole frame). */
+  link?: LayerLink;
   /** Per-breakpoint changes, keyed by breakpoint id. Layout only: clips are shared by every breakpoint. */
   overrides?: Record<string, LayerOverride>;
   clips: Clip[];

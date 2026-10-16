@@ -1,4 +1,5 @@
 import type { Anchor, Breakpoint, Layer, Scene } from '@unysonplus/scene-player/types';
+import { SAFE_HREF } from '@unysonplus/scene-player/types';
 import { PRESET_CATALOG, defaultEaseFor, presetMeta, type PresetField } from '@unysonplus/scene-player/catalog';
 import { NAMED_EASES, NAMED_EASE_IDS } from '@unysonplus/scene-player/eases';
 import {
@@ -93,7 +94,7 @@ export function Inspector(props: Props) {
 
 /* ------------------------------------------------------------------ scene */
 
-function SceneInspector({ scene, onCommit }: Props) {
+function SceneInspector({ scene, onCommit, time }: Props) {
   const set = (patch: Partial<Scene>) => onCommit({ ...scene, ...patch });
   const setStage = (patch: Partial<Scene['stage']>) => onCommit({ ...scene, stage: { ...scene.stage, ...patch } });
   const setPlayback = (patch: Partial<Scene['playback']>) => onCommit({ ...scene, playback: { ...scene.playback, ...patch } });
@@ -160,7 +161,7 @@ function SceneInspector({ scene, onCommit }: Props) {
             }}>Try scrolling in a test page</button>
           </>
         ) : (
-          <CheckField label="Loop" checked={scene.playback.loop} onChange={(v) => setPlayback({ loop: v })} />
+          <EndBehaviour scene={scene} time={time} onPlayback={setPlayback} />
         )}
         {scene.playback.loop && scene.playback.trigger !== 'scroll' && (
           <NumberField label="Pause between loops" value={scene.playback.repeatDelay ?? 0} unit="s" step={0.1} min={0} onCommit={(v) => setPlayback({ repeatDelay: v ?? 0 })} />
@@ -236,6 +237,73 @@ function SceneInspector({ scene, onCommit }: Props) {
  * Search engines and screen readers: the scene's words as plain text, in reading order. Shown here so the
  * author sees exactly what Google and a screen reader get.
  */
+/** What happens at the end: stop, loop everything, or loop only the last part. */
+function EndBehaviour({ scene, time, onPlayback }: { scene: Scene; time: number; onPlayback: (p: Partial<Scene['playback']>) => void }) {
+  const pb = scene.playback;
+  const mode = !pb.loop ? 'stop' : pb.loopFrom !== undefined ? 'last' : 'loop';
+  // A first guess for "the last part": where the last act (top-level group) starts.
+  const lastAct = () => {
+    const starts = scene.layers.filter((l) => l.type === 'group' && (l.start ?? 0) > 0 && (l.start ?? 0) < scene.duration - 0.5).map((l) => l.start ?? 0);
+    return starts.length ? Math.max(...starts) : Math.max(0, Math.round((scene.duration - 3) * 10) / 10);
+  };
+  const usable = time > 0.05 && time < scene.duration - 0.1;
+  return (
+    <>
+      <SelectField
+        label="At the end"
+        value={mode}
+        options={[{ value: 'stop', label: 'Stop on the last frame' }, { value: 'loop', label: 'Loop everything' }, { value: 'last', label: 'Loop the last part' }]}
+        onChange={(v) => onPlayback(v === 'stop' ? { loop: false, loopFrom: undefined } : v === 'loop' ? { loop: true, loopFrom: undefined } : { loop: true, loopFrom: pb.loopFrom ?? lastAct() })}
+      />
+      {mode === 'last' && (
+        <>
+          <NumberField label="Loop from" value={pb.loopFrom} unit="s" step={0.1} min={0} max={Math.max(0, scene.duration - 0.1)}
+            onCommit={(v) => onPlayback({ loopFrom: v === undefined ? lastAct() : Math.min(v, scene.duration - 0.1) })} />
+          <button type="button" className="btn small wide-btn" disabled={!usable} onClick={() => onPlayback({ loopFrom: Math.round(time * 100) / 100 })}
+            title={usable ? `Loop from ${time.toFixed(2)} s` : 'Move the playhead to where the loop should start'}>Use the playhead</button>
+          <p className="field-hint wide">
+            The scene plays once from the start, then repeats only from here to the end, so a closing button keeps moving
+            while everything else holds. Start it after things have arrived, and give the button a clip that starts and
+            ends at rest (Pulse, Float) so the repeat is seamless.
+          </p>
+        </>
+      )}
+    </>
+  );
+}
+
+/** Makes a layer (or a whole group) a link. */
+function LinkSection({ layer, onChange }: { layer: Layer; onChange: (link: Layer['link']) => void }) {
+  const link = layer.link;
+  const words = layer.type === 'text' ? layer.text : layer.type === 'image' ? layer.alt ?? '' : layer.type === 'group' ? groupWords(layer) : '';
+  const set = (patch: Partial<NonNullable<Layer['link']>>) => {
+    const next = { href: link?.href ?? '', ...link, ...patch };
+    onChange(next.href.trim() ? { href: next.href.trim(), ...(next.newTab ? { newTab: true } : {}), ...(next.label?.trim() ? { label: next.label.trim() } : {}) } : undefined);
+  };
+  const bad = !!link?.href && !SAFE_HREF.test(link.href);
+  return (
+    <Section title="Link">
+      <TextField label="Address" value={link?.href} placeholder="https://… or /page or #section" mono wide onCommit={(v) => set({ href: v })} />
+      {link && (
+        <>
+          <CheckField label="Open in a new tab" checked={!!link.newTab} onChange={(v) => set({ newTab: v })} />
+          <TextField label="Link text" value={link.label} placeholder={words.trim().slice(0, 60) || 'Needed for a shape'} wide onCommit={(v) => set({ label: v })} />
+        </>
+      )}
+      <p className={`field-hint wide${bad ? ' is-error' : ''}`}>
+        {bad
+          ? 'Only web addresses (https://…), pages on the same site (/…), anchors (#…), mailto: and tel: work. This link will be left out.'
+          : link
+            ? 'Visitors can click it on the page, and keyboard and screen reader users reach it through the scene’s text. Links do nothing while you edit; try them full screen (F).'
+            : 'Give it an address to make it clickable on the page. On a group, the whole group is the link.'}
+      </p>
+    </Section>
+  );
+}
+
+const groupWords = (l: Layer): string =>
+  l.type === 'text' ? l.text : l.type === 'image' ? l.alt ?? '' : l.type === 'group' ? l.layers.map(groupWords).filter(Boolean).join(' ') : '';
+
 function TranscriptSection({ scene, onCommit }: { scene: Scene; onCommit: (s: Scene) => void }) {
   const t = scene.transcript ?? {};
   const setT = (patch: Partial<NonNullable<Scene['transcript']>>) => {
@@ -311,6 +379,8 @@ function GroupInspector({ scene, group, onCommit, onSelect, alignTo, onAlignTo, 
       </Section>
 
       <TransitionSection scene={scene} group={group} onCommit={onCommit} />
+
+      <LinkSection layer={group} onChange={(link) => props({ link })} />
 
       <section className="insp-section">
         <header><h3>Align</h3></header>
@@ -497,6 +567,8 @@ function LayerInspector({ scene, layer, bp, onCommit, onSelect, alignTo, onAlign
         <NumberField label="Disappears" value={layer.end} placeholder={String(scene.duration)} step={0.1} min={0} max={scene.duration} unit="s" optional onCommit={(v) => props({ end: v === undefined || v >= scene.duration ? undefined : v })} />
         <NumberField label="Opacity" value={layer.opacity ?? 1} step={0.05} min={0} max={1} onCommit={(v) => props({ opacity: v === undefined || v >= 1 ? undefined : v })} />
       </Section>
+
+      <LinkSection layer={layer} onChange={(link) => props({ link })} />
 
       <div className="insp-actions">
         <button type="button" className="btn small" disabled={idx >= scene.layers.length - 1} onClick={() => onCommit(moveLayer(scene, layer.id, 1))}>Bring forward</button>

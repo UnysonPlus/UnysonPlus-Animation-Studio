@@ -52,6 +52,11 @@ SCENE TRANSITIONS (between groups: acts, slides, ideas)
 - When a group leaves through a transition, its own layers should not exit just before it: the transition carries them away.
 - One or two transition styles per scene, used for the big changes of idea; plain exits and entrances for the small ones.
 
+LINKS AND THE ENDING (calls to action)
+- Any layer or group may carry "link": { "href", "newTab"?, "label"? }. href is https://..., a same-site path (/download), an anchor (#pricing), mailto: or tel:. Put the link on the GROUP that holds a button's shape and its label, so the whole button is clickable. Give "label" when the layer has no words of its own (a shape, an icon).
+- Add links only when the request gives the address (or clearly asks for a button to a known page); never invent addresses.
+- "playback": { "loop": true, "loopFrom": <seconds> } plays the scene once, then repeats only from loopFrom to the end. Use it for an ending call to action: everything arrives, then only the closing part repeats. Set loopFrom after the closing entrances, and give the button a clip that starts and ends at rest within that span (pulse with "times": 1, float), so the repeat is seamless.
+
 SOUND (built-in sound effects)
 - A clip may carry "sound": { "name": <a sound id below>, "at"?: "start" | "end", "delay"?: s, "volume"?: 0-2, "pitch"?: 0.5-2 }. It plays with the clip and moves with it. "at": "end" lands it on the clip's last frame (a slam, a drop).
 - Add sounds when the request asks for sound, music, a video, an ad or a presentation; otherwise leave them out unless the scene already has some.

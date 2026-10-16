@@ -32,6 +32,9 @@ export const PLAYER_CSS = `
 .upw-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .upw-li img{display:block;width:100%;height:100%;border-radius:inherit}
 .upw-3d{position:relative}
+.upw-link{position:absolute;inset:0;z-index:2147482000;display:block;cursor:pointer;border-radius:inherit;-webkit-tap-highlight-color:transparent}
+.upw-scene[data-editor] .upw-link{pointer-events:none}
+.upw-layer[data-focus]{outline:3px solid #fff;outline-offset:6px;border-radius:4px}
 .upw-scene[aria-roledescription="presentation"]{cursor:pointer}
 .upw-scene[aria-roledescription="presentation"]:focus{outline:none}
 .upw-scene[aria-roledescription="presentation"]:focus-visible{outline:2px solid rgba(255,255,255,.7);outline-offset:-4px}

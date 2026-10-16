@@ -125,6 +125,8 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   const root = doc.createElement('div');
   root.className = 'upw-scene';
   if (options.safeArea) root.dataset.safe = '';
+  // Editing: links on the stage stay inert, so a click selects the layer instead of leaving the page.
+  if (options.editor && !options.present) root.dataset.editor = '';
   host.textContent = '';
   host.appendChild(root);
   if (served) host.appendChild(served);
@@ -149,6 +151,17 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     if (decorative) { root.removeAttribute('role'); root.removeAttribute('aria-label'); }
     else { root.setAttribute('role', 'group'); root.setAttribute('aria-label', scene.title || 'Animation'); }
   }
+
+  // A transcript link with keyboard focus rings its layer on the stage (the link itself is invisible).
+  const linkTarget = (e: Event) => (e.target as HTMLElement | null)?.closest?.('a[data-upw-link]') as HTMLElement | null;
+  const onFocusIn = (e: FocusEvent) => {
+    const a = linkTarget(e);
+    const el = a && root.querySelector<HTMLElement>(`.upw-layer[data-layer="${CSS.escape(a.dataset.upwLink ?? '')}"]`);
+    if (el) el.dataset.focus = '';
+  };
+  const onFocusOut = (e: FocusEvent) => { if (linkTarget(e)) root.querySelectorAll<HTMLElement>('.upw-layer[data-focus]').forEach((el) => delete el.dataset.focus); };
+  host.addEventListener('focusin', onFocusIn);
+  host.addEventListener('focusout', onFocusOut);
 
   // Events
   const listeners = new Map<PlayerEvent, Set<() => void>>();
@@ -294,6 +307,15 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     setupSound();
   }
 
+  /** Loop the last part: where the repeats start, or null to loop everything (or not at all). */
+  const loopFrom = (): number | null => {
+    const lf = scene.playback.loopFrom;
+    if (!scene.playback.loop || clickMode() || scene.playback.trigger === 'scroll' || lf === undefined) return null;
+    return lf > 1e-3 && lf < scene.duration - 0.05 ? lf : null;
+  };
+  let loopCall: gsap.core.Tween | null = null;
+  const cancelLoop = () => { loopCall?.kill(); loopCall = null; };
+
   function buildTimeline(): Timeline {
     const t = gsap.timeline({
       paused: true,
@@ -304,6 +326,14 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       },
       onRepeat: () => syncAudio(),
       onComplete: () => {
+        const lf = loopFrom();
+        if (lf !== null && t === tl && wantPlaying) {
+          // Back to the start of the last part, after the pause between loops.
+          const again = () => { loopCall = null; if (destroyed || t !== tl || !wantPlaying) return; t.play(lf); syncAudio(); emit('update'); };
+          const delay = scene.playback.repeatDelay ?? 0;
+          if (delay > 0) { sound?.stop(); loopCall = gsap.delayedCall(delay, again); } else again();
+          return;
+        }
         sound?.stop();
         if (clickMode()) { tl?.pause(); setWaiting(true); }
         wantPlaying = false;
@@ -322,7 +352,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       // A presentation: stop at every marker and wait. It never repeats on its own; the click after the
       // last slide starts it over when the scene loops.
       for (const m of markerTimes()) if (m > 1e-3 && m < scene.duration - 1e-3) t.addPause(m, () => setWaiting(true));
-    } else if (scene.playback.loop && scene.playback.trigger !== 'scroll') t.repeat(-1).repeatDelay(scene.playback.repeatDelay ?? 0);
+    } else if (scene.playback.loop && scene.playback.trigger !== 'scroll' && loopFrom() === null) t.repeat(-1).repeatDelay(scene.playback.repeatDelay ?? 0);
     return t;
   }
 
@@ -376,6 +406,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
 
   /** (Re)builds text and the timeline, then puts the playhead back where it was. */
   function rebuild(time: number, play: boolean) {
+    cancelLoop();
     if (tl) {
       tl.kill();
       tl = null;
@@ -538,13 +569,15 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     play() {
       if (!tl) return;
       wantPlaying = true;
-      if (!scene.playback.loop && tl.time() >= scene.duration - 1e-3) tl.time(0);
+      // At the end (a scene that stops there, or one that loops its last part): start over.
+      if (tl.time() >= scene.duration - 1e-3) tl.time(0);
       tl.play();
       syncAudio();
       emit('play');
     },
     pause() {
       if (!tl) return;
+      cancelLoop();
       wantPlaying = false;
       tl.pause();
       sound?.stop();
@@ -552,6 +585,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     },
     seek(seconds) {
       if (!tl) return;
+      cancelLoop();
       wantPlaying = false;
       tl.pause();
       tl.time(Math.max(0, Math.min(scene.duration, seconds)), false);
@@ -563,6 +597,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       const nextScene = validated(next);
       const time = tl ? tl.time() : 0;
       const play = tl ? !tl.paused() : false;
+      cancelLoop();
       if (tl) {
         tl.kill();
         tl = null;
@@ -625,7 +660,10 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      cancelLoop();
       tl?.kill();
+      host.removeEventListener('focusin', onFocusIn);
+      host.removeEventListener('focusout', onFocusOut);
       scrollLink?.destroy();
       dispose3d();
       sound?.dispose();

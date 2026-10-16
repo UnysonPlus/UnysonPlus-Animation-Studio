@@ -1,4 +1,5 @@
-import type { Layer, Scene } from './types';
+import type { Layer, LayerLink, Scene } from './types';
+import { SAFE_HREF } from './types';
 
 /**
  * The scene's words as ordinary text, for search engines and screen readers.
@@ -24,14 +25,28 @@ export interface TranscriptItem {
   /** 0 = a paragraph, 1-6 = a heading level. */
   level: number;
   text: string;
+  /** A linked layer: the link, and the layer it belongs to (its focus ring shows on the stage). */
+  link?: LayerLink;
+  layer?: string;
 }
 
-interface Entry { text: string; size: number; at: number; y: number; x: number; container: number; model: boolean }
+interface Entry { text: string; size: number; at: number; y: number; x: number; container: number; model: boolean; link?: LayerLink; layer?: string }
+
+/** Every text inside a layer, in order (a linked group reads as one link). */
+function wordsIn(l: Layer): string {
+  if (l.type === 'text') return clean(l.text);
+  if (l.type === 'model' && l.model.kind === 'text') return clean(l.model.text ?? '');
+  if (l.type === 'image') return clean(l.alt ?? '');
+  if (l.type === 'group') return clean(l.layers.map(wordsIn).filter(Boolean).join(' '));
+  return '';
+}
 
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
 
 /** When a layer first shows: its start, or its first entrance clip if that comes later. */
 function appearsAt(l: Layer, offset: number): number {
+  // A group shows when its first layer does (its own clips may come later, an emphasis or a loop).
+  if (l.type === 'group' && l.layers.length) return Math.min(...l.layers.map((c) => appearsAt(c, offset + (l.start ?? 0))));
   const ins = l.clips.filter((c) => !(c.params && c.params.direction === 'out')).map((c) => c.start);
   const own = l.start ?? 0;
   return offset + Math.max(own, ins.length ? Math.min(...ins) : own);
@@ -49,6 +64,12 @@ export function sceneTranscript(scene: Scene): TranscriptItem[] {
     list.forEach((l, i) => {
       const c = container < 0 ? (l.type === 'group' ? i : -1) : container;
       const at = appearsAt(l, offset);
+      if (l.link && typeof l.link.href === 'string' && SAFE_HREF.test(l.link.href.trim())) {
+        // A link reads as one item, never as part of a heading: its label, or the words it carries.
+        const text = clean(l.link.label ?? '') || wordsIn(l) || l.link.href;
+        entries.push({ text, size: 0, at, y: l.box?.y ?? 0, x: l.box?.x ?? 0, container: c, model: false, link: l.link, layer: l.id });
+        return;
+      }
       if (l.type === 'text' && clean(l.text)) entries.push({ text: clean(l.text), size: l.style.fontSize, at, y: l.box.y, x: l.box.x, container: c, model: false });
       if (l.type === 'model' && l.model.kind === 'text' && clean(l.model.text ?? '')) entries.push({ text: clean(l.model.text!), size: 0, at, y: l.box.y, x: l.box.x, container: c, model: true });
       if (l.type === 'group') walk(l.layers, offset + (l.start ?? 0), c);
@@ -59,18 +80,18 @@ export function sceneTranscript(scene: Scene): TranscriptItem[] {
 
   // Sizes: the median text size, and the biggest per container. 3D text is display-sized by nature, so
   // it counts as its container's headline (at least half again the median).
-  const flat = entries.filter((e) => !e.model).map((e) => e.size).sort((a, b) => a - b);
+  const flat = entries.filter((e) => !e.model && !e.link).map((e) => e.size).sort((a, b) => a - b);
   const median = flat.length ? flat[Math.floor(flat.length / 2)] : 1;
   const maxIn = new Map<number, number>();
-  for (const e of entries) if (!e.model) maxIn.set(e.container, Math.max(maxIn.get(e.container) ?? 0, e.size));
+  for (const e of entries) if (!e.model && !e.link) maxIn.set(e.container, Math.max(maxIn.get(e.container) ?? 0, e.size));
   for (const e of entries) if (e.model) { e.size = Math.max(maxIn.get(e.container) ?? 0, median * 1.5); maxIn.set(e.container, e.size); }
   entries.sort((a, b) => a.at - b.at || a.y - b.y || a.x - b.x);
-  const sceneMax = Math.max(...maxIn.values());
-  const sceneHead = entries.find((e) => maxIn.get(e.container) === sceneMax)!.container;
+  const sceneMax = Math.max(0, ...maxIn.values());
+  const sceneHead = entries.find((e) => !e.link && maxIn.get(e.container) === sceneMax)?.container ?? -2;
 
   // A container's headline: its biggest text, plus display-sized lines next to it ("Make it" + "MOVE.").
-  const isBig = (e: Entry) => e.size >= maxIn.get(e.container)! * 0.75 && (e.container === sceneHead || e.size >= median * 1.4);
-  const isDisplay = (e: Entry) => e.size >= maxIn.get(e.container)! * 0.3 && e.size >= median * 1.4;
+  const isBig = (e: Entry) => !e.link && e.size >= maxIn.get(e.container)! * 0.75 && (e.container === sceneHead || e.size >= median * 1.4);
+  const isDisplay = (e: Entry) => !e.link && e.size >= maxIn.get(e.container)! * 0.3 && e.size >= median * 1.4;
 
   const items: TranscriptItem[] = [];
   const seen = new Set<string>();
@@ -88,6 +109,10 @@ export function sceneTranscript(scene: Scene): TranscriptItem[] {
         continue;
       }
     }
+    if (e.link) {
+      items.push({ level: 0, text: e.text, link: e.link, layer: e.layer });
+      continue;
+    }
     if (seen.has(e.text)) continue;
     seen.add(e.text);
     items.push({ level: 0, text: e.text });
@@ -101,6 +126,12 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 export function transcriptHtml(scene: Scene): string {
   const items = sceneTranscript(scene);
   if (!items.length) return '';
-  const body = items.map((i) => (i.level ? `<h${i.level}>${esc(i.text)}</h${i.level}>` : `<p>${esc(i.text)}</p>`)).join('');
+  const body = items.map((i) => {
+    if (i.link) {
+      const tab = i.link.newTab ? ' target="_blank" rel="noopener"' : '';
+      return `<p><a href="${esc(i.link.href)}" data-upw-link="${esc(i.layer ?? '')}"${tab}>${esc(i.text)}</a></p>`;
+    }
+    return i.level ? `<h${i.level}>${esc(i.text)}</h${i.level}>` : `<p>${esc(i.text)}</p>`;
+  }).join('');
   return `<div class="${TRANSCRIPT_CLASS}" style="${VISUALLY_HIDDEN}">${body}</div>`;
 }

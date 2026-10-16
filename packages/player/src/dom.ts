@@ -1,4 +1,4 @@
-import type { Anchor, Box, Layer, LayerOverride, Scene, TextStyle } from './types';
+import type { Anchor, Box, Layer, LayerLink, LayerOverride, Scene, TextStyle } from './types';
 import { REST_3D, type Runtime3D, type State3D } from './model3d';
 
 /** The elements created for one layer. */
@@ -58,6 +58,21 @@ export function createStage(doc: Document, scene: Scene) {
   return { stage, canvas, cam, safe };
 }
 
+/**
+ * A linked layer's click area: covers the layer (a group: its frame) and sits above its contents.
+ * It is for pointers only. The stage is hidden from screen readers and kept out of the tab order;
+ * the focusable, readable copy of the link is in the scene's transcript, and focusing it rings this layer.
+ */
+function addLink(doc: Document, outer: HTMLElement, link: LayerLink) {
+  const a = doc.createElement('a');
+  a.className = 'upw-link';
+  a.href = link.href;
+  a.tabIndex = -1;
+  if (link.newTab) { a.target = '_blank'; a.rel = 'noopener'; }
+  outer.dataset.link = '';
+  outer.appendChild(a);
+}
+
 export function createLayer(doc: Document, layer: Layer, z: number): LayerRefs {
   const outer = doc.createElement('div');
   outer.className = `upw-layer upw-${layer.type}`;
@@ -69,6 +84,7 @@ export function createLayer(doc: Document, layer: Layer, z: number): LayerRefs {
   outer.appendChild(inner);
 
   const refs: LayerRefs = { layer, outer, inner, words: [], chars: [] };
+  if (layer.link) addLink(doc, outer, layer.link);
 
   if (layer.type === 'group') {
     // The group's frame wraps its contents; inside it, a stage-sized "proxy" keeps the children's
