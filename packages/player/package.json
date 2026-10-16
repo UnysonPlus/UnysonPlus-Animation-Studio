@@ -1,6 +1,6 @@
 {
   "name": "@unysonplus/scene-player",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "private": true,
   "description": "Plays Unyson+ Animation Studio scene files in any web page.",
   "type": "module",

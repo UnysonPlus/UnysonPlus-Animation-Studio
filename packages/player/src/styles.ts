@@ -9,6 +9,8 @@
  *           centred vertically. When the stage is shorter it is trimmed top and bottom (the safe area
  *           keeps key content clear of that); when taller, the stage background shows around it.
  *           It is the size container, so 1cqw = 1% of the stage width ("stage units").
+ *           With fit "contain" the canvas instead shrinks to fit inside the stage, centred both ways.
+ *           A logged-in WordPress page also leaves room for the admin bar (--upw-offset-extra).
  *   layer   Positioned and anchored. Never animated, so its own transform is free for anchoring.
  *   li      The animated element.
  *
@@ -19,9 +21,13 @@ export const PLAYER_CSS = `
 [data-upw-scene]{display:block;width:100%;min-width:0;align-self:stretch;max-width:100%}
 .upw-scene{position:relative;display:block;width:100%;--upw-ar:16/9;--upw-offset:0px}
 .upw-stage{position:relative;display:block;width:100%;overflow:hidden;aspect-ratio:var(--upw-ar);isolation:isolate;contain:paint}
-.upw-scene[data-mode="ratio-capped"] .upw-stage{max-height:calc(100vh - var(--upw-offset));max-height:calc(100svh - var(--upw-offset))}
-.upw-scene[data-mode="fill"] .upw-stage{aspect-ratio:auto;height:calc(100vh - var(--upw-offset));height:calc(100svh - var(--upw-offset))}
+.upw-scene[data-mode="ratio-capped"] .upw-stage{max-height:calc(100vh - var(--upw-offset) - var(--upw-offset-extra,0px));max-height:calc(100svh - var(--upw-offset) - var(--upw-offset-extra,0px))}
+.upw-scene[data-mode="fill"] .upw-stage{aspect-ratio:auto;height:calc(100vh - var(--upw-offset) - var(--upw-offset-extra,0px));height:calc(100svh - var(--upw-offset) - var(--upw-offset-extra,0px))}
+body.admin-bar .upw-scene{--upw-offset-extra:32px}
+@media screen and (max-width:782px){body.admin-bar .upw-scene{--upw-offset-extra:46px}}
 .upw-canvas{position:absolute;left:0;top:50%;width:100%;aspect-ratio:var(--upw-ar);transform:translateY(-50%);container-type:size}
+.upw-scene[data-fit="contain"] .upw-stage{container-type:size}
+.upw-scene[data-fit="contain"] .upw-canvas{left:50%;width:min(100%,calc(100cqh * var(--upw-arn,1.7778)));transform:translate(-50%,-50%)}
 .upw-cam{position:absolute;inset:0;transform-origin:50% 50%}
 .upw-layer{position:absolute;box-sizing:border-box}
 .upw-layer[data-hidden]{display:none}

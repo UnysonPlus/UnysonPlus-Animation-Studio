@@ -286,6 +286,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     dispose3d();
     root.textContent = '';
     root.dataset.mode = scene.stage.heightMode;
+    root.dataset.fit = scene.stage.fit ?? 'cover';
     root.style.setProperty('--upw-offset', `${scene.stage.heightOffset ?? 0}px`);
     syncTranscript();
     injectFonts(doc, scene.stage.fonts);
@@ -439,6 +440,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     current = next;
     root.dataset.bp = next.id;
     root.style.setProperty('--upw-ar', `${next.aspect[0]} / ${next.aspect[1]}`);
+    root.style.setProperty('--upw-arn', String(next.aspect[0] / next.aspect[1]));
   }
 
   function setBreakpointFromWidth(width: number) {

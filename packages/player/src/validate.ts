@@ -75,6 +75,7 @@ export function validateScene(input: unknown): ValidationResult {
     if (st.heightMode === undefined) st.heightMode = 'ratio-capped';
     if (!HEIGHT_MODES.includes(st.heightMode)) fail('stage.heightMode', `must be one of ${HEIGHT_MODES.join(', ')}`);
     if (st.heightOffset !== undefined && (!isNum(st.heightOffset) || st.heightOffset < 0)) fail('stage.heightOffset', 'must be 0 or more pixels');
+    if (st.fit !== undefined && st.fit !== 'cover' && st.fit !== 'contain') fail('stage.fit', 'must be cover or contain');
     if (st.safeArea === undefined) st.safeArea = 0.06;
     if (!isNum(st.safeArea) || st.safeArea < 0 || st.safeArea >= 0.5) fail('stage.safeArea', 'must be between 0 and 0.5');
     if (st.background !== undefined && typeof st.background !== 'string') fail('stage.background', 'must be a CSS value');

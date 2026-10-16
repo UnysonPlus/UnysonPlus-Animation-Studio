@@ -127,6 +127,12 @@ export interface Stage {
   heightMode: HeightMode;
   /** Pixels taken from the window height in the capped and fill modes (a site header, for example). */
   heightOffset?: number;
+  /**
+   * When the stage is shorter than the shape (a wide, short window in the capped or fill modes):
+   * cover (the default) keeps the full width and trims the top and bottom; contain shows the whole
+   * shape, centred, with the stage's background (or the page, when it has none) at the sides.
+   */
+  fit?: 'cover' | 'contain';
   /** Any CSS background: a colour, a gradient or an image. */
   background?: string;
   /** Inset of the safe area on each side, as a fraction of the stage (0.05 = 5%). */

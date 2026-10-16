@@ -183,6 +183,14 @@ function SceneInspector({ scene, onCommit, time }: Props) {
           options={[{ value: 'ratio', label: 'Keep the shape' }, { value: 'ratio-capped', label: 'Keep the shape, fit the window' }, { value: 'fill', label: 'Fill the window' }]}
           onChange={(v) => setStage({ heightMode: v })}
         />
+        {scene.stage.heightMode !== 'ratio' && (
+          <SelectField
+            label="Window too short"
+            value={scene.stage.fit ?? 'cover'}
+            options={[{ value: 'cover', label: 'Trim top and bottom' }, { value: 'contain', label: 'Show it all' }]}
+            onChange={(v) => setStage({ fit: v === 'cover' ? undefined : v })}
+          />
+        )}
         <NumberField label="Header offset" value={scene.stage.heightOffset ?? 0} unit="px" min={0} step={1} onCommit={(v) => setStage({ heightOffset: v || undefined })} />
         <NumberField label="Safe area" value={Math.round((scene.stage.safeArea ?? 0.06) * 1000) / 10} unit="%" min={0} max={45} step={0.5} onCommit={(v) => setStage({ safeArea: (v ?? 6) / 100 })} />
         <ColorField label="Background" value={scene.stage.background} placeholder="A colour or gradient" onCommit={(v) => setStage({ background: v || undefined })} />
