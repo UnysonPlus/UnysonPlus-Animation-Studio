@@ -39,7 +39,7 @@ export async function canRender(): Promise<RenderCheck> {
 }
 
 /** Renders the scene; reports progress; resolves with the video file. */
-export async function renderVideo(scene: Scene, opts: VideoOptions, onProgress: (done: number, total: number) => void, signal: AbortSignal): Promise<{ blob: Blob; name: string }> {
+export async function renderVideo(scene: Scene, opts: VideoOptions, onProgress: (done: number, total: number) => void, signal: AbortSignal): Promise<{ blob: Blob; name: string; warnings: string[] }> {
   const b = await kitBase();
   if (!b) throw new Error('The AI Dev Kit is not running on this computer.');
   // The kit's browser loads the player the Studio uses, from the Studio's own published copy.
@@ -63,7 +63,8 @@ export async function renderVideo(scene: Scene, opts: VideoOptions, onProgress: 
       if (st.state === 'done') {
         const file = await fetch(`${b}/studio/render/${id}/file`, { signal });
         if (!file.ok) throw new Error('The finished video could not be downloaded from the kit.');
-        return { blob: await file.blob(), name: st.name };
+        // What never arrived before the first frame (a font, an image, a 3D model), if anything.
+        return { blob: await file.blob(), name: st.name, warnings: Array.isArray(st.warnings) ? st.warnings : [] };
       }
     }
   } finally {

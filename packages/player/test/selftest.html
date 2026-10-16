@@ -19,7 +19,9 @@
  */
 (function () {
   const S = window.UnysonPlusScene;
-  const FPS = 30;
+  // 20 fps puts every clip boundary in this scene (starts at 0.1 + 0.25 n, lengths in 0.05 s steps) exactly
+  // on a frame, so the frames where a clip starts or ends are tested: the ones seeking gets wrong.
+  const FPS = 20;
   const layers = [];
   let t = 0.1;
   S.PRESET_CATALOG.forEach((p, i) => {
@@ -55,7 +57,17 @@
 
   const total = Math.round(scene.duration * FPS);
   const want = new Set();
-  while (want.size < 24) want.add(Math.floor(rnd() * total));
+  // Every frame where a clip (or a camera key) starts or ends, and the frames either side of it.
+  const edges = [];
+  const walk = (list, offset) => list.forEach((l) => {
+    l.clips.forEach((c) => { edges.push(offset + c.start, offset + c.start + c.duration); });
+    if (l.layers) walk(l.layers, offset + (l.start || 0));
+  });
+  walk(scene.layers, 0);
+  (scene.camera ? scene.camera.keys : []).forEach((k) => edges.push(k.t));
+  edges.forEach((t) => { const f = Math.round(t * FPS); [f - 1, f, f + 1].forEach((x) => { if (x >= 0 && x <= total) want.add(x); }); });
+  const boundaryFrames = want.size;
+  while (want.size < boundaryFrames + 24) want.add(Math.floor(rnd() * total));
   const recorded = new Map();
   for (let f = 0; f <= total; f++) {
     player.seek(f / FPS);

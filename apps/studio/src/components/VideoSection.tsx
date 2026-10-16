@@ -30,7 +30,7 @@ export function VideoSection(props: { scene: Scene; open: boolean; onDone: (note
     const ctl = new AbortController();
     abort.current = ctl;
     try {
-      const { blob, name } = await renderVideo(props.scene, { width: s.width, height: s.height, fps, format }, (done, total) => setProgress({ done, total }), ctl.signal);
+      const { blob, name, warnings } = await renderVideo(props.scene, { width: s.width, height: s.height, fps, format }, (done, total) => setProgress({ done, total }), ctl.signal);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -39,7 +39,7 @@ export function VideoSection(props: { scene: Scene; open: boolean; onDone: (note
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
-      props.onDone(`Video saved to your downloads (${(blob.size / 1048576).toFixed(1)} MB).`);
+      props.onDone(`Video saved to your downloads (${(blob.size / 1048576).toFixed(1)} MB).${warnings.length ? ` Rendered without: ${warnings.slice(0, 3).join(', ')}${warnings.length > 3 ? '…' : ''} (it did not load in time).` : ''}`);
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError((e as Error).message);
     } finally {

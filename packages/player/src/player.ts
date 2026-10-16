@@ -71,6 +71,12 @@ export interface ScenePlayer {
   readonly waiting: boolean;
   /** Shows or hides the camera's moves (editors edit the flat layout with it off). */
   setCamera(on: boolean): void;
+  /**
+   * Resolves once everything the scene shows has arrived: fonts, images (decoded), images used as
+   * backgrounds, and every 3D model. A renderer waits for this before its first frame, so no frame is
+   * blank or in a fallback font. Never rejects; `missing` lists what was still not there at the time limit.
+   */
+  whenReady(limitMs?: number): Promise<{ missing: string[] }>;
   /** True when the camera is on and currently moves the view away from the flat layout. */
   readonly cameraActive: boolean;
   /** Swap in a changed scene, keeping the playhead (and playback) where it was. Throws if invalid. */
@@ -446,6 +452,55 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     get playing() { return !!tl && !tl.paused(); },
     get waiting() { return waiting; },
     setCamera(on: boolean) { cameraOn = on; applyCamera(); },
+    async whenReady(limitMs = 20000) {
+      const missing: string[] = [];
+      const until = <T,>(p: Promise<T>, ms: number, what: string) => new Promise<void>((done) => {
+        const timer = setTimeout(() => { missing.push(what); done(); }, ms);
+        // A failure is reported too (a broken address), not only a time-out.
+        p.then(() => { clearTimeout(timer); done(); }, () => { clearTimeout(timer); missing.push(`${what} (failed to load)`); done(); });
+      });
+      // Fonts: capped, and the families still loading are reported.
+      await until(doc.fonts.ready, Math.min(limitMs, 5000), 'fonts');
+      if (missing.includes('fonts')) {
+        const loading = new Set<string>();
+        doc.fonts.forEach((f) => { if (f.status === 'loading') loading.add(f.family.replace(/["']/g, '')); });
+        missing.splice(missing.indexOf('fonts'), 1, ...[...loading].map((f) => `font ${f}`));
+      }
+      // Images: loaded, then decoded (decoding one still loading can hang, so wait for the load first).
+      const imgs = Array.from(root.querySelectorAll('img'));
+      await Promise.all(imgs.map((img) => until(
+        (img.complete ? Promise.resolve() : new Promise((r) => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); }))
+          .then(() => (img.naturalWidth ? img.decode() : Promise.reject(new Error('no image')))),
+        limitMs, `image ${img.currentSrc || img.src}`.slice(0, 120))));
+      // Images used as backgrounds (a shape filled with a picture).
+      const urls = new Set<string>();
+      root.querySelectorAll<HTMLElement>('[style*="url("]').forEach((el) => {
+        for (const m of el.style.backgroundImage.matchAll(/url\((['"]?)(.*?)\)/g)) if (m[2]) urls.add(m[2]);
+      });
+      await Promise.all([...urls].map((u) => {
+        const im = new Image();
+        im.src = u;
+        return until(im.decode(), limitMs, `background ${u}`.slice(0, 120));
+      }));
+      // 3D: the engine, then every model.
+      const models = flatRefs(layers).filter((r) => r.model);
+      if (models.length) {
+        await until(load3d(win).then(() => undefined), limitMs, '3D engine');
+        const runtimes = await new Promise<Array<{ ready: Promise<void> }>>((done) => {
+          const started = Date.now();
+          const check = () => {
+            const rs = models.map((r) => r.model!.runtime).filter(Boolean) as Array<{ ready: Promise<void> }>;
+            if (rs.length === models.length || Date.now() - started > limitMs) done(rs);
+            else setTimeout(check, 50);
+          };
+          check();
+        });
+        if (runtimes.length < models.length) missing.push(`${models.length - runtimes.length} 3D layer(s)`);
+        await Promise.all(runtimes.map((r) => until(r.ready, limitMs, '3D model')));
+        render3d();
+      }
+      return { missing };
+    },
     get cameraActive() { return cameraOn && hasCamera && !isRest(cam); },
     next() {
       if (!tl || !clickMode()) return;
