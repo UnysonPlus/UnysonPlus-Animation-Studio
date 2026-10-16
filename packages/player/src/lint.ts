@@ -172,6 +172,11 @@ export function lintScene(scene: Scene): LintIssue[] {
   const spoken = spokenWords(scene);
   const bps = scene.stage.breakpoints;
   const safe = scene.stage.safeArea ?? 0.06;
+  // Layers pinned to the stage (and everything in a pinned group) are placed against the stage, whose
+  // shape varies, so the frame-based edge and overlap checks don't apply to them.
+  const pinned = new Set<string>();
+  const markPinned = (l: Layer) => { pinned.add(l.id); if (l.type === 'group') l.layers.forEach(markPinned); };
+  scene.layers.forEach((l) => { if (l.pin === 'stage') markPinned(l); });
 
   for (const e of all) {
     const l = e.layer;
@@ -250,6 +255,7 @@ export function lintScene(scene: Scene): LintIssue[] {
       }
 
       // On the stage and inside the safe area.
+      if (pinned.has(l.id)) continue;
       const rect = textRect(l, bp);
       const inset = safe * 100;
       const out = rect.left < -0.5 || rect.left + rect.w > 100.5 || rect.top < -0.5 || rect.top + rect.h > 100.5;
@@ -271,6 +277,7 @@ export function lintScene(scene: Scene): LintIssue[] {
     for (let j = i + 1; j < texts.length; j++) {
       const A = texts[i];
       const B = texts[j];
+      if (pinned.has(A.layer.id) !== pinned.has(B.layer.id)) continue;
       const wa = window(A, scene);
       const wb = window(B, scene);
       // A handoff (one leaving as the other arrives in the same place) is fine: they clash only while

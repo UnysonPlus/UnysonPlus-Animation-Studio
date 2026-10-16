@@ -248,6 +248,13 @@ export function validateScene(input: unknown): ValidationResult {
       }
       if (layer.start !== undefined && (!isNum(layer.start) || layer.start < 0)) fail(`${lp}.start`, 'must be 0 or more seconds');
       if (layer.end !== undefined && (!isNum(layer.end) || layer.end <= (layer.start ?? 0))) fail(`${lp}.end`, 'must come after start');
+      if (layer.pin !== undefined) {
+        if (layer.pin !== 'stage') fail(`${lp}.pin`, 'must be "stage"');
+        else if (depth > 0) {
+          warnings.push(`${lp}.pin: only top-level layers can be pinned to the stage, so this one stays in its group.`);
+          delete layer.pin;
+        }
+      }
       if (layer.link !== undefined) {
         const ln = layer.link;
         // A bad link is dropped (with a warning) rather than stopping the whole scene from playing.

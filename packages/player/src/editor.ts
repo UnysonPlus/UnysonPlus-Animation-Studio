@@ -74,8 +74,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   return e;
 }
 
-interface Frame { l: number; t: number; w: number; h: number; W: number; H: number; box: Box; ax: number; ay: number }
-type Rect = Pick<Frame, 'l' | 't' | 'w' | 'h' | 'W' | 'H'>;
+/**
+ * A layer's frame, in % of the space its position is measured in (the canvas, or the stage-wide pin
+ * space for a pinned layer). ox / oy: that space's top-left on screen. kx / ky: the space's size over the
+ * canvas's, to turn a size measured in the space into the frame units a pinned layer's size is stored in.
+ */
+interface Frame { l: number; t: number; w: number; h: number; W: number; H: number; box: Box; ax: number; ay: number; ox: number; oy: number; kx: number; ky: number }
+type Rect = Pick<Frame, 'l' | 't' | 'w' | 'h' | 'W' | 'H'> & { ox?: number; oy?: number };
 
 function start() {
   const api = (window as unknown as { UnysonPlusScene: Api }).UnysonPlusScene;
@@ -157,13 +162,15 @@ function start() {
     const node = player.layerElement(id);
     const cv = player.canvas();
     if (!lay || !node || lay.hidden) return null;
-    const W = cv.clientWidth;
-    const H = cv.clientHeight;
+    const sp = player.space(id);
+    const W = sp.clientWidth;
+    const H = sp.clientHeight;
+    const r = sp.getBoundingClientRect();
     const b = box ?? lay.box;
     const w = (node.offsetWidth / W) * 100;
     const h = (node.offsetHeight / H) * 100;
     const [ax, ay] = ANCHOR[b.anchor ?? 'center'];
-    return { l: b.x - w * ax, t: b.y - h * ay, w, h, W, H, box: b, ax, ay };
+    return { l: b.x - w * ax, t: b.y - h * ay, w, h, W, H, box: b, ax, ay, ox: r.left, oy: r.top, kx: W / (cv.clientWidth || W), ky: H / (cv.clientHeight || H) };
   }
 
   function bounds(frames: Rect[]): Rect | null {
@@ -172,15 +179,17 @@ function start() {
     const t = Math.min(...frames.map((f) => f.t));
     const r = Math.max(...frames.map((f) => f.l + f.w));
     const b = Math.max(...frames.map((f) => f.t + f.h));
-    return { l, t, w: r - l, h: b - t, W: frames[0].W, H: frames[0].H };
+    return { l, t, w: r - l, h: b - t, W: frames[0].W, H: frames[0].H, ox: frames[0].ox, oy: frames[0].oy };
   }
 
   function place(div: HTMLElement, f: Rect) {
     const cr = player.canvas().getBoundingClientRect();
+    const ox = f.ox ?? cr.left;
+    const oy = f.oy ?? cr.top;
     Object.assign(div.style, {
       display: 'block',
-      left: `${cr.left + (f.l / 100) * f.W}px`,
-      top: `${cr.top + (f.t / 100) * f.H}px`,
+      left: `${ox + (f.l / 100) * f.W}px`,
+      top: `${oy + (f.t / 100) * f.H}px`,
       width: `${(f.w / 100) * f.W}px`,
       height: `${(f.h / 100) * f.H}px`,
     });
@@ -369,14 +378,16 @@ function start() {
     return best;
   }
 
-  function showGuides(lineX: number | null, lineY: number | null, f: { W: number; H: number }) {
+  function showGuides(lineX: number | null, lineY: number | null, f: { W: number; H: number; ox?: number; oy?: number }) {
     const cr = player.canvas().getBoundingClientRect();
     const stageRect = document.querySelector('.upw-stage')!.getBoundingClientRect();
+    const ox = f.ox ?? cr.left;
+    const oy = f.oy ?? cr.top;
     if (lineX !== null) {
-      Object.assign(gx.style, { display: 'block', left: `${cr.left + (lineX / 100) * f.W}px`, top: `${stageRect.top}px`, height: `${stageRect.height}px` });
+      Object.assign(gx.style, { display: 'block', left: `${ox + (lineX / 100) * f.W}px`, top: `${stageRect.top}px`, height: `${stageRect.height}px` });
     } else gx.style.display = 'none';
     if (lineY !== null) {
-      Object.assign(gy.style, { display: 'block', top: `${cr.top + (lineY / 100) * f.H}px`, left: `${stageRect.left}px`, width: `${stageRect.width}px` });
+      Object.assign(gy.style, { display: 'block', top: `${oy + (lineY / 100) * f.H}px`, left: `${stageRect.left}px`, width: `${stageRect.width}px` });
     } else gy.style.display = 'none';
   }
 
@@ -414,7 +425,7 @@ function start() {
         const l = f.l + ddx;
         const t = f.t + ddy;
         drag.patches.set(id, { x: round(l + f.w * f.ax), y: round(t + f.h * f.ay) });
-        live.set(id, { l, t, w: f.w, h: f.h, W: f.W, H: f.H });
+        live.set(id, { l, t, w: f.w, h: f.h, W: f.W, H: f.H, ox: f.ox, oy: f.oy });
       }
     } else {
       const id = drag.ids[0];
@@ -443,13 +454,14 @@ function start() {
       const horizontal = hnd.includes('e') || hnd.includes('w');
       const vertical = layer.type !== 'text' && (hnd.includes('n') || hnd.includes('s') || ratioLocked || e.shiftKey);
       const patch: Partial<Box> = {};
+      // Sizes are stored in frame units: a pinned layer measures in the stage-wide space, so convert.
       if (horizontal) {
-        patch.w = round(w);
+        patch.w = round(w * f0.kx);
         patch.x = round(l + w * f0.ax);
       }
       if (vertical) {
         patch.y = round(t + h * f0.ay);
-        if (!ratioLocked) patch.h = round(h);
+        if (!ratioLocked) patch.h = round(h * f0.ky);
       }
       drag.patches.set(id, patch);
       if (layer.type === 'text') {
@@ -458,7 +470,7 @@ function start() {
         const f = frame(id, { ...f0.box, ...patch });
         if (f) live.set(id, f);
       } else {
-        live.set(id, { l, t, w, h, W: f0.W, H: f0.H });
+        live.set(id, { l, t, w, h, W: f0.W, H: f0.H, ox: f0.ox, oy: f0.oy });
       }
     }
     for (const [id, patch] of drag.patches) player.previewLayer(id, patch);
@@ -491,19 +503,17 @@ function start() {
 
   /** Layers whose frames overlap a screen rectangle. */
   function layersInRect(x0: number, y0: number, x1: number, y1: number): string[] {
-    const cr = player.canvas().getBoundingClientRect();
-    const cv = player.canvas();
-    const toL = (x: number) => ((x - cr.left) / cv.clientWidth) * 100;
-    const toT = (y: number) => ((y - cr.top) / cv.clientHeight) * 100;
-    const l = toL(Math.min(x0, x1)), r = toL(Math.max(x0, x1));
-    const t = toT(Math.min(y0, y1)), b = toT(Math.max(y0, y1));
+    // Compared on screen, since layers may be measured in different spaces (the canvas, the pin space).
+    const L = Math.min(x0, x1), R = Math.max(x0, x1), T = Math.min(y0, y1), B = Math.max(y0, y1);
     const hits: string[] = [];
     for (const layer of allLayers(scene().layers)) {
       if (isLocked(layer.id) || parentOf(layer.id) !== scope) continue;
       const node = player.layerElement(layer.id);
       if (!node || getComputedStyle(node).visibility === 'hidden') continue;
       const f = frame(layer.id);
-      if (f && f.l < r && f.l + f.w > l && f.t < b && f.t + f.h > t) hits.push(layer.id);
+      if (!f) continue;
+      const fl = f.ox + (f.l / 100) * f.W, fr = fl + (f.w / 100) * f.W, ft = f.oy + (f.t / 100) * f.H, fb = ft + (f.h / 100) * f.H;
+      if (fl < R && fr > L && ft < B && fb > T) hits.push(layer.id);
     }
     return hits;
   }

@@ -280,6 +280,26 @@ function EndBehaviour({ scene, time, onPlayback }: { scene: Scene; time: number;
   );
 }
 
+/**
+ * Pin to the stage: the layer is placed against the stage (whatever box the scene fills) instead of
+ * the scene's frame, so a corner is the real corner. Top-level layers only.
+ */
+function PinField({ scene, layer, onChange }: { scene: Scene; layer: Layer; onChange: (pin: Layer['pin']) => void }) {
+  if (!scene.layers.some((l) => l.id === layer.id)) return null;
+  return (
+    <>
+      <CheckField label="Pin to the stage" checked={layer.pin === 'stage'} onChange={(v) => onChange(v ? 'stage' : undefined)} />
+      {layer.pin === 'stage' && (
+        <p className="field-hint wide">
+          X and Y are now % of the stage, so 100 / 100 with the bottom-right anchor is the stage's real corner, on any
+          screen shape. It sits above the other layers and stays put when the camera moves. Try a wide window with the
+          Fill or Capped height to see it hold the corner.
+        </p>
+      )}
+    </>
+  );
+}
+
 /** Makes a layer (or a whole group) a link. */
 function LinkSection({ layer, onChange }: { layer: Layer; onChange: (link: Layer['link']) => void }) {
   const link = layer.link;
@@ -387,6 +407,12 @@ function GroupInspector({ scene, group, onCommit, onSelect, alignTo, onAlignTo, 
       </Section>
 
       <TransitionSection scene={scene} group={group} onCommit={onCommit} />
+
+      {scene.layers.some((l) => l.id === group.id) && (
+        <Section title="Pin">
+          <PinField scene={scene} layer={group} onChange={(pin) => props({ pin })} />
+        </Section>
+      )}
 
       <LinkSection layer={group} onChange={(link) => props({ link })} />
 
@@ -536,6 +562,7 @@ function LayerInspector({ scene, layer, bp, onCommit, onSelect, alignTo, onAlign
       )}
 
       <Section title="Position and size">
+        <PinField scene={scene} layer={layer} onChange={(pin) => props({ pin })} />
         <NumberField label="X" value={box.x} step={0.5} unit="%" onCommit={(v) => v !== undefined && layout({ box: { x: v } })} />
         <NumberField label="Y" value={box.y} step={0.5} unit="%" onCommit={(v) => v !== undefined && layout({ box: { y: v } })} />
         <NumberField label="Width" value={box.w} step={0.5} min={0.1} unit="%" optional placeholder="Auto" onCommit={(v) => layout({ box: { w: v } })} />

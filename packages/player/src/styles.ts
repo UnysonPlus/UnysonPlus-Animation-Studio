@@ -29,6 +29,8 @@ body.admin-bar .upw-scene{--upw-offset-extra:32px}
 .upw-scene[data-fit="contain"] .upw-stage{container-type:size}
 .upw-scene[data-fit="contain"] .upw-canvas{left:50%;width:min(100%,calc(100cqh * var(--upw-arn,1.7778)));transform:translate(-50%,-50%)}
 .upw-cam{position:absolute;inset:0;transform-origin:50% 50%}
+.upw-pins{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.upw-pins .upw-layer{pointer-events:auto}
 .upw-layer{position:absolute;box-sizing:border-box}
 .upw-layer[data-hidden]{display:none}
 .upw-li{display:block;width:100%;height:100%;box-sizing:border-box}

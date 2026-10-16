@@ -269,6 +269,13 @@ interface LayerBase {
   locked?: boolean;
   /** Makes the layer a link (a group: its whole frame). */
   link?: LayerLink;
+  /**
+   * Pin to the stage (top-level layers only). The layer is placed against the stage itself rather than
+   * the scene's frame: its x / y are % of the stage, so a corner is the real corner of whatever box the
+   * scene fills, whatever its shape. Sizes and text keep the frame's units, so it matches everything
+   * else. Pinned layers sit above the others and stay still when the camera moves (like a channel logo).
+   */
+  pin?: 'stage';
   /** Per-breakpoint changes, keyed by breakpoint id. Layout only: clips are shared by every breakpoint. */
   overrides?: Record<string, LayerOverride>;
   clips: Clip[];

@@ -87,6 +87,11 @@ export interface ScenePlayer {
   canvas(): HTMLElement;
   /** A layer's positioned box element. */
   layerElement(id: string): HTMLElement | null;
+  /**
+   * The element a layer's position is a percentage of: the canvas (the scene's frame), or, for a layer
+   * pinned to the stage (or inside a pinned group), the pin space that covers the whole stage.
+   */
+  space(id: string): HTMLElement;
   /** A layer's layout at the current breakpoint, overrides included. */
   layout(id: string): LayerLayout | null;
   /** Shows a layer with a temporary box (while dragging), without changing the scene. Null restores it. */
@@ -168,6 +173,22 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   const emit = (e: PlayerEvent) => listeners.get(e)?.forEach((fn) => fn());
 
   let canvasEl!: HTMLElement;
+  let pinsEl!: HTMLElement;
+  /** Keeps the pin space over the whole stage (the canvas is centred in it, and may be smaller or larger). */
+  function fitPins() {
+    if (!pinsEl || !stageEl || !canvasEl) return;
+    const sw = stageEl.clientWidth, sh = stageEl.clientHeight, cw = canvasEl.offsetWidth, ch = canvasEl.offsetHeight;
+    Object.assign(pinsEl.style, { left: `${(cw - sw) / 2}px`, top: `${(ch - sh) / 2}px`, width: `${sw}px`, height: `${sh}px` });
+  }
+  // The pin space follows the stage and the canvas whatever changes their size (the window, a layout
+  // switch, the height mode), so it is re-fitted whenever either is resized.
+  const pinWatch = new ResizeObserver(() => relayoutPins());
+  /** Re-fits the pin space, and re-measures pinned groups (their frames are % of the stage). */
+  function relayoutPins() {
+    fitPins();
+    const pinned = layers.filter((r) => r.pinned);
+    if (pinned.length) layoutTree(pinned, current?.id ?? null);
+  }
   let camEl: HTMLElement | null = null;
   let cameraOn = options.camera !== false;
   let hasCamera = false;
@@ -291,7 +312,11 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     syncTranscript();
     injectFonts(doc, scene.stage.fonts);
 
-    const { stage, canvas, cam: camNode } = createStage(doc, scene);
+    const { stage, canvas, cam: camNode, pins } = createStage(doc, scene);
+    pinsEl = pins;
+    pinWatch.disconnect();
+    pinWatch.observe(stage);
+    pinWatch.observe(canvas);
     camEl = camNode;
     // The words are in the transcript; the animated copies would only be read twice (or mid-scramble).
     stage.setAttribute('aria-hidden', 'true');
@@ -301,7 +326,8 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     root.appendChild(stage);
     layers = scene.layers.map((layer, i) => {
       const refs = createLayer(doc, layer, i + 1);
-      camNode.appendChild(refs.outer);
+      // Pinned layers go in the pin space: placed against the stage, not moved by the camera.
+      (refs.pinned ? pins : camNode).appendChild(refs.outer);
       return refs;
     });
     start3d();
@@ -423,6 +449,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
         buildText(doc, r, text ?? '');
       }
     }
+    fitPins();
     layoutTree(layers, current?.id ?? null);
     tl = buildTimeline();
     tl.time(Math.min(time, scene.duration), false);
@@ -462,6 +489,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   const resizeObserver = new ResizeObserver((entries) => {
     const w = entries[0]?.contentRect.width;
     if (w) setBreakpointFromWidth(w);
+    relayoutPins();
     scrollLink?.refresh();
   });
   resizeObserver.observe(root);
@@ -623,6 +651,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     },
     canvas: () => canvasEl,
     layerElement: (id) => refsOf(id)?.outer ?? null,
+    space: (id) => (refsOf(id)?.pinned ? pinsEl : canvasEl),
     layout(id) {
       const r = refsOf(id);
       if (!r) return null;
@@ -673,6 +702,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       win.removeEventListener('keydown', onKey as EventListener);
       root.removeEventListener('keydown', onKey as EventListener);
       resizeObserver.disconnect();
+      pinWatch.disconnect();
       io.disconnect();
       listeners.clear();
       root.remove();

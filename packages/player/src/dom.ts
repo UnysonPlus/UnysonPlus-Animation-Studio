@@ -17,6 +17,8 @@ export interface LayerRefs {
   frame?: { l: number; t: number; w: number; h: number };
   /** 3D layers: the state presets animate, and the runtime that draws it (once scene-3d.js has loaded). */
   model?: { state: State3D; runtime?: Runtime3D };
+  /** In the pin space (pinned to the stage, or inside a pinned group): positions are % of the stage, sizes frame units. */
+  pinned?: boolean;
 }
 
 /** Every LayerRefs in a tree, groups and their contents included. */
@@ -49,13 +51,19 @@ export function createStage(doc: Document, scene: Scene) {
   cam.className = 'upw-cam';
   canvas.appendChild(cam);
 
+  // The pin space: covers the whole stage (fitPins keeps it there), above the camera and outside it.
+  // It is inside the canvas so sizes in frame units (cqw / cqh) mean the same as everywhere else.
+  const pins = doc.createElement('div');
+  pins.className = 'upw-pins';
+  canvas.appendChild(pins);
+
   const safe = doc.createElement('div');
   safe.className = 'upw-safe';
   const s = (scene.stage.safeArea ?? 0.06) * 100;
   Object.assign(safe.style, { left: `${s}%`, right: `${s}%`, top: `${s}%`, bottom: `${s}%` });
   canvas.appendChild(safe);
 
-  return { stage, canvas, cam, safe };
+  return { stage, canvas, cam, pins, safe };
 }
 
 /**
@@ -73,7 +81,7 @@ function addLink(doc: Document, outer: HTMLElement, link: LayerLink) {
   outer.appendChild(a);
 }
 
-export function createLayer(doc: Document, layer: Layer, z: number): LayerRefs {
+export function createLayer(doc: Document, layer: Layer, z: number, pinned = false): LayerRefs {
   const outer = doc.createElement('div');
   outer.className = `upw-layer upw-${layer.type}`;
   outer.dataset.layer = layer.id;
@@ -83,7 +91,7 @@ export function createLayer(doc: Document, layer: Layer, z: number): LayerRefs {
   inner.className = 'upw-li';
   outer.appendChild(inner);
 
-  const refs: LayerRefs = { layer, outer, inner, words: [], chars: [] };
+  const refs: LayerRefs = { layer, outer, inner, words: [], chars: [], pinned: pinned || layer.pin === 'stage' };
   if (layer.link) addLink(doc, outer, layer.link);
 
   if (layer.type === 'group') {
@@ -94,7 +102,7 @@ export function createLayer(doc: Document, layer: Layer, z: number): LayerRefs {
     inner.appendChild(proxy);
     refs.proxy = proxy;
     refs.children = layer.layers.map((child, i) => {
-      const c = createLayer(doc, child, i + 1);
+      const c = createLayer(doc, child, i + 1, refs.pinned);
       proxy.appendChild(c.outer);
       return c;
     });
@@ -196,13 +204,16 @@ export function applyLayout(refs: LayerRefs, bpId: string | null) {
 
   os.left = `${box.x}%`;
   os.top = `${box.y}%`;
-  os.width = typeof box.w === 'number' ? `${box.w}%` : 'max-content';
+  // In the pin space, sizes stay in the frame's units (the pin space is the stage's size, the frame is not).
+  const wu = refs.pinned ? 'cqw' : '%';
+  const hu = refs.pinned ? 'cqh' : '%';
+  os.width = typeof box.w === 'number' ? `${box.w}${wu}` : 'max-content';
   if (typeof box.ratio === 'number' && box.ratio > 0) {
     os.height = '';
     os.aspectRatio = String(box.ratio);
   } else {
     os.aspectRatio = '';
-    os.height = typeof box.h === 'number' ? `${box.h}%` : '';
+    os.height = typeof box.h === 'number' ? `${box.h}${hu}` : '';
   }
   const [sx, sy] = ANCHOR_SHIFT[box.anchor ?? 'center'];
   os.transform = `translate(${sx}%, ${sy}%)${box.rotate ? ` rotate(${box.rotate}deg)` : ''}`;

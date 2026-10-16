@@ -54,6 +54,7 @@ SCENE TRANSITIONS (between groups: acts, slides, ideas)
 
 LINKS AND THE ENDING (calls to action)
 - Any layer or group may carry "link": { "href", "newTab"?, "label"? }. href is https://..., a same-site path (/download), an anchor (#pricing), mailto: or tel:. Put the link on the GROUP that holds a button's shape and its label, so the whole button is clickable. Give "label" when the layer has no words of its own (a shape, an icon).
+- A top-level layer or group may carry "pin": "stage": it is then placed against the stage itself (its box x / y are % of the stage, sizes stay in the usual units), so corner items (a badge, a logo, a corner call to action) sit in the real corner whatever the window's shape. Pinned layers sit above the rest and ignore the camera. Use it only for such corner or edge items.
 - Add links only when the request gives the address (or clearly asks for a button to a known page); never invent addresses.
 - "playback": { "loop": true, "loopFrom": <seconds> } plays the scene once, then repeats only from loopFrom to the end. Use it for an ending call to action: everything arrives, then only the closing part repeats. Set loopFrom after the closing entrances, and give the button a clip that starts and ends at rest within that span (pulse with "times": 1, float), so the repeat is seamless.
 
