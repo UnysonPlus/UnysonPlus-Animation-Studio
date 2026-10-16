@@ -4,6 +4,7 @@ import { VIDEO_SIZES, canRender, renderVideo, type RenderCheck } from '../lib/vi
 import { DownloadIcon } from './icons';
 
 const GUIDE = 'https://docs.unysonplus.com/guides/set-up-ai-for-unysonplus';
+const KIT_REPO = 'https://github.com/UnysonPlus/UnysonPlus-AI-Dev-Kit';
 
 /** Export → Video: an MP4 or WebM rendered frame by frame by the AI Dev Kit on this computer. */
 export function VideoSection(props: { scene: Scene; open: boolean; onDone: (note: string) => void }) {
@@ -60,7 +61,7 @@ export function VideoSection(props: { scene: Scene; open: boolean; onDone: (note
       </p>
       {check && !check.ok && (
         <p className="export-warn">
-          {check.reason === 'kit' && <>Video export runs through the <strong>AI Dev Kit</strong> on your computer. <a href={GUIDE} target="_blank" rel="noopener noreferrer">Set it up</a>, start it (start.bat or start.command), then open Export again.</>}
+          {check.reason === 'kit' && <>Video export runs through the <a href={KIT_REPO} target="_blank" rel="noopener noreferrer"><strong>AI Dev Kit</strong></a> on your computer. <a href={GUIDE} target="_blank" rel="noopener noreferrer">Set it up</a>, start it (start.bat or start.command), then open Export again.</>}
           {check.reason === 'outdated' && <>Your AI Dev Kit needs an update for video export. Close it and start it again: it updates itself.</>}
           {check.reason === 'ffmpeg' && <>The AI Dev Kit needs <strong>ffmpeg</strong> to make videos. Install it (Windows: <code>winget install Gyan.FFmpeg</code>; macOS: <code>brew install ffmpeg</code>), restart the kit, then open Export again.</>}
         </p>

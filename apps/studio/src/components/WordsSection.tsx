@@ -5,6 +5,7 @@ import { setAudio } from '../lib/audio';
 import { clipWords, installSpeech, isStrong, transcribe, transcribeStatus, type ModelKey, type TranscribeStatus } from '../lib/transcribe';
 
 const GUIDE = 'https://docs.unysonplus.com/guides/set-up-ai-for-unysonplus';
+const KIT_REPO = 'https://github.com/UnysonPlus/UnysonPlus-AI-Dev-Kit';
 const PACE: Record<string, string> = { slow: 'unhurried', steady: 'steady', brisk: 'brisk', fast: 'fast', silent: 'no speech' };
 
 /**
@@ -121,7 +122,7 @@ export function WordsSection(props: {
 
       {kitError && (
         <p className="field-hint wide">
-          Transcription runs in the <strong>AI Dev Kit</strong> on your computer (free; nothing is uploaded). {kitError}{' '}
+          Transcription runs in the <a href={KIT_REPO} target="_blank" rel="noopener noreferrer"><strong>AI Dev Kit</strong></a> on your computer (free; nothing is uploaded). {kitError}{' '}
           <a href={GUIDE} target="_blank" rel="noopener noreferrer">Set it up</a>, then <button type="button" className="link-btn" onClick={refresh}>check again</button>.
         </p>
       )}

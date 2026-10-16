@@ -5,6 +5,7 @@ import { askForScene, type KitStatus } from '../lib/ai';
 import { applyStyle, styleBrief, type SceneStyle } from '../lib/styles';
 
 const GUIDE = 'https://docs.unysonplus.com/guides/set-up-ai-for-unysonplus';
+const KIT_REPO = 'https://github.com/UnysonPlus/UnysonPlus-AI-Dev-Kit';
 
 const START_IDEAS = [
   'A bold launch hero for a new running shoe: dark background, neon green accent, the headline "Run lighter." and a short supporting line.',
@@ -180,7 +181,7 @@ export function AiAssist(props: {
             {status.state === 'outdated' && <span>Your AI Dev Kit needs an update for the Studio. Close it and start it again (start.bat or start.command): it updates itself.</span>}
             {status.state === 'missing' && (
               <span>
-                AI assist runs through the <strong>AI Dev Kit</strong> on your computer, with your own AI.{' '}
+                AI assist runs through the <a href={KIT_REPO} target="_blank" rel="noopener noreferrer"><strong>AI Dev Kit</strong></a> on your computer, with your own AI.{' '}
                 <a href={GUIDE} target="_blank" rel="noopener noreferrer">Set it up</a>, start it (start.bat or start.command), then
                 check again. If the browser asks to let this site reach apps on your device, choose <strong>Allow</strong>.
               </span>
