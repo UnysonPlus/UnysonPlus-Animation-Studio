@@ -44,13 +44,18 @@ export function createStage(doc: Document, scene: Scene) {
   canvas.className = 'upw-canvas';
   stage.appendChild(canvas);
 
+  // The camera: the layers live inside it, so moving it moves the view (overlays stay outside).
+  const cam = doc.createElement('div');
+  cam.className = 'upw-cam';
+  canvas.appendChild(cam);
+
   const safe = doc.createElement('div');
   safe.className = 'upw-safe';
   const s = (scene.stage.safeArea ?? 0.06) * 100;
   Object.assign(safe.style, { left: `${s}%`, right: `${s}%`, top: `${s}%`, bottom: `${s}%` });
   canvas.appendChild(safe);
 
-  return { stage, canvas, safe };
+  return { stage, canvas, cam, safe };
 }
 
 export function createLayer(doc: Document, layer: Layer, z: number): LayerRefs {

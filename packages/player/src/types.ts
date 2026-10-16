@@ -27,8 +27,28 @@ export interface Scene {
   markers?: Marker[];
   /** Sound: voice-overs, music and effects on the timeline. Silent until the visitor turns sound on. */
   audio?: AudioClip[];
+  /** The camera: keyframes that pan, zoom, roll and tilt the view over every layer (see camera.ts). */
+  camera?: { keys: CameraKey[] };
   /** How the scene's words reach search engines and screen readers (see transcript.ts). */
   transcript?: TranscriptSettings;
+}
+
+export interface CameraKey {
+  id: string;
+  /** Seconds from the start of the scene. */
+  t: number;
+  /** Pan: the view's centre moves this far right / down, in % of the stage (-100 to 100). */
+  x?: number;
+  y?: number;
+  /** 1 = as laid out; 2 = twice as close. */
+  zoom?: number;
+  /** Rotation of the view, in degrees. */
+  roll?: number;
+  /** Perspective tilt in degrees: tiltX leans the top away (positive) or towards you; tiltY turns left/right. */
+  tiltX?: number;
+  tiltY?: number;
+  /** The curve of the move INTO this key (a named ease or cubic(...)). */
+  ease?: string;
 }
 
 export interface TranscriptSettings {

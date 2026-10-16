@@ -1,7 +1,7 @@
 /**
  * The player's stylesheet, injected once per document.
  *
- * Structure:  [data-upw-scene] > .upw-scene > .upw-stage > .upw-canvas > .upw-layer > .upw-li
+ * Structure:  [data-upw-scene] > .upw-scene > .upw-stage > .upw-canvas > .upw-cam > .upw-layer > .upw-li
  *   host    Whatever element holds the scene. Always as wide as its container, even inside a
  *           centring flex layout, which would otherwise shrink a box with no content width to 0.
  *   stage   The visible box. Its height follows the height mode; it clips whatever falls outside.
@@ -19,6 +19,7 @@ export const PLAYER_CSS = `
 .upw-scene[data-mode="ratio-capped"] .upw-stage{max-height:calc(100vh - var(--upw-offset));max-height:calc(100svh - var(--upw-offset))}
 .upw-scene[data-mode="fill"] .upw-stage{aspect-ratio:auto;height:calc(100vh - var(--upw-offset));height:calc(100svh - var(--upw-offset))}
 .upw-canvas{position:absolute;left:0;top:50%;width:100%;aspect-ratio:var(--upw-ar);transform:translateY(-50%);container-type:size}
+.upw-cam{position:absolute;inset:0;transform-origin:50% 50%}
 .upw-layer{position:absolute;box-sizing:border-box}
 .upw-layer[data-hidden]{display:none}
 .upw-li{display:block;width:100%;height:100%;box-sizing:border-box}

@@ -3094,5 +3094,94 @@
         }
       ]
     }
-  ]
+  ],
+  "camera": {
+    "keys": [
+      {
+        "id": "cam1",
+        "t": 2.2,
+        "x": 0,
+        "y": 0,
+        "zoom": 1,
+        "roll": 0,
+        "tiltX": 0,
+        "tiltY": 0
+      },
+      {
+        "id": "cam2",
+        "t": 5.9,
+        "x": 0,
+        "y": 0,
+        "zoom": 1.07,
+        "roll": 0,
+        "tiltX": 0,
+        "tiltY": 0,
+        "ease": "none"
+      },
+      {
+        "id": "cam3",
+        "t": 6.4,
+        "x": 0,
+        "y": 0,
+        "zoom": 1,
+        "roll": 0,
+        "tiltX": 0,
+        "tiltY": 0,
+        "ease": "softInOut"
+      },
+      {
+        "id": "cam4",
+        "t": 19.6,
+        "x": 0,
+        "y": 0,
+        "zoom": 1,
+        "roll": 0,
+        "tiltX": 0,
+        "tiltY": 0
+      },
+      {
+        "id": "cam5",
+        "t": 24.9,
+        "x": 0,
+        "y": 0,
+        "zoom": 1.06,
+        "roll": 0,
+        "tiltX": 0,
+        "tiltY": -7,
+        "ease": "none"
+      },
+      {
+        "id": "cam6",
+        "t": 25.45,
+        "x": 0,
+        "y": 0,
+        "zoom": 1,
+        "roll": 0,
+        "tiltX": 0,
+        "tiltY": 0,
+        "ease": "softInOut"
+      },
+      {
+        "id": "cam7",
+        "t": 31.1,
+        "x": 0,
+        "y": 0,
+        "zoom": 1.14,
+        "roll": 0,
+        "tiltX": 24,
+        "tiltY": 0
+      },
+      {
+        "id": "cam8",
+        "t": 32.5,
+        "x": 0,
+        "y": 0,
+        "zoom": 1,
+        "roll": 0,
+        "tiltX": 0,
+        "tiltY": 0,
+        "ease": "softLand"
+      }
+    ]
+  }
 }

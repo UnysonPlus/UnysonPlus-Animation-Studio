@@ -42,6 +42,11 @@ SCROLL-LINKED SCENES
 - Use "playback": { "trigger": "scroll", "loop": false, "scroll": { "pin": true, "length": 1.5, "smooth": 0.4 } } only when the request asks for the animation to follow the page scroll (scroll-driven, scrubbed, pinned, "as you scroll").
 - Then the visitor's scrolling sets the pace: build one continuous sequence (things enter, transform, and the last state holds), not a loop. "length" is how many window heights of scrolling it takes while pinned (1-3); keep the scene 3-8 s long so each scroll step moves something.
 
+CAMERA (the whole view)
+- "camera": { "keys": [ { "id", "t" (scene seconds), "x"?, "y"? (pan: the view's centre moves this far right/down, % of the stage), "zoom"? (1 = as laid out), "tiltX"?, "tiltY"? (perspective tilt, degrees), "roll"? (degrees), "ease"? (the curve into this key) } ] }.
+- Each property moves between the keys that set it and holds its first value from the start, so give the first key every property you later animate (e.g. "tiltX": 0 before a tilt).
+- Use it for the big gestures only: a slow push in on a held headline (zoom 1 to 1.1 over 2-4 s), a tilt reveal (tiltX 20-30 to 0 with softLand), a pan between two areas laid out side by side. Return to zoom 1 before content near the edges appears (zooming crops the stage's edges).
+
 SCENE TRANSITIONS (between groups: acts, slides, ideas)
 - The "transition" presets (tr-slash, tr-flash, tr-whip, tr-zoom, tr-glitch, tr-dip) act on a whole group. Use them as a matched pair: an "out" clip on the group that leaves and an "in" clip on the next group, with the SAME start and duration (the next group's start), and the leaving group still on stage until it ends.
 - When a group leaves through a transition, its own layers should not exit just before it: the transition carries them away.

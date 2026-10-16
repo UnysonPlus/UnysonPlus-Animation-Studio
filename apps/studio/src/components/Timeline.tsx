@@ -6,6 +6,7 @@ import { groupDuration, groupOffset } from '@unysonplus/scene-player/groups';
 import { PRESET_MIME } from './Library';
 import { SAME_MOMENT, framesOf, isKeyframes, moveKey, writeFrames } from '../lib/keyframes';
 import { addMarker, moveMarker, removeMarker } from '../lib/markers';
+import { addCameraKey, cameraKeys, removeCameraKey, setCameraKey } from '../lib/cameraOps';
 import { setAudio, type AudioInfo } from '../lib/audio';
 import type { AudioClip } from '@unysonplus/scene-player/types';
 import type { Clip } from '@unysonplus/scene-player/types';
@@ -319,8 +320,15 @@ export function Timeline(props: Props) {
           <button type="button" className="btn small" onClick={() => props.onAddLayer('model')} title="A 3D object: text, a shape, an SVG logo or a glTF model">+ 3D</button>
           {!scope && <button type="button" className="btn small" onClick={props.onAddAudio} title="A voice-over, music or a sound effect (MP3, WAV, OGG…)">+ Audio</button>}
           {!scope && (
-            <button type="button" className="btn small" onClick={() => props.onCommit(addMarker(scene, props.time))}
-              title="A marker at the playhead (M). In a click-to-advance scene, the presentation stops there until a click.">+ Marker</button>
+            <>
+              <button type="button" className="btn small" onClick={() => {
+                const r = addCameraKey(scene, props.time);
+                props.onCommit(r.scene);
+                props.onSelect({ layerId: null, clipId: null, camera: r.id });
+              }} title="A camera key at the playhead: pan, zoom, tilt or roll the whole view. Two keys make a move.">+ Camera</button>
+              <button type="button" className="btn small" onClick={() => props.onCommit(addMarker(scene, props.time))}
+                title="A marker at the playhead (M). In a click-to-advance scene, the presentation stops there until a click.">+ Marker</button>
+            </>
           )}
         </div>
         <label className="tl-zoom">
@@ -380,6 +388,56 @@ export function Timeline(props: Props) {
               ))}
             </div>
           </div>
+
+          {!scope && scene.camera && scene.camera.keys.length > 0 && (() => {
+            const keys = cameraKeys(scene);
+            const camSel = !!selection.camera;
+            return (
+              <div className="tl-row tl-camera-row" style={{ height: ROW_H }}>
+                <div className="tl-head">
+                  <button type="button" className={`tl-name${camSel ? ' on' : ''}`} onClick={() => props.onSelect({ layerId: null, clipId: null, camera: keys[0].id })}>
+                    <span className="tl-glyph" aria-hidden="true">◎</span>
+                    <span className="tl-label">Camera</span>
+                  </button>
+                </div>
+                <div className="tl-lane" style={{ width }}>
+                  {keys.length > 1 && <div className="tl-cam-span" style={{ left: keys[0].t * pps, width: Math.max(2, (keys[keys.length - 1].t - keys[0].t) * pps) }} aria-hidden="true" />}
+                  {keys.map((k, i) => (
+                    <span key={k.id} role="button" tabIndex={-1}
+                      className={`tl-cam-key${selection.camera === k.id ? ' on' : ''}`}
+                      style={{ left: k.t * pps }}
+                      title={`Camera key ${i + 1} at ${k.t.toFixed(2)} s. Drag to move, double-click to delete.`}
+                      onDoubleClick={(e) => { e.stopPropagation(); props.onCommit(removeCameraKey(scene, k.id)); props.onSelect({ layerId: null, clipId: null }); }}
+                      onPointerDown={(e) => {
+                        if (e.button !== 0) return;
+                        e.stopPropagation();
+                        props.onSelect({ layerId: null, clipId: null, camera: k.id });
+                        props.onSeek(k.t);
+                        const x0 = e.clientX;
+                        let started = false;
+                        const move = (ev: PointerEvent) => {
+                          if (!started) {
+                            if (Math.abs(ev.clientX - x0) < 3) return;
+                            started = true;
+                            live.current.onBegin();
+                          }
+                          const t = Math.max(0, Math.min(D, Math.round((k.t + (ev.clientX - x0) / pps) * 100) / 100));
+                          live.current.onLive(setCameraKey(live.current.scene, k.id, { t }));
+                          live.current.onSeek(t);
+                        };
+                        const up = () => {
+                          removeEventListener('pointermove', move);
+                          removeEventListener('pointerup', up);
+                          if (started) live.current.onEnd();
+                        };
+                        addEventListener('pointermove', move);
+                        addEventListener('pointerup', up);
+                      }} />
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {rows.length === 0 && (
             <div className="tl-empty">{scope ? 'This group is empty. Add a layer to it, or go back to the scene.' : 'No layers yet. Add a text, shape or image layer to start.'}</div>

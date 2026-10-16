@@ -31,6 +31,8 @@ export interface Selection {
   key?: number;
   /** A selected audio clip (by id). */
   audio?: string;
+  /** A selected camera key (by id). */
+  camera?: string;
   /** Every selected layer, primary last, when more than one is selected. */
   multi?: string[];
 }

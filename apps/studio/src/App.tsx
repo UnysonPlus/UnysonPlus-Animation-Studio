@@ -14,6 +14,8 @@ import { addMarker } from './lib/markers';
 import { clearShareHash, hasSharedScene, readSharedScene } from './lib/share';
 import { addAudio, addSuggestedSounds, clearClipSounds, cleanSound, removeAudio, soundCounts, useSceneAudio } from './lib/audio';
 import { SoundLibrary } from './components/SoundLibrary';
+import { CameraInspector } from './components/CameraInspector';
+import { removeCameraKey } from './lib/cameraOps';
 import type { QueuedRequest } from './components/AiAssist';
 import { beatsText, voiceBase, voiceBeats, voiceBrief, voiceRequest } from './lib/voiceScene';
 import { StyleLibrary } from './components/StyleLibrary';
@@ -114,6 +116,8 @@ export function App() {
   const [selection, setSelection] = useState<Selection>({ layerId: null, clipId: null });
   const [deviceId, setDeviceId] = useState<Device['id']>('desktop');
   const [safe, setSafe] = useState(false);
+  /** Camera view: see the camera's moves in the preview (off to edit the flat layout). */
+  const [cameraView, setCameraView] = useState(true);
   const [tab, setTab] = useState<'inspect' | 'check' | 'json'>('inspect');
   // AI assist: the chat with the AI Dev Kit, and whether the kit is there.
   const [assistOpen, setAssistOpen] = useState(false);
@@ -178,6 +182,7 @@ export function App() {
   const selKey = selectedIds(selection).join('|');
   useEffect(() => { if (ready) post({ type: 'select', ids: selKey ? selKey.split('|') : [] }); }, [selKey, ready, post]);
   useEffect(() => { if (ready) post({ type: 'safe', show: safe }); }, [safe, ready, post]);
+  useEffect(() => { if (ready) post({ type: 'camera', on: cameraView }); }, [cameraView, ready, post]);
   useEffect(() => { if (ready) post({ type: 'ui', scale }); }, [scale, ready, post]);
 
   useEffect(() => { if (ready) post({ type: 'scope', id: scope }); }, [scope, ready, post]);
@@ -353,6 +358,11 @@ export function App() {
       else if (sc) leaveTo(containerOf(s, sc));
       return true;
     }
+    if ((key === 'Delete' || key === 'Backspace') && sel.camera) {
+      commit(removeCameraKey(s, sel.camera));
+      setSelection({ layerId: null, clipId: null });
+      return true;
+    }
     if ((key === 'Delete' || key === 'Backspace') && sel.audio) {
       commit(removeAudio(s, sel.audio));
       setSelection({ layerId: null, clipId: null });
@@ -427,6 +437,9 @@ export function App() {
           break;
         case 'upw:error':
           setFrameError(m.message ? String(m.message) : null);
+          break;
+        case 'upw:camera-blocked':
+          setNotice('The camera is moving the view here. Turn Camera view off in the toolbar to select and move layers on the stage (or select them in the timeline).');
           break;
         case 'upw:select': {
           const ids: string[] = Array.isArray(m.ids) ? m.ids : m.id ? [m.id] : [];
@@ -768,6 +781,13 @@ export function App() {
               <span className="toggle-track" aria-hidden="true" />
               Safe area
             </label>
+            {!!scene.camera?.keys.length && (
+              <label className="toggle" title="Show the camera's moves on the stage. Turn it off to select and move layers in the flat layout.">
+                <input type="checkbox" checked={cameraView} onChange={(e) => setCameraView(e.target.checked)} />
+                <span className="toggle-track" aria-hidden="true" />
+                Camera view
+              </label>
+            )}
             <button type="button" className="icon-btn fs-open" onClick={() => setFullscreen(true)} aria-label="Full screen" title="Full screen: play the scene at your screen's real size (F)">
               <FullscreenIcon />
             </button>
@@ -859,7 +879,10 @@ export function App() {
             {tab === 'check' && (
               <CheckPanel issues={issues} aiReady={kit.state === 'ready'} onFix={fixIssue} onFixAll={fixAll} onShow={showIssue} onAskAi={askAiToFix} />
             )}
-            {tab === 'inspect' && selection.audio && scene.audio?.some((a) => a.id === selection.audio) ? (
+            {tab === 'inspect' && selection.camera && scene.camera?.keys.some((k) => k.id === selection.camera) ? (
+              <CameraInspector scene={scene} keyId={selection.camera} time={state.time} cameraView={cameraView} onCommit={commit} onSeek={seek}
+                onSelectKey={(id) => setSelection(id ? { layerId: null, clipId: null, camera: id } : { layerId: null, clipId: null })} />
+            ) : tab === 'inspect' && selection.audio && scene.audio?.some((a) => a.id === selection.audio) ? (
               <AudioInspector scene={scene} clip={scene.audio!.find((a) => a.id === selection.audio)!} info={audioInfo[scene.audio!.find((a) => a.id === selection.audio)!.src]}
                 onCommit={commit} onDeselect={() => setSelection({ layerId: null, clipId: null })} onSeek={seek}
                 onMakeScene={(clipId) => {

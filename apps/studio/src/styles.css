@@ -751,3 +751,9 @@ h1, h2, p { margin: 0; }
 .clip .clip-words span.strong { font-weight: 750; color: oklch(0.95 0.12 160); }
 
 .words-make { align-self: flex-start; margin-top: 4px; }
+
+/* ---------- camera row ---------- */
+.tl-camera-row .tl-glyph { background: oklch(0.38 0.08 300); }
+.tl-cam-span { position: absolute; top: 50%; height: 2px; margin-top: -1px; background: oklch(0.7 0.12 300 / .45); pointer-events: none; }
+.tl-cam-key { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; background: oklch(0.72 0.14 300); border: 1.5px solid oklch(0.95 0.03 300); transform: rotate(45deg); border-radius: 2px; cursor: ew-resize; z-index: 3; }
+.tl-cam-key.on { background: var(--accent); border-color: #fff; }

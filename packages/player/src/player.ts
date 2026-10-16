@@ -12,6 +12,7 @@ import { load3d } from './model3d';
 import { SceneAudio } from './audio';
 import { soundTrack } from './sfx';
 import { TRANSCRIPT_CLASS, transcriptHtml } from './transcript';
+import { buildCamera, cameraTransform, isRest, CAMERA_REST, type CameraState } from './camera';
 import { defaultEaseFor } from './presets/catalog';
 
 // The measured eases, usable by name in any clip (and in custom code clips).
@@ -38,6 +39,8 @@ export interface MountOptions {
   audio?: boolean;
   /** Start with sound on (only after a user gesture, such as the click that opened full screen). */
   soundOn?: boolean;
+  /** Show the scene's camera moves (default true). An editor turns it off to edit the flat layout. */
+  camera?: boolean;
 }
 
 export type PlayerEvent = 'update' | 'play' | 'pause' | 'complete' | 'breakpoint' | 'rebuild';
@@ -66,6 +69,10 @@ export interface ScenePlayer {
   prev(): void;
   /** Click-to-advance: stopped at a marker, waiting for the next click. */
   readonly waiting: boolean;
+  /** Shows or hides the camera's moves (editors edit the flat layout with it off). */
+  setCamera(on: boolean): void;
+  /** True when the camera is on and currently moves the view away from the flat layout. */
+  readonly cameraActive: boolean;
   /** Swap in a changed scene, keeping the playhead (and playback) where it was. Throws if invalid. */
   update(scene: unknown): void;
   setSafeArea(show: boolean): void;
@@ -142,6 +149,18 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
   const emit = (e: PlayerEvent) => listeners.get(e)?.forEach((fn) => fn());
 
   let canvasEl!: HTMLElement;
+  let camEl: HTMLElement | null = null;
+  let cameraOn = options.camera !== false;
+  let hasCamera = false;
+  const cam: CameraState = { ...CAMERA_REST };
+  /** Draws the camera's current state (or the flat layout when it is off). */
+  function applyCamera() {
+    if (!camEl) return;
+    const on = cameraOn && hasCamera && !isRest(cam);
+    camEl.style.transform = on ? cameraTransform(cam) : '';
+    if (on && (cam.tiltX || cam.tiltY)) canvasEl.style.perspective = `${Math.round((canvasEl.clientWidth || 1000) * 1.6)}px`;
+    else canvasEl.style.perspective = '';
+  }
   let stageEl!: HTMLElement;
   let scrollLink: ScrollLink | null = null;
   let layers: LayerRefs[] = [];
@@ -252,7 +271,8 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     syncTranscript();
     injectFonts(doc, scene.stage.fonts);
 
-    const { stage, canvas } = createStage(doc, scene);
+    const { stage, canvas, cam: camNode } = createStage(doc, scene);
+    camEl = camNode;
     // The words are in the transcript; the animated copies would only be read twice (or mid-scramble).
     stage.setAttribute('aria-hidden', 'true');
     canvasEl = canvas;
@@ -261,7 +281,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     root.appendChild(stage);
     layers = scene.layers.map((layer, i) => {
       const refs = createLayer(doc, layer, i + 1);
-      canvas.appendChild(refs.outer);
+      camNode.appendChild(refs.outer);
       return refs;
     });
     start3d();
@@ -273,6 +293,7 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
       paused: true,
       onUpdate: () => {
         render3d();
+        applyCamera();
         emit('update');
       },
       onRepeat: () => syncAudio(),
@@ -288,6 +309,8 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     t.set({}, {}, scene.duration);
 
     addLayers(t, layers, scene.duration);
+    hasCamera = buildCamera(t, scene, cam);
+    applyCamera();
     // A scroll-linked scene follows the page, so it never loops on its own.
     if (clickMode()) {
       // A presentation: stop at every marker and wait. It never repeats on its own; the click after the
@@ -422,6 +445,8 @@ export function mount(host: HTMLElement, input: unknown, options: MountOptions =
     get time() { return tl ? tl.time() : 0; },
     get playing() { return !!tl && !tl.paused(); },
     get waiting() { return waiting; },
+    setCamera(on: boolean) { cameraOn = on; applyCamera(); },
+    get cameraActive() { return cameraOn && hasCamera && !isRest(cam); },
     next() {
       if (!tl || !clickMode()) return;
       const now = tl.time();

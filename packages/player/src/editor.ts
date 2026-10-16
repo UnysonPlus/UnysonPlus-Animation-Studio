@@ -253,6 +253,8 @@ function start() {
     }
   }
   const redraw = () => {
+    // While the camera moves the view, the flat-layout handles would sit in the wrong place: hide them.
+    ov.style.visibility = player.cameraActive ? 'hidden' : '';
     if (drawQueued) return;
     drawQueued = true;
     requestAnimationFrame(() => {
@@ -268,10 +270,12 @@ function start() {
     reportQueued = true;
     requestAnimationFrame(() => {
       reportQueued = false;
+      ov.style.visibility = player.cameraActive ? 'hidden' : '';
       const stage = document.querySelector('.upw-stage');
       send({
         type: 'upw:state', time: player.time, duration: player.duration, playing: player.playing,
         breakpoint: player.breakpoint, stageHeight: stage ? Math.round(stage.getBoundingClientRect().height) : 0,
+        camera: player.cameraActive,
       });
     });
   };
@@ -529,6 +533,8 @@ function start() {
 
   addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || editing) return;
+    // Layers are edited in the flat layout: with the camera moving the view, say so instead.
+    if (player.cameraActive) { send({ type: 'upw:camera-blocked' }); return; }
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     const handle = (e.target as HTMLElement).closest?.('.h') as HTMLElement | null;
 
@@ -741,6 +747,7 @@ function start() {
     else if (m.type === 'pause') player.pause();
     else if (m.type === 'seek') player.seek(Number(m.time) || 0);
     else if (m.type === 'safe') player.setSafeArea(!!m.show);
+    else if (m.type === 'camera') { player.setCamera(!!m.on); redraw(); report(); }
     else if (m.type === 'select') setSelection(Array.isArray(m.ids) ? m.ids : m.id ? [m.id] : [], false);
     else if (m.type === 'align') align(m.mode as AlignMode, m.to as AlignTo);
     else if (m.type === 'scope') {

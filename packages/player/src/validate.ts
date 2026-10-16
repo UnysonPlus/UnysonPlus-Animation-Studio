@@ -2,6 +2,7 @@ import { SCENE_FORMAT, SCENE_VERSION } from './types';
 import type { Anchor, Breakpoint, Clip, HeightMode, Layer, Scene } from './types';
 import { PRESET_IDS } from './presets/catalog';
 import { SFX_IDS, parseSfxSrc } from './sfx';
+import { CAMERA_LIMITS, CAMERA_PROPS } from './camera';
 
 /**
  * Checks a parsed scene file and fills in defaults. Errors stop the scene from playing; warnings are
@@ -137,6 +138,29 @@ export function validateScene(input: unknown): ValidationResult {
           }
         }
         if (a.speech !== undefined && !isObj(a.speech)) fail(`${ap}.speech`, 'must be an object');
+      });
+    }
+  }
+
+  // Camera
+  if (scene.camera !== undefined) {
+    const cam = scene.camera as unknown;
+    if (!isObj(cam) || !Array.isArray(cam.keys) || cam.keys.length > 500) fail('camera', 'must be { keys: [...] } with at most 500 keys');
+    else {
+      const seenKeys = new Set<string>();
+      cam.keys.forEach((k: unknown, i: number) => {
+        const kp = `camera.keys[${i}]`;
+        if (!isObj(k)) return fail(kp, 'must be an object');
+        if (typeof k.id !== 'string' || !ID_RE.test(k.id)) fail(`${kp}.id`, 'must be a short id');
+        else if (seenKeys.has(k.id)) fail(`${kp}.id`, `"${k.id}" is used twice`);
+        else seenKeys.add(k.id);
+        if (!isNum(k.t) || k.t < 0) fail(`${kp}.t`, 'must be 0 or more seconds');
+        for (const p of CAMERA_PROPS) {
+          if (k[p] === undefined) continue;
+          const [lo, hi] = CAMERA_LIMITS[p];
+          if (!isNum(k[p]) || (k[p] as number) < lo || (k[p] as number) > hi) fail(`${kp}.${p}`, `must be ${lo} to ${hi}`);
+        }
+        if (k.ease !== undefined && (typeof k.ease !== 'string' || !EASE_RE.test(k.ease))) fail(`${kp}.ease`, 'is not a valid easing name');
       });
     }
   }

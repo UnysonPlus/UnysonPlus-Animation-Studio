@@ -36,7 +36,9 @@
   layers.push({ id: 'g', type: 'group', start: 1, clips: [{ id: 'gf', preset: 'slide', start: 0.2, duration: 0.6 }], layers: [
     { id: 'g1', type: 'text', text: 'In a group', style: { fontSize: 3 }, box: { x: 50, y: 92 }, clips: [{ id: 'c', preset: 'text-rise', start: 0.5, duration: 0.8 }] },
   ] });
-  const scene = { format: 'unysonplus-scene', version: 1, duration: Math.ceil(t + 2), stage: { breakpoints: [{ id: 'd', minWidth: 0, aspect: [16, 9] }], heightMode: 'ratio' }, playback: { trigger: 'manual', loop: false }, layers };
+  const scene = { format: 'unysonplus-scene', version: 1, duration: Math.ceil(t + 2), stage: { breakpoints: [{ id: 'd', minWidth: 0, aspect: [16, 9] }], heightMode: 'ratio' }, playback: { trigger: 'manual', loop: false }, layers,
+    // A camera, so its moves are checked for seeking too.
+    camera: { keys: [{ id: 'k1', t: 0.5, zoom: 1, x: 0, tiltX: 0 }, { id: 'k2', t: 2, zoom: 1.3, x: 10, ease: 'softInOut' }, { id: 'k3', t: 4, zoom: 1, x: 0, tiltX: 15, roll: 4 }] } };
 
   const player = S.mount(document.getElementById('host'), scene, { autoplay: false, editor: true, allowCode: true });
   const els = () => Array.from(document.querySelectorAll('.upw-canvas *'));

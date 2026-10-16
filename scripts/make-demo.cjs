@@ -188,6 +188,21 @@ transition(act5, act6, 'tr-flash', 0.5, { color: '#ffffff', strength: 90 }, { in
 // The end dips to black before the loop starts again.
 act6.clips = act6.clips.map((c) => (c.id === 'act6-out' ? { ...c, preset: 'tr-dip', start: 37.3, duration: 0.7, params: { direction: 'out', color: '#000000' } } : c));
 
+// The camera: a slow push on the opening headline (snapping back under the slash), a drift and turn around
+// the 3D knot, and a tilt reveal on the finale. Every key states every property it touches, so nothing
+// holds an unexpected value from the start.
+const CAM = (id, t, v, ease) => ({ id, t, x: 0, y: 0, zoom: 1, roll: 0, tiltX: 0, tiltY: 0, ...v, ...(ease ? { ease } : {}) });
+const camera = { keys: [
+  CAM('cam1', 2.2, {}),
+  CAM('cam2', 5.9, { zoom: 1.07 }, 'none'),
+  CAM('cam3', 6.4, {}, 'softInOut'),
+  CAM('cam4', 19.6, {}),
+  CAM('cam5', 24.9, { zoom: 1.06, tiltY: -7 }, 'none'),
+  CAM('cam6', 25.45, {}, 'softInOut'),
+  CAM('cam7', 31.1, { tiltX: 24, zoom: 1.14 }),
+  CAM('cam8', 32.5, {}, 'softLand'),
+] };
+
 const scene = {
   format: 'unysonplus-scene', version: 1, title: 'Make it move', duration: 38,
   stage: {
@@ -203,6 +218,7 @@ const scene = {
   },
   playback: { trigger: 'view', loop: true, repeatDelay: 0.4, posterTime: 4 },
   layers: [backdrop, act1, act2, act3, act4, act5, act6],
+  camera,
 };
 // Built-in sounds on the moments that matter, every one of the 25 used somewhere (the demo shows the whole
 // set, as it shows every preset). Each sound rides on its clip and moves with it.

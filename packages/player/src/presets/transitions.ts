@@ -49,9 +49,13 @@ function untouched(el: HTMLElement) {
 
 const canvasOf = (el: HTMLElement) => el.closest<HTMLElement>('.upw-canvas');
 
-/** An overlay above every layer, owned by this clip (reused when the timeline is rebuilt). */
-function overlay(ctx: PresetContext, cls: string): HTMLElement | null {
-  const canvas = canvasOf(ctx.el);
+/**
+ * An overlay above every layer, owned by this clip (reused when the timeline is rebuilt). A screen overlay
+ * (a flash, a dip) is fixed to the screen; a scene overlay (the slash's line) sits inside the camera, so it
+ * moves with the picture it cuts.
+ */
+function overlay(ctx: PresetContext, cls: string, inScene = false): HTMLElement | null {
+  const canvas = inScene ? ctx.el.closest<HTMLElement>('.upw-cam') ?? canvasOf(ctx.el) : canvasOf(ctx.el);
   if (!canvas) return null;
   const key = `${cls}-${ctx.clip.id}`;
   let node = canvas.querySelector<HTMLElement>(`:scope > [data-upw-own="${key}"]`);
@@ -68,16 +72,25 @@ function overlay(ctx: PresetContext, cls: string): HTMLElement | null {
 
 /**
  * Maps stage coordinates (% of the stage) to pixels in the element's own box, so a clip-path drawn on
- * any layer or group lines up with the stage.
+ * any layer or group lines up with the stage. Worked out from the layout (offsets), not from what is on
+ * screen, so a moving camera or the element's own animation never changes it: every frame computes the
+ * same shape whether it was reached by playing or by seeking.
  */
 function stageToLocal(el: HTMLElement): ((x: number, y: number) => string) | null {
   const canvas = canvasOf(el);
   if (!canvas) return null;
-  const c = canvas.getBoundingClientRect();
-  const r = el.getBoundingClientRect();
-  const sx = el.offsetWidth ? r.width / el.offsetWidth : 1;
-  const sy = el.offsetHeight ? r.height / el.offsetHeight : 1;
-  return (x, y) => `${(((c.left + (x / 100) * c.width) - r.left) / (sx || 1)).toFixed(1)}px ${(((c.top + (y / 100) * c.height) - r.top) / (sy || 1)).toFixed(1)}px`;
+  let left = 0;
+  let top = 0;
+  let node: HTMLElement | null = el;
+  while (node && node !== canvas) {
+    left += node.offsetLeft;
+    top += node.offsetTop;
+    node = node.offsetParent as HTMLElement | null;
+  }
+  if (node !== canvas) return null;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  return (x, y) => `${((x / 100) * w - left).toFixed(1)}px ${((y / 100) * h - top).toFixed(1)}px`;
 }
 
 /**
@@ -101,7 +114,7 @@ export const TRANSITION_BUILDERS: Record<string, (ctx: PresetContext) => void> =
     const angle = Math.max(-60, Math.min(60, num(p, 'angle', 25)));
     const color = str(p, 'color', '#e9ff3b');
     const glow = p.glow !== false;
-    const line = glow ? overlay(ctx, 'upw-tr-slash') : null;
+    const line = glow ? overlay(ctx, 'upw-tr-slash', true) : null;
     const bar = line ? (line.firstElementChild as HTMLElement | null) ?? line.appendChild(line.ownerDocument.createElement('i')) : null;
     if (bar) {
       // A white-hot core with the colour as its glow (sized from the stage in render: px, not cq units,
