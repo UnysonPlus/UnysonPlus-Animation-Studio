@@ -192,9 +192,38 @@ export const MORE_BUILDERS: Record<string, (ctx: PresetContext) => void> = {
     const img = ctx.el.querySelector('img');
     if (!img) return;
     const p = ctx.params;
+    const across = p.axis === 'x';
+    if (p.repeat === true) {
+      // Endless: the picture repeats end to end, so scrolling by whole pictures joins up seamlessly
+      // (from 0 to 100 is one full picture, and the next loop starts where this one ended).
+      // from / to are % of one picture here, and may go past 100 for more than one pass.
+      const from = num(p, 'from', 0);
+      const to = num(p, 'to', 100);
+      const strip = owned(ctx, 'upw-scroll');
+      ctx.el.style.position = 'relative';
+      ctx.el.style.overflow = 'hidden';
+      img.style.visibility = 'hidden';
+      Object.assign(strip.style, {
+        position: 'absolute', inset: '0', pointerEvents: 'none', borderRadius: 'inherit',
+        backgroundImage: `url("${img.src.replace(/"/g, '%22')}")`, backgroundRepeat: across ? 'repeat-x' : 'repeat-y',
+        backgroundSize: across ? 'auto 100%' : '100% auto',
+      });
+      let last = 0;
+      const render = (t: number) => {
+        last = t;
+        // One picture's length at the frame's size (known once the image has loaded).
+        const ratio = img.naturalWidth && img.naturalHeight ? (across ? img.naturalWidth / img.naturalHeight : img.naturalHeight / img.naturalWidth) : 0;
+        const length = (across ? strip.clientHeight : strip.clientWidth) * ratio;
+        const off = -(((from + (to - from) * t) / 100) * length);
+        const px = length ? `${(off % length).toFixed(2)}px` : '0px';
+        strip.style.backgroundPosition = across ? `${px} 50%` : `50% ${px}`;
+      };
+      if (!img.complete) img.addEventListener('load', () => render(last), { once: true });
+      drive(ctx, render);
+      return;
+    }
     const from = Math.max(0, Math.min(100, num(p, 'from', 0)));
     const to = Math.max(0, Math.min(100, num(p, 'to', 100)));
-    const across = p.axis === 'x';
     img.style.objectFit = 'cover';
     drive(ctx, (t) => {
       const v = (from + (to - from) * t).toFixed(3);

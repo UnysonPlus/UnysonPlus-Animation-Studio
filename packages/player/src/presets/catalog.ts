@@ -305,10 +305,10 @@ export const PRESET_CATALOG: PresetMeta[] = [
   },
   {
     id: 'scroll', label: 'Scroll', category: 'motion', appliesTo: ['image'],
-    description: 'Scrolls a tall screenshot inside its frame (or pans a wide one across), from one point to another. Make the frame shorter than the picture.',
+    description: 'Scrolls a tall screenshot inside its frame (or pans a wide one across), from one point to another. Make the frame shorter than the picture. Repeat makes it endless: the picture follows on from itself, and 0 to 100 is one full pass, so a looping ending joins up seamlessly (use the None ease for a steady speed).',
     defaultEase: 'power1.inOut', defaultDuration: 6,
-    defaults: { from: 0, to: 100, axis: 'y' },
-    fields: [{ key: 'from', label: 'From', type: 'number', min: 0, max: 100, step: 1, unit: '%' }, { key: 'to', label: 'To', type: 'number', min: 0, max: 100, step: 1, unit: '%' }, { key: 'axis', label: 'Direction', type: 'select', options: [{ value: 'y', label: 'Down' }, { value: 'x', label: 'Across' }] }],
+    defaults: { from: 0, to: 100, axis: 'y', repeat: false },
+    fields: [{ key: 'from', label: 'From', type: 'number', min: 0, max: 100, step: 1, unit: '%' }, { key: 'to', label: 'To', type: 'number', min: 0, max: 1000, step: 1, unit: '%' }, { key: 'axis', label: 'Direction', type: 'select', options: [{ value: 'y', label: 'Down' }, { value: 'x', label: 'Across' }] }, { key: 'repeat', label: 'Repeat (endless)', type: 'boolean' }],
   },
   {
     id: 'drift', label: 'Drift', category: 'ambient', appliesTo: ALL,
