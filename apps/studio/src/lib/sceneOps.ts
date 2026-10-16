@@ -193,8 +193,24 @@ export function addLayer(scene: Scene, type: Exclude<Layer['type'], 'group'>, ex
  * A clean slate: no layers, a short timeline, but the same stage set-up (screen sizes, height mode,
  * background, fonts) and playback, so the new scene drops into the same place on the page.
  */
+/** The Studio's default stage colour (a new scene starts on it). */
+export const DEFAULT_BACKGROUND = 'radial-gradient(120% 90% at 50% 40%, #121a20 0%, #0a0d11 70%)';
+
+/**
+ * A clean slate that keeps the set-up: screen sizes, height settings, safe area, fonts and playback.
+ * Everything that belonged to the old scene goes (layers, sound, markers, camera, its background).
+ */
 export function blankScene(from: Scene): Scene {
-  return { ...from, title: 'Untitled', duration: 6, layers: [], playback: { ...from.playback, posterTime: undefined } };
+  const { breakpoints, heightMode, heightOffset, safeArea, fonts } = from.stage;
+  return {
+    format: from.format,
+    version: from.version,
+    title: 'Untitled',
+    duration: 6,
+    stage: { breakpoints, heightMode, ...(heightOffset ? { heightOffset } : {}), ...(safeArea !== undefined ? { safeArea } : {}), ...(fonts?.length ? { fonts } : {}), background: DEFAULT_BACKGROUND },
+    playback: { ...from.playback, posterTime: undefined },
+    layers: [],
+  };
 }
 
 export function removeLayer(scene: Scene, id: string): Scene {
