@@ -11,6 +11,9 @@
  *           It is the size container, so 1cqw = 1% of the stage width ("stage units").
  *   layer   Positioned and anchored. Never animated, so its own transform is free for anchoring.
  *   li      The animated element.
+ *
+ * On a page, layers let clicks through (a group's stage-sized proxy would otherwise cover everything
+ * under it); only links take them. The editor handles pointers itself.
  */
 export const PLAYER_CSS = `
 [data-upw-scene]{display:block;width:100%;min-width:0;align-self:stretch;max-width:100%}
@@ -34,6 +37,8 @@ export const PLAYER_CSS = `
 .upw-3d{position:relative}
 .upw-link{position:absolute;inset:0;z-index:2147482000;display:block;cursor:pointer;border-radius:inherit;-webkit-tap-highlight-color:transparent}
 .upw-scene[data-editor] .upw-link{pointer-events:none}
+.upw-scene:not([data-editor]) .upw-layer{pointer-events:none}
+.upw-scene:not([data-editor]) .upw-link{pointer-events:auto}
 .upw-layer[data-focus]{outline:3px solid #fff;outline-offset:6px;border-radius:4px}
 .upw-scene[aria-roledescription="presentation"]{cursor:pointer}
 .upw-scene[aria-roledescription="presentation"]:focus{outline:none}

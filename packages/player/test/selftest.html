@@ -22,6 +22,7 @@
   // 20 fps puts every clip boundary in this scene (starts at 0.1 + 0.25 n, lengths in 0.05 s steps) exactly
   // on a frame, so the frames where a clip starts or ends are tested: the ones seeking gets wrong.
   const FPS = 20;
+  const TALL = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="800"><rect width="100" height="800" fill="#4c9"/><rect y="400" width="100" height="400" fill="#295"/></svg>');
   const layers = [];
   let t = 0.1;
   S.PRESET_CATALOG.forEach((p, i) => {
@@ -30,9 +31,13 @@
     const clips = [{ id: 'a' + i, preset: p.id, start: t, duration: p.defaultDuration }];
     if (hasDir) clips.push({ id: 'b' + i, preset: p.id, start: t + p.defaultDuration + 0.4, duration: 0.5, params: { direction: 'out' } });
     const box = { x: 10 + (i % 5) * 20, y: 12 + Math.floor(i / 5) * 18, w: 16, h: text ? undefined : 10, anchor: 'center' };
+    // Image-only presets get a tall picture (a scroll needs something to scroll).
+    const imageOnly = p.appliesTo.length === 1 && p.appliesTo[0] === 'image';
     layers.push(text
       ? { id: 'l' + i, type: 'text', text: 'Moving words ' + i, style: { fontSize: 2 }, box, clips }
-      : { id: 'l' + i, type: 'shape', shape: 'rect', fill: '#4c9', box, clips });
+      : imageOnly
+        ? { id: 'l' + i, type: 'image', src: TALL, box, clips }
+        : { id: 'l' + i, type: 'shape', shape: 'rect', fill: '#4c9', box, clips });
     t += 0.25;
   });
   layers.push({ id: 'g', type: 'group', start: 1, clips: [{ id: 'gf', preset: 'slide', start: 0.2, duration: 0.6 }], layers: [
@@ -48,7 +53,7 @@
     const c = getComputedStyle(el);
     // "none" and the identity matrix draw the same; GSAP leaves the second behind once it has touched an element.
     const tf = c.transform === 'matrix(1, 0, 0, 1, 0, 0)' ? 'none' : c.transform;
-    return [tf, c.opacity, c.filter, c.clipPath, c.visibility, c.letterSpacing, c.color, c.backgroundColor, el.children.length ? '' : el.textContent].join('|');
+    return [tf, c.opacity, c.filter, c.clipPath, c.visibility, c.letterSpacing, c.color, c.backgroundColor, c.objectPosition, el.children.length ? '' : el.textContent].join('|');
   }).join('\n');
 
   // A fixed pseudo-random order, so a failure is reproducible.

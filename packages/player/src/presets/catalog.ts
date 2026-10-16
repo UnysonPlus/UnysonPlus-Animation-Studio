@@ -304,6 +304,13 @@ export const PRESET_CATALOG: PresetMeta[] = [
     fields: [{ key: 'angle', label: 'Angle', type: 'number', min: 0, max: 360, step: 5, unit: '°' }, { key: 'width', label: 'Width', type: 'number', min: 5, max: 60, step: 1, unit: '%' }, { key: 'strength', label: 'Strength', type: 'number', min: 0, max: 1, step: 0.05 }, { key: 'color', label: 'Colour', type: 'color' }],
   },
   {
+    id: 'scroll', label: 'Scroll', category: 'motion', appliesTo: ['image'],
+    description: 'Scrolls a tall screenshot inside its frame (or pans a wide one across), from one point to another. Make the frame shorter than the picture.',
+    defaultEase: 'power1.inOut', defaultDuration: 6,
+    defaults: { from: 0, to: 100, axis: 'y' },
+    fields: [{ key: 'from', label: 'From', type: 'number', min: 0, max: 100, step: 1, unit: '%' }, { key: 'to', label: 'To', type: 'number', min: 0, max: 100, step: 1, unit: '%' }, { key: 'axis', label: 'Direction', type: 'select', options: [{ value: 'y', label: 'Down' }, { value: 'x', label: 'Across' }] }],
+  },
+  {
     id: 'drift', label: 'Drift', category: 'ambient', appliesTo: ALL,
     description: 'A slow, steady move and scale creep that keeps a held frame alive.',
     defaultEase: 'cruise', defaultDuration: 3,

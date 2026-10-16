@@ -185,6 +185,23 @@ export const MORE_BUILDERS: Record<string, (ctx: PresetContext) => void> = {
     }, { renderFirst: true });
   },
 
+  scroll(ctx) {
+    // Pans the picture inside the layer's frame, like scrolling a page: the image fills the frame
+    // (cover) and its visible part moves from one edge to the other. A tall screenshot in a short
+    // frame scrolls down; a wide one in a narrow frame pans across.
+    const img = ctx.el.querySelector('img');
+    if (!img) return;
+    const p = ctx.params;
+    const from = Math.max(0, Math.min(100, num(p, 'from', 0)));
+    const to = Math.max(0, Math.min(100, num(p, 'to', 100)));
+    const across = p.axis === 'x';
+    img.style.objectFit = 'cover';
+    drive(ctx, (t) => {
+      const v = (from + (to - from) * t).toFixed(3);
+      img.style.objectPosition = across ? `${v}% 50%` : `50% ${v}%`;
+    });
+  },
+
   drift(ctx) {
     const p = ctx.params;
     ctx.tl.fromTo(ctx.el,

@@ -6,6 +6,12 @@ import type { Layer, Scene } from '@unysonplus/scene-player/types';
 export const PRESET_MIME = 'application/x-upw-preset';
 
 /** A one-layer scene that shows a preset on its own, for the hover preview. */
+/** A tall "page" (a header, rows and blocks) for the Scroll preset's preview. */
+const SCROLL_SAMPLE = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="900"><rect width="200" height="900" fill="#f4f6f8"/><rect width="200" height="34" fill="#1d2733"/>'
+  + Array.from({ length: 12 }, (_, i) => `<rect x="16" y="${54 + i * 70}" width="${i % 3 === 0 ? 168 : 110}" height="${i % 3 === 0 ? 50 : 14}" rx="5" fill="${i % 3 === 0 ? '#2ad38b' : '#c6ced6'}"/>`).join('')
+  + '</svg>');
+
 function sampleScene(p: PresetMeta): Scene {
   const textual = p.appliesTo.includes('text');
   const word = p.id === 'text-scramble' || p.id === 'text-typewriter' ? 'Motion' : p.id === 'text-count' ? '$1,280' : 'Aa';
@@ -15,6 +21,8 @@ function sampleScene(p: PresetMeta): Scene {
       ? { id: 's', type: 'model', model: { kind: 'shape', shape: 'knot' }, material: { color: '#2ad38b', finish: 'glossy' }, box: { x: 50, y: 50, w: 70, h: 80 }, clips: [] }
     : p.id === 'particles'
       ? { id: 's', type: 'shape', shape: 'rect', fill: 'transparent', box: { x: 50, y: 50, w: 100, h: 100 }, clips: [] }
+      : p.id === 'scroll'
+        ? { id: 's', type: 'image', src: SCROLL_SAMPLE, radius: 2, box: { x: 50, y: 50, w: 34, h: 76 }, clips: [] }
       : p.id === 'gradient-flow'
         ? { id: 's', type: 'shape', shape: 'rect', fill: 'linear-gradient(90deg, #2ad38b, #3b82f6, #a855f7, #2ad38b)', radius: 3, box: { x: 50, y: 50, w: 70, h: 60 }, clips: [] }
         : { id: 's', type: 'shape', shape: 'rect', fill: '#2ad38b', radius: 3, box: { x: 50, y: 50, w: 26, ratio: 1 }, clips: [] };
